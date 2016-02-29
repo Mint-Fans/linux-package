@@ -1,5 +1,8 @@
-# Debian Package
+# Debian Packages
 https://github.com/Mint-Fans/debian-package/tree/debian
 
-# Ubuntu Package
+# Ubuntu Packages
 https://github.com/Mint-Fans/debian-package/tree/ubuntu
+
+# Arch Linux Packages
+https://github.com/Mint-Fans/debian-package/tree/arch
