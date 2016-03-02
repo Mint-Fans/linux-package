@@ -53,6 +53,9 @@ UEFI
 # grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=arch --recheck
 # grub-mkconfig -o /boot/grub/grub.cfg
 
+Network Download Utility
+# pacman -S wget
+
 Install Linux-firmware
 # cd /tmp
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/aic94xx-firmware-30-9-any.pkg.tar.xz
@@ -108,6 +111,9 @@ for example: User Name is arch
 
 # pacman -S network-manager-applet
 
+Network Utility
+# pacman -S git subversion
+
 Audio
 # pacman -S pulseaudio-alsa pulseaudio pavucontrol
 
@@ -120,9 +126,6 @@ Audio tray
 
 ------ Other installation
 # pacman -S cpio
-
-NetTools
-# pacman -S git subversion wget
 
 Live CD Tools
 # pacman -S arch-install-scripts
@@ -166,9 +169,10 @@ https://www.archlinux.org/packages/?sort=&q=firefox&maintainer=&flagged=
 # pacman -S evince
 # pacman -S gnome-font-viewer
 # pacman -S catfish
-# pacman -S banshee
+# pacman -S brasero
 # pacman -S ristretto
 # pacman -S gthumb
+# pacman -S banshee
 
 Video Player
 # pacman -S vlc    # VLC
@@ -281,20 +285,20 @@ xplayer-mozilla (Optional)
 
 ##########################################
 
-Exit from the chroot
-# exit
-
-
 -------- applications settings
-
 # sed -i '$a NoDisplay=true' /usr/share/applications/bssh.desktop
 # sed -i '$a NoDisplay=true' /usr/share/applications/bvnc.desktop
 # sed -i '$a NoDisplay=true' /usr/share/applications/avahi-discover.desktop
 # sed -i '$a NoDisplay=true' /usr/share/applications/fcitx.desktop
+# sed -i '$a NoDisplay=true' /usr/share/applications/fcitx-configtool.desktop
 
 # sed -i -e '/allow_active/s/auth_admin/yes/' /usr/share/polkit-1/actions/org.xfce.thunar.policy
 # sed -i -e '/allow_active/s/auth_admin_keep/yes/' /usr/share/polkit-1/actions/org.freedesktop.udisks2.policy
 # sed -i -e '/allow_active/s/auth_admin/yes/' /usr/share/polkit-1/actions/org.archlinux.pkexec.gparted.policy
+
+
+Exit from the chroot
+# exit
 
 -------- clear temp file
 # rm -r /mnt/var/cache/pacman/pkg
