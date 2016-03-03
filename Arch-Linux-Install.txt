@@ -6,19 +6,15 @@ $ sudo su
 or
 # pacstrap -i /mnt base base-devel
 
-
 Generate an fstab
 # genfstab -U /mnt > /mnt/etc/fstab
-
 
 Change root into the new system
 # arch-chroot /mnt /bin/bash
 
-
 Computer Name
 for example: archiso
 # echo archiso > /etc/hostname
-
 
 Settings Language
 Choose your language
@@ -37,7 +33,6 @@ or
 or
 # ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 # hwclock --systohc --utc
-
 
 Install Boot loader
 BIOS
@@ -71,15 +66,13 @@ Wired
 Set the root password
 # passwd
 
-Initramfs
+initramfs Update
 # mkinitcpio -p linux
-
 
 ------ Create User accounts
 # pacman -S sudo
 # sed -i '/NOPASSWD/a %wheel ALL=(ALL) NOPASSWD: ALL' /etc/sudoers
 # sed -i '/%sudo/a %sudo ALL=(ALL) NOPASSWD: ALL' /etc/sudoers
-
 # groupadd sudo
 
 for example: User Name is arch
@@ -100,6 +93,7 @@ for example: User Name is arch
 # pacman -Sy hwinfo
 
 ------ Desktop Environment
+XFCE
 # pacman -S xfdesktop xfce4-panel xfwm4 xfconf xfce4-settings xfce4-session xfce4-appfinder xfce4-screenshooter xfce4-power-manager xfce4-dict xfce4-notifyd xfce4-taskmanager xfce4-terminal
 
 # pacman -S xfce4-datetime-plugin xfce4-weather-plugin xfce4-xkb-plugin xfce4-cpufreq-plugin xfce4-eyes-plugin xfce4-mailwatch-plugin xfce4-systemload-plugin xfce4-timer-plugin xfce4-time-out-plugin xfce4-verve-plugin xfce4-whiskermenu-plugin xfce4-xkb-plugin
@@ -113,7 +107,7 @@ for example: User Name is arch
 Network Utility
 # pacman -S git subversion
 
-Audio
+Audio Utility
 # pacman -S pulseaudio-alsa pulseaudio pavucontrol
 
 Audio tray
@@ -130,9 +124,8 @@ Live CD Tools
 # pacman -S arch-install-scripts
 # pacman -S archiso
 # pacman -S cdrtools
-# ln -s /usr/bin/genisoimage /usr/bin/mkisofs
 
-Aircrack-ng
+Aircrack-ng (Optional)
 # pacman -S aircrack-ng
 # pacman -S reaver
 
@@ -149,10 +142,12 @@ base font
 
 ------ Application installation
 Firefox
+
 # pacman -S firefox
 language pack for Firefox
-https://www.archlinux.org/packages/?sort=&q=firefox&maintainer=&flagged=
+https://www.archlinu...ainer=&flagged=
 # pacman -S firefox-i18n-zh-tw
+
 # pacman -S flashplugin  # FlashPlayer
 
 # pacman -S leafpad
@@ -175,7 +170,7 @@ https://www.archlinux.org/packages/?sort=&q=firefox&maintainer=&flagged=
 
 Video Player
 # pacman -S vlc    # VLC
-# pacman -S parole # XFCE Parole
+# pacman -S parole # XFCE Parole (Optional)
 
 codes
 gstreamer 1.0
@@ -183,12 +178,14 @@ gstreamer 1.0
 # pacman -S gst-plugins-good
 # pacman -S gst-plugins-ugly
 # pacman -S gst-libav
+
 gstreamer 0.1
 # pacman -S gstreamer0.10-bad gstreamer0.10-bad-plugins
 # pacman -S gstreamer0.10-good gstreamer0.10-good-plugins
 # pacman -S gstreamer0.10-ugly gstreamer0.10-ugly-plugins
 # pacman -S gstreamer0.10-ffmpeg
-DVDTools
+
+DVD Utility
 # pacman -S libdvdread
 # pacman -S libdvdnav
 # pacman -S libdvdcss
@@ -197,7 +194,6 @@ Arch Linux Update Manager (Optional)
 # cd /tmp
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/pamac-aur-3.0.1-1-any.pkg.tar.xz
 # pacman -U pamac-aur-3.0.1-1-any.pkg.tar.xz
-
 
 ------ Input Method (Optional)
 for example: fcitx
@@ -211,6 +207,7 @@ for example: fcitx
 Mint Applications for Arch Linux
 ##########################################
 Mint XFCE System Adjustments
+
 # cd /tmp
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/arch-system-adjustments-1.0-0-any.pkg.tar.xz
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/mint-artwork-xfce-1.0-0-any.pkg.tar.xz
@@ -258,6 +255,7 @@ Display Manager (Optional)
 ##########################################
 MDM Display Manager
 ##########################################
+
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/mdm-2.0.7-1-x86_64.pkg.tar.xz
 # pacman -U mdm-2.0.7-1-x86_64.pkg.tar.xz
 
@@ -288,7 +286,6 @@ Automatic startup
 # sed -i -e '/allow_active/s/auth_admin_keep/yes/' /usr/share/polkit-1/actions/org.freedesktop.udisks2.policy
 # sed -i -e '/allow_active/s/auth_admin/yes/' /usr/share/polkit-1/actions/org.archlinux.pkexec.gparted.policy
 
-
 Exit from the chroot
 # exit
 
@@ -304,8 +301,17 @@ unmount mnt
 Exit from the root
 # exit
 
+Restart
 
--------- Setting the screen backlight brightness and gamma
+ 
+
+ 
+
+ 
+
+-------- display setup
+Setting the screen backlight brightness and gamma
+
 $ sudo leafpad /usr/bin/display-setup
 
 #!/bin/bash
@@ -323,3 +329,32 @@ Name=Display Setup
 Comment=Launch Display Setup
 Icon=preferences-desktop-screensaver
 Exec=display-setup
+
+-------- Plymouth Themes Settings
+$ sudo sed -i 's/"quiet"/"quiet splash"/g' /etc/default/grub
+$ sudo sed -i 's/autodetect modconf/plymouth autodetect modconf/g' /etc/mkinitcpio.conf
+
+Intel cards
+$ sudo sed -i 's/MODULES=""/MODULES="i915"/g' /etc/mkinitcpio.conf
+
+AMD cards
+$ sudo sed -i 's/MODULES=""/MODULES="radeon"/g' /etc/mkinitcpio.conf
+
+nVidia cards
+$ sudo sed -i 's/MODULES=""/MODULES="nouveau"/g' /etc/mkinitcpio.conf
+
+$ sudo plymouth-set-default-theme -R mint-logo-aqua
+or
+$ sudo plymouth-set-default-theme -R mint-logo-maya
+
+$ sudo grub-mkconfig -o /boot/grub/grub.cfg
+
+if Install MDM Display Manager
+$ sudo rm /etc/systemd/system/display-manager.service
+$ sudo systemctl enable mdm-plymouth.service
+
+if install LightDM Display Manager
+$ sudo rm /etc/systemd/system/display-manager.service
+$ sudo systemctl enable lightdm-plymouth.service
+
+---------------------------------
