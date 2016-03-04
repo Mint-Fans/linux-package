@@ -266,6 +266,7 @@ MDM Display Manager
 Automatic startup
 # systemctl enable mdm.service
 
+or
 ##########################################
 LightDM Display Manager
 ##########################################
@@ -289,6 +290,10 @@ Automatic startup
 # sed -i -e '/allow_active/s/auth_admin/yes/' /usr/share/polkit-1/actions/org.xfce.thunar.policy
 # sed -i -e '/allow_active/s/auth_admin_keep/yes/' /usr/share/polkit-1/actions/org.freedesktop.udisks2.policy
 # sed -i -e '/allow_active/s/auth_admin/yes/' /usr/share/polkit-1/actions/org.archlinux.pkexec.gparted.policy
+
+# update-mime-database /usr/share/mime/
+# update-desktop-database /usr/share/applications/
+
 
 Exit from the chroot
 # exit
