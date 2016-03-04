@@ -218,9 +218,13 @@ Mint XFCE System Adjustments
 
 mintstick (Optional)
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/python2-pyparted-3.10.7-1-x86_64.pkg.tar.xz
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/mintstick-git-r153.198e14a-1-x86_64.pkg.tar.xz
+# wget https://github.com/Mint-Fans/linux-package/raw/arch/mintstick-1.2.7-1-x86_64.pkg.tar.xz
 # pacman -U python2-pyparted-3.10.7-1-x86_64.pkg.tar.xz
-# pacman -U mintstick-git-r153.198e14a-1-x86_64.pkg.tar.xz
+# pacman -U mintstick-1.2.7-1-x86_64.pkg.tar.xz
+
+mintnanny (Optional)
+# wget https://github.com/Mint-Fans/linux-package/raw/arch/mintnanny-1.5.1-0-any.pkg.tar.xz
+# pacman -U mintnanny-1.5.1-0-any.pkg.tar.xz
 
 Plymouth Themes
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/plymouth-0.9.2-8-x86_64.pkg.tar.xz
