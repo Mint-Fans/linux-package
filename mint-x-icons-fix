@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Automatically added by dh_icons
+rm -rf /usr/share/icons/Mint-X/mimetypes/16/application-vnd.debian.binary-package.png
+rm -rf /usr/share/icons/Mint-X/mimetypes/22/application-vnd.debian.binary-package.png
+rm -rf /usr/share/icons/Mint-X/mimetypes/24/application-vnd.debian.binary-package.png
+rm -rf /usr/share/icons/Mint-X/mimetypes/32/application-vnd.debian.binary-package.png
+rm -rf /usr/share/icons/Mint-X/mimetypes/48/application-vnd.debian.binary-package.png
+rm -rf /usr/share/icons/Mint-X/mimetypes/96/application-vnd.debian.binary-package.svg
+rm -rf /usr/share/icons/Mint-X/mimetypes/scalable/application-vnd.debian.binary-package.svg
+
+cd /usr/share/icons/Mint-X/mimetypes/16/
+ln -s deb.png application-vnd.debian.binary-package.png
+cd /usr/share/icons/Mint-X/mimetypes/22/
+ln -s deb.png application-vnd.debian.binary-package.png
+cd /usr/share/icons/Mint-X/mimetypes/24/
+ln -s deb.png application-vnd.debian.binary-package.png
+cd /usr/share/icons/Mint-X/mimetypes/32/
+ln -s deb.png application-vnd.debian.binary-package.png
+cd /usr/share/icons/Mint-X/mimetypes/48/
+ln -s deb.png application-vnd.debian.binary-package.png
+cp /usr/share/icons/Mint-X/mimetypes/96/deb.svg /usr/share/icons/Mint-X/mimetypes/scalable/deb.svg
+cd /usr/share/icons/Mint-X/mimetypes/96/
+ln -s deb.svg application-vnd.debian.binary-package.svg
+cd /usr/share/icons/Mint-X/mimetypes/scalable/
+ln -s deb.svg application-vnd.debian.binary-package.svg
+
+update-icon-caches /usr/share/icons/Mint-X
