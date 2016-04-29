@@ -1,0 +1,7 @@
+#!/bin/bash
+
+### sources.list.d
+sed -i 's/sid/stretch/g' /etc/apt/sources.list.d/official-package-repositories.list
+
+### mintsources
+sed -i 's/base_codename=sid/base_codename=stretch/g' /usr/share/mintsources/betsy/mintsources.conf
