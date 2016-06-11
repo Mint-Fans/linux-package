@@ -1,0 +1,293 @@
+#!/bin/bash
+
+
+###################################
+### Add kali linux repositories
+###################################
+rm -rf /etc/apt/sources.list.d/kali-official.list
+sh -c 'echo "deb http://http.kali.org/kali kali-rolling main contrib non-free" >> /etc/apt/sources.list.d/kali-official.list'
+sh -c 'echo "deb http://repo.kali.org/kali kali-bleeding-edge main" >> /etc/apt/sources.list.d/kali-official.list'
+
+# sources
+# sh -c 'echo "deb-src http://http.kali.org/kali kali-rolling main contrib non-free" >> /etc/apt/sources.list.d/kali-official.list'
+
+# gpg --keyserver pgpkeys.mit.edu --recv-key  ED444FF07D8D0BF6
+# gpg -a --export ED444FF07D8D0BF6 | sudo apt-key add -
+apt-key adv --keyserver pgp.mit.edu --recv-keys ED444FF07D8D0BF6
+rm /var/lib/apt/lists/*
+# apt-get update -m
+apt-get update
+
+###################################
+### Install classicmenu indicator
+### for MATE & Cinnamon
+###################################
+## Ubuntu / Linux Mint 18
+# add-apt-repository ppa:diesch/testing && apt-get update
+# sudo apt-get install classicmenu-indicator
+## Debian / LMDE
+# wget http://mirrors.kernel.org/ubuntu/pool/universe/c/classicmenu-indicator/classicmenu-indicator_0.10.1-0ubuntu1_all.deb
+# dpkg -i classicmenu-indicator_*.deb
+# apt-get -f install -y
+
+###################################
+### Install Kali menu
+###################################
+apt-get install kali-menu
+
+###################################
+### Install Kali Utility
+###################################
+
+### All
+# apt-get install acccheck ace-voip amap automater braa casefile cdpsnarf cisco-torch cookie-cadger copy-router-config dmitry dnmap dnsenum dnsmap dnsrecon dnstracer dnswalk dotdotpwn enum4linux enumiax exploitdb fierce firewalk fragroute fragrouter ghost-phisher golismero goofile lbd maltego-teeth masscan metagoofil miranda nmap p0f parsero recon-ng set smtp-user-enum snmpcheck sslcaudit sslsplit sslstrip sslyze thc-ipv6 theharvester tlssled twofi urlcrazy wireshark wol-e xplico ismtp intrace hping3 bbqsql bed cisco-auditing-tool cisco-global-exploiter cisco-ocs cisco-torch copy-router-config doona dotdotpwn greenbone-security-assistant hexorbase jsql lynis nmap ohrwurm openvas-cli openvas-manager openvas-scanner oscanner powerfuzzer sfuzz sidguesser siparmyknife sqlmap sqlninja sqlsus thc-ipv6 tnscmd10g unix-privesc-check yersinia aircrack-ng asleap bluelog blueranger bluesnarfer bully cowpatty crackle eapmd5pass fern-wifi-cracker ghost-phisher giskismet gqrx kalibrate-rtl killerbee kismet mdk3 mfcuk mfoc mfterm multimon-ng pixiewps reaver redfang spooftooph wifi-honey wifitap wifite apache-users arachni bbqsql blindelephant burpsuite cutycapt davtest deblaze dirb dirbuster fimap funkload grabber jboss-autopwn joomscan jsql maltego-teeth padbuster paros parsero plecost powerfuzzer proxystrike recon-ng skipfish sqlmap sqlninja sqlsus ua-tester uniscan vega w3af webscarab websploit wfuzz wpscan xsser zaproxy burpsuite dnschef fiked hamster-sidejack hexinject iaxflood inviteflood ismtp mitmproxy ohrwurm protos-sip rebind responder rtpbreak rtpinsertsound rtpmixsound sctpscan siparmyknife sipp sipvicious sniffjoke sslsplit sslstrip thc-ipv6 voiphopper webscarab wifi-honey wireshark xspy yersinia zaproxy cryptcat cymothoa dbd dns2tcp http-tunnel httptunnel intersect nishang polenum powersploit pwnat ridenum sbd u3-pwn webshells weevely casefile cutycapt dos2unix dradis keepnote magictree metagoofil nipper-ng pipal armitage backdoor-factory cisco-auditing-tool cisco-global-exploiter cisco-ocs cisco-torch crackle jboss-autopwn linux-exploit-suggester maltego-teeth shellnoob sqlmap thc-ipv6 yersinia beef-xss binwalk bulk-extractor chntpw cuckoo dc3dd ddrescue dumpzilla extundelete foremost galleta guymager iphone-backup-analyzer p0f pdf-parser pdfid pdgmail peepdf volatility xplico dhcpig funkload iaxflood inviteflood ipv6-toolkit mdk3 reaver rtpflood slowhttptest t50 termineter thc-ipv6 thc-ssl-dos acccheck burpsuite cewl chntpw cisco-auditing-tool cmospwd creddump crunch findmyhash gpp-decrypt hash-identifier hexorbase john johnny keimpx maltego-teeth maskprocessor multiforcer ncrack oclgausscrack pack patator polenum rainbowcrack rcracki-mt rsmangler statsprocessor thc-pptp-bruter truecrack webscarab wordlists zaproxy apktool dex2jar python-distorm3 edb-debugger jad javasnoop jd smali valgrind yara android-sdk apktool arduino dex2jar sakis3g smali -y
+
+# wget http://www.morningstarsecurity.com/downloads/bing-ip2hosts-0.4.tar.gz && tar -xzvf bing-ip2hosts-0.4.tar.gz && cp bing-ip2hosts-0.4/bing-ip2hosts /usr/local/bin/
+
+# git clone https://github.com/LionSec/wifresti.git && cp wifresti/wifresti.py /usr/bin/wifresti && chmod +x /usr/bin/wifresti
+# wifresti
+
+# webshag & dff
+# wget http://http.kali.org/kali/pool/main/w/webshag/webshag_1.10-1kali1_all.deb
+# wget http://http.kali.org/pool/main/d/dff/dff_1.3.0+dfsg.1-4.1+kali1+b1_amd64.deb
+# dpkg -i webshag_*.deb
+# dpkg -i dff_*.deb
+# apt-get -f install -y
+# rm webshag_*.deb
+# rm dff_*.deb
+
+# ntop for Ubuntu 16.04 / Linux Mint 18
+# apt-get install ntop
+
+# ntop for Debian sid 2016-06 / LMDE sid
+# wget http://mirrors.kernel.org/ubuntu/pool/main/libp/libpng/libpng12-0_1.2.54-1ubuntu1_amd64.deb
+# wget http://mirrors.kernel.org/ubuntu/pool/main/r/rrdtool/librrd4_1.5.5-4_amd64.deb
+# wget http://mirrors.kernel.org/ubuntu/pool/universe/n/ntop/ntop-data_5.0.1+dfsg1-2.2ubuntu1_all.deb
+# wget http://mirrors.kernel.org/ubuntu/pool/universe/n/ntop/ntop_5.0.1+dfsg1-2.2ubuntu1_amd64.deb
+# dpkg -i libpng12-0_*.deb
+# dpkg -i librrd4_*.deb
+# dpkg -i ntop-data_*.deb
+# dpkg -i ntop_*.deb
+# apt-get -f install -y
+# rm libpng12-0_*.deb
+# rm librrd4_*.deb
+# rm ntop-data_*.deb
+# rm ntop_*.deb
+
+# depend wine
+# apt-get install ollydbg
+# apt-get install regripper
+# apt-get install sqldict
+
+###################################
+### 01 Information Gathering
+###################################
+apt-get install acccheck ace-voip amap automater braa casefile cdpsnarf cisco-torch cookie-cadger copy-router-config dmitry dnmap dnsenum dnsmap dnsrecon dnstracer dnswalk dotdotpwn enum4linux enumiax exploitdb fierce firewalk fragroute fragrouter ghost-phisher golismero goofile lbd maltego-teeth masscan metagoofil miranda nmap p0f parsero recon-ng set smtp-user-enum snmpcheck sslcaudit sslsplit sslstrip sslyze thc-ipv6 theharvester tlssled twofi urlcrazy wireshark wol-e xplico ismtp intrace hping3 -y
+
+wget http://www.morningstarsecurity.com/downloads/bing-ip2hosts-0.4.tar.gz && tar -xzvf bing-ip2hosts-0.4.tar.gz && cp bing-ip2hosts-0.4/bing-ip2hosts /usr/local/bin/
+
+# ntop for Ubuntu 16.04 / Linux Mint 18
+# apt-get install ntop
+
+# ntop for Debian sid 2016-06 / LMDE sid
+wget http://mirrors.kernel.org/ubuntu/pool/main/libp/libpng/libpng12-0_1.2.54-1ubuntu1_amd64.deb
+wget http://mirrors.kernel.org/ubuntu/pool/main/r/rrdtool/librrd4_1.5.5-4_amd64.deb
+wget http://mirrors.kernel.org/ubuntu/pool/universe/n/ntop/ntop-data_5.0.1+dfsg1-2.2ubuntu1_all.deb
+wget http://mirrors.kernel.org/ubuntu/pool/universe/n/ntop/ntop_5.0.1+dfsg1-2.2ubuntu1_amd64.deb
+dpkg -i libpng12-0_*.deb
+dpkg -i librrd4_*.deb
+dpkg -i ntop-data_*.deb
+dpkg -i ntop_*.deb
+apt-get -f install -y
+rm libpng12-0_*.deb
+rm librrd4_*.deb
+rm ntop-data_*.deb
+rm ntop_*.deb
+
+###################################
+### 02 Vulnerability Analysis
+###################################
+apt-get install bbqsql bed cisco-auditing-tool cisco-global-exploiter cisco-ocs cisco-torch copy-router-config doona dotdotpwn greenbone-security-assistant hexorbase jsql lynis nmap ohrwurm openvas-cli openvas-manager openvas-scanner oscanner powerfuzzer sfuzz sidguesser siparmyknife sqlmap sqlninja sqlsus thc-ipv6 tnscmd10g unix-privesc-check yersinia -y
+
+# DBPwAudit
+# http://www.cqure.net/wp/tools/database/dbpwaudit/
+# wget http://www.cqure.net/tools/dbpwaudit_0_8.zip
+
+# Greenbone Security Assistant (GSD)
+# git clone git://git.kali.org/packages/gsd.git
+
+# Inguma
+# http://inguma.sourceforge.net
+
+###################################
+### 03 Wireless Attacks
+###################################
+apt-get install aircrack-ng asleap bluelog blueranger bluesnarfer bully cowpatty crackle eapmd5pass fern-wifi-cracker ghost-phisher giskismet gqrx kalibrate-rtl killerbee kismet mdk3 mfcuk mfoc mfterm multimon-ng pixiewps reaver redfang spooftooph wifi-honey wifitap wifite -y
+
+# BlueMaho
+# git clone git://git.kali.org/packages/bluemaho.git
+
+# Bluepot
+# git clone git://git.kali.org/packages/bluepot.git
+
+# gr-scan
+# git clone git://git.kali.org/packages/gr-scan.git
+
+###################################
+### 04 Web Applications
+###################################
+apt-get install apache-users arachni bbqsql blindelephant burpsuite cutycapt davtest deblaze dirb dirbuster fimap funkload grabber jboss-autopwn joomscan jsql maltego-teeth padbuster paros parsero plecost powerfuzzer proxystrike recon-ng skipfish sqlmap sqlninja sqlsus ua-tester uniscan vega w3af webscarab websploit wfuzz wpscan xsser zaproxy -y
+
+# webshag
+wget http://http.kali.org/kali/pool/main/w/webshag/webshag_1.10-1kali1_all.deb
+dpkg -i webshag_*.deb
+apt-get -f install -y
+rm  webshag_*.deb
+
+# WebSlayer
+# git clone git://git.kali.org/packages/webslayer.git
+
+###################################
+### 05 Sniffing & Spoofing
+###################################
+apt-get install burpsuite dnschef fiked hamster-sidejack hexinject iaxflood inviteflood ismtp mitmproxy ohrwurm protos-sip rebind responder rtpbreak rtpinsertsound rtpmixsound sctpscan siparmyknife sipp sipvicious sniffjoke sslsplit sslstrip thc-ipv6 voiphopper webscarab wifi-honey wireshark xspy yersinia zaproxy -y
+
+# isr-evilgrade
+# git clone git://git.kali.org/packages/isr-evilgrade.git
+
+###################################
+### 06 Maintaining Access
+###################################
+apt-get install cryptcat cymothoa dbd dns2tcp http-tunnel httptunnel intersect nishang polenum powersploit pwnat ridenum sbd u3-pwn webshells weevely -y
+
+###################################
+### 07 Reporting Tools
+###################################
+apt-get install casefile cutycapt dos2unix dradis keepnote magictree metagoofil nipper-ng pipal -y
+
+###################################
+### 08 Exploitation Tools
+###################################
+apt-get install armitage backdoor-factory cisco-auditing-tool cisco-global-exploiter cisco-ocs cisco-torch crackle jboss-autopwn linux-exploit-suggester maltego-teeth set shellnoob sqlmap thc-ipv6 yersinia beef-xss -y
+
+###################################
+### 09 Forensics Tools
+###################################
+apt-get install binwalk bulk-extractor chntpw cuckoo dc3dd ddrescue dumpzilla extundelete foremost galleta guymager iphone-backup-analyzer p0f pdf-parser pdfid pdgmail peepdf volatility xplico -y
+
+# dff
+wget http://http.kali.org/pool/main/d/dff/dff_1.3.0+dfsg.1-4.1+kali1+b1_amd64.deb
+dpkg -i dff_*.deb
+apt-get -f install -y
+rm dff_*.deb
+
+# Capstone
+# git clone git://git.kali.org/packages/capstone.git
+
+# distorm3
+# git clone git://git.kali.org/packages/distorm3.git
+
+# depend wine
+# apt-get install regripper
+
+###################################
+### 10 Stress Testing
+###################################
+apt-get install dhcpig funkload iaxflood inviteflood ipv6-toolkit mdk3 reaver rtpflood slowhttptest t50 termineter thc-ipv6 thc-ssl-dos -y
+
+# Inundator
+# git clone git://git.kali.org/packages/inundator.git
+
+###################################
+### 11 Password Attacks
+###################################
+apt-get install acccheck burpsuite cewl chntpw cisco-auditing-tool cmospwd creddump crunch findmyhash gpp-decrypt hash-identifier hexorbase john johnny keimpx maltego-teeth maskprocessor multiforcer ncrack oclgausscrack pack patator polenum rainbowcrack rcracki-mt rsmangler statsprocessor thc-pptp-bruter truecrack webscarab wordlists zaproxy -y
+
+# DBPwAudit
+# git clone git://git.kali.org/packages/dbpwaudit.git
+
+# THC-Hydra
+# https://www.thc.org/thc-hydra/
+
+# phrasendrescher
+# http://www.leidecker.info/projects/phrasendrescher/index.shtml
+
+# depend wine
+# apt-get install sqldict
+
+###################################
+### 12 Reverse Engineering
+###################################
+apt-get install apktool dex2jar python-distorm3 edb-debugger jad javasnoop jd smali valgrind yara -y
+
+# depend wine
+# apt-get install ollydbg
+# apt-get install shellter
+
+###################################
+### 13 Hardware Hacking
+###################################
+apt-get install android-sdk apktool arduino dex2jar sakis3g smali -y
+
+###################################
+### 14 Extra
+###################################
+git clone https://github.com/LionSec/wifresti.git && cp wifresti/wifresti.py /usr/bin/wifresti && chmod +x /usr/bin/wifresti
+# wifresti
+
+apt-get install squid3 0trace arping creepy fping ftester ike-scan irpas nbtscan netdiscover netmask onesixtyone smbmap sparta ssldump sslh swaks unicornscan wafw00f xprobe zenmap -y
+apt-get install siege sipcrack spike -y
+apt-get install cadaver clusterd commix httrack wapiti whatweb -y
+apt-get install mdbtools sqlsus sqlitebrowser -y
+apt-get install hydra hydra-gtk fcrackzip hashcat hashid creddump medusa mimikatz onesixtyone ophcrack ophcrack-cli passing-the-hash pyrit samdump2 sipcrack smbmap sucrack -y
+apt-get install btscanner chirp libfreefare-bin libnfc-bin -y
+apt-get install clang flasm radare2 msfpc -y
+apt-get install bdfproxy darkstat driftnet ettercap-graphical netsniff-ng nfspy sslsniff tcpflow tcpreplay -y
+apt-get install bdfproxy iodine laudanum mimikatz miredo proxychains proxytunnel ptunnel sslh stunnel4 udptunnel webacoo -y
+apt-get install afflib-tools autopsy sleuthkit chkrootkit dcfldd ewf-tools hashdeep magicrescue missidentify pasco pev readpst recoverjpeg reglookup rifiuti rifiuti2 safecopy scalpel scrounge-ntfs vinetto volafox -y
+apt-get install python-faraday recordmydesktop -y
+
+###################################
+### Kali Utility for Mint Fix
+###################################
+
+### /usr/share/applications/display-im6.desktop
+sed -i 's/.Q16/.q16/g' /usr/share/applications/display-im6.desktop
+sed -i '$a NoDisplay=true' /usr/share/applications/display-im6.desktop
+sed -i '$a NoDisplay=true' /usr/share/applications/display-im6.q16.desktop
+
+### /usr/share/applications/lynis.desktop
+sed -i '/Exec=/d' /usr/share/applications/lynis.desktop
+sed -i '$a Exec=sudo lynis --no-colors' /usr/share/applications/lynis.desktop
+sed -i '$a Icon=application-x-executable' /usr/share/applications/lynis.desktop
+sed -i '/Exec=/d' /usr/share/kali-menu/applications/lynis.desktop
+sed -i '$a Exec=sudo lynis --no-colors' /usr/share/kali-menu/applications/lynis.desktop
+sed -i '$a Icon=application-x-executable' /usr/share/kali-menu/applications/lynis.desktop
+
+### /usr/share/applications/kali-galleta.desktop
+sed -i 's/galleta.png/kali-menu.png/g' /usr/share/applications/kaligalleta.desktop
+sed -i 's/galleta.png/kali-menu.png/g' /usr/share/kali-menu/applications/kaligalleta.desktop
+
+### /usr/share/applications/xdot.desktop
+sed -i '$a Icon=application-x-executable' /usr/share/applications/xdot.desktop
+
+### /usr/share/applications/texdoctk.desktop
+sed -i '$a Icon=application-x-executable' /usr/share/applications/texdoctk.desktop
+
+### /usr/share/applications/kali-hydra.desktop
+sed -i 's/kali-hydra.png/kali-menu.png/g' /usr/share/applications/kali-hydra.desktop
+sed -i 's/kali-hydra.png/kali-menu.png/g' /usr/share/kali-menu/applications/kali-hydra.desktop
+
+### /usr/share/applications/hydra-gtk.desktop
+sed -i 's/kali-menu.png/kali-hydra.png/g' /usr/share/applications/hydra-gtk.desktop
+sed -i 's/kali-menu.png/kali-hydra.png/g' /usr/share/kali-menu/applications/hydra-gtk.desktop
+
+### /usr/share/applications/kali-yara.desktop
+sed -i 's/yara.png/kali-menu.png/g' /usr/share/applications/kali-hydra.desktop
+sed -i 's/yara.png/kali-menu.png/g' /usr/share/kali-menu/applications/kali-hydra.desktop
+
+### /usr/share/applications/kali-ghost-phisher.desktop
+sed -i '/Exec=/d' /usr/share/applications/kali-ghost-phisher.desktop
+sed -i '$a Exec=sudo ghost-phisher' /usr/share/applications/kali-ghost-phisher.desktop
+sed -i '/Exec=/d' /usr/share/kali-menu/applications/kali-ghost-phisher.desktop
+sed -i '$a Exec=sudo ghost-phisher' /usr/share/kali-menu/applications/kali-ghost-phisher.desktop
