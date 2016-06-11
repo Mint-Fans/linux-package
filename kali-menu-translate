@@ -1,0 +1,45 @@
+#!/bin/bash
+
+sed -i 's/=01 - /=/g' /usr/share/desktop-directories/01-info-gathering.directory
+sed -i 's/TW]=信息收集/TW]=資訊收集/g' /usr/share/desktop-directories/01-info-gathering.directory
+sed -i 's/=02 - /=/g' /usr/share/desktop-directories/02-vulnerability-analysis.directory
+sed -i 's/=03 - /=/g' /usr/share/desktop-directories/03-webapp-analysis.directory
+sed -i 's/TW]=Web程序/TW]=網頁工具/g' /usr/share/desktop-directories/03-webapp-analysis.directory
+sed -i 's/=04 - /=/g' /usr/share/desktop-directories/04-database-assessment.directory
+sed -i 's/TW]=數據庫評估軟件/TW]=資料庫評估/g' /usr/share/desktop-directories/04-database-assessment.directory
+sed -i 's/=05 - /=/g' /usr/share/desktop-directories/05-password-attacks.directory
+sed -i 's/=06 - /=/g' /usr/share/desktop-directories/06-wireless-attacks.directory
+sed -i 's/=07 - /=/g' /usr/share/desktop-directories/07-reverseengineer.directory
+sed -i 's/TW]=逆向工程/TW]=反編譯工具/g' /usr/share/desktop-directories/07-reverseengineer.directory
+sed -i 's/=08 - /=/g' /usr/share/desktop-directories/08-exploitation-tools.directory
+sed -i 's/TW]=漏洞利用工具集/TW]=漏洞工具/g' /usr/share/desktop-directories/08-exploitation-tools.directory
+sed -i 's/=09 - /=/g' /usr/share/desktop-directories/09-sniffing-spoofing.directory
+sed -i 's/TW]=嗅探\/欺騙/TW]=嗅探欺騙/g' /usr/share/desktop-directories/09-sniffing-spoofing.directory
+sed -i 's/=10 - /=/g' /usr/share/desktop-directories/10-maintaining-access.directory
+sed -i 's/=11 - /=/g' /usr/share/desktop-directories/11-forensics.directory
+sed -i 's/TW]=數字取證/TW]=鑑識工具/g' /usr/share/desktop-directories/11-forensics.directory
+sed -i 's/=12 - /=/g' /usr/share/desktop-directories/12-reporting.directory
+sed -i 's/TW]=報告工具集/TW]=報告工具/g' /usr/share/desktop-directories/12-reporting.directory
+sed -i 's/=13 - /=/g' /usr/share/desktop-directories/13-social-engineering-tools.directory
+sed -i '/Name/a Name[zh_TW]=社交工具' /usr/share/desktop-directories/13-social-engineering-tools.directory
+sed -i 's/=14 - /=/g' /usr/share/desktop-directories/14-services.directory
+
+sed -i 's/=• /=/g' /usr/share/desktop-directories/*.directory
+sed -i 's/TW]=網絡/TW]=網路/g' /usr/share/desktop-directories/01-04-network-scanners.directory
+sed -i 's/TW]=Web/TW]=網頁/g' /usr/share/desktop-directories/03-04-web-crawlers.directory
+sed -i 's/TW]=Web/TW]=網頁/g' /usr/share/desktop-directories/03-05-web-vulnerability-scanners.directory
+sed -i 's/TW]=Web应用代理/TW]=網頁應用代理/g' /usr/share/desktop-directories/03-06-web-application-proxies.directory
+sed -i 's/TW]=在線/TW]=線上/g' /usr/share/desktop-directories/05-01-online-attacks.directory
+sed -i '/Name/a Name[zh_TW]=密碼與字典' /usr/share/desktop-directories/05-05-profile.directory
+sed -i 's/TW]=软件无线电/TW]=軟體無線電/g' /usr/share/desktop-directories/06-05-radio-tools.directory
+sed -i 's/TW]=網絡/TW]=網路/g' /usr/share/desktop-directories/09-01-network-sniffers.directory
+sed -i 's/TW]=網絡/TW]=網路/g' /usr/share/desktop-directories/09-02-network-spoofing.directory
+sed -i 's/TW]=Web/TW]=網頁/g' /usr/share/desktop-directories/10-03-web-backdoors.directory
+sed -i 's/TW]=網絡取證/TW]=網路鑑識/g' /usr/share/desktop-directories/11-01-network-forensics.directory
+sed -i 's/TW]=數字取證/TW]=數位鑑識/g' /usr/share/desktop-directories/11-03-digital-forensics.directory
+sed -i 's/TW]=取證分析工具集/TW]=鑑識分析工具/g' /usr/share/desktop-directories/11-04-forensic-analysis-tools.directory
+sed -i 's/TW]=取證分割工具集/TW]=鑑識雕刻工具/g' /usr/share/desktop-directories/11-05-forensic-carving-tools.directory
+sed -i 's/TW]=取證鏡像工具集/TW]=鑑識映象工具/g' /usr/share/desktop-directories/11-07-forensic-imaging-tools.directory
+sed -i 's/TW]=數字取證套件/TW]=數位鑑識套件/g' /usr/share/desktop-directories/11-08-forensic-suites.directory
+sed -i 's/TW]=PDF取證工具集/TW]=PDF鑑識工具/g' /usr/share/desktop-directories/11-11-pdf-forensics-tools.directory
+
