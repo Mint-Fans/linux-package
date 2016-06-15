@@ -1,0 +1,75 @@
+#!/bin/bash
+
+### Install Compiz on LMDE / Debian sid
+mkdir -p compiz
+cd compiz
+apt-get update
+
+# compiz-core
+wget http://mirrors.kernel.org/ubuntu/pool/main/c/compiz/compiz-core_0.9.12.2+16.04.20160415-0ubuntu1_amd64.deb
+dpkg -i compiz-core_*.deb
+
+# libdecoration0
+wget http://mirrors.kernel.org/ubuntu/pool/main/c/compiz/libdecoration0_0.9.12.2+16.04.20160415-0ubuntu1_amd64.deb
+dpkg -i libdecoration0_*.deb
+
+# libpng12-0
+wget http://mirrors.kernel.org/ubuntu/pool/main/libp/libpng/libpng12-0_1.2.54-1ubuntu1_amd64.deb
+dpkg -i libpng12-0_*.deb
+
+# compiz-plugins-default
+wget http://mirrors.kernel.org/ubuntu/pool/main/c/compiz/compiz-plugins-default_0.9.12.2+16.04.20160415-0ubuntu1_amd64.deb
+dpkg -i compiz-plugins-default_*.deb
+
+# libprotobuf9v5
+# wget http://mirrors.kernel.org/ubuntu/pool/main/p/protobuf/libprotobuf9v5_2.6.1-1.3_amd64.deb
+# dpkg -i libprotobuf9v5_*.deb
+apt-get install libprotobuf9v5
+
+# libcompizconfig0
+wget http://mirrors.kernel.org/ubuntu/pool/main/c/compiz/libcompizconfig0_0.9.12.2+16.04.20160415-0ubuntu1_amd64.deb
+dpkg -i libcompizconfig0_*.deb
+
+# metacity-common
+wget http://ftp.gnome.org/mirror/cdimage/snapshot/Debian/pool/main/m/metacity/metacity-common_3.18.4-3_all.deb
+dpkg -i metacity-common_*.deb
+apt-get -f install -y
+
+# libmetacity-private3a
+wget http://ftp.gnome.org/mirror/cdimage/snapshot/Debian/pool/main/m/metacity/libmetacity-private3a_3.18.4-3_amd64.deb
+dpkg -i libmetacity-private3a_*.deb
+
+# session-migration
+wget http://mirrors.kernel.org/ubuntu/pool/main/s/session-migration/session-migration_0.2.3_amd64.deb
+dpkg -i session-migration_*.deb
+
+# gnome-settings-daemon-schemas
+wget http://mirrors.kernel.org/ubuntu/pool/main/g/gnome-settings-daemon/gnome-settings-daemon-schemas_3.18.2-0ubuntu3_all.deb
+dpkg -i gnome-settings-daemon-schemas_*.deb
+
+# compiz-gnome
+wget http://mirrors.kernel.org/ubuntu/pool/main/c/compiz/compiz-gnome_0.9.12.2+16.04.20160415-0ubuntu1_amd64.deb
+dpkg -i compiz-gnome_*.deb
+apt-get -f install -y
+
+# compiz
+wget http://mirrors.kernel.org/ubuntu/pool/main/c/compiz/compiz_0.9.12.2+16.04.20160415-0ubuntu1_all.deb
+dpkg -i compiz_*.deb
+
+# python-compizconfig
+wget http://mirrors.kernel.org/ubuntu/pool/universe/c/compiz/python-compizconfig_0.9.12.2+16.04.20160415-0ubuntu1_amd64.deb
+dpkg -i python-compizconfig_*.deb
+
+# compizconfig-settings-manager
+wget http://mirrors.kernel.org/ubuntu/pool/universe/c/compiz/compizconfig-settings-manager_0.9.12.2+16.04.20160415-0ubuntu1_all.deb
+dpkg -i compizconfig-settings-manager_*.deb
+
+# compiz-plugins
+wget http://mirrors.kernel.org/ubuntu/pool/universe/c/compiz/compiz-plugins_0.9.12.2+16.04.20160415-0ubuntu1_amd64.deb
+dpkg -i compiz-plugins_*.deb
+
+
+### compiz settings
+wget https://github.com/Mint-Fans/linux-package/raw/debian/compiz-settings.tar.gz
+tar -zxvf compiz-settings.tar.gz
+./compiz-settings
