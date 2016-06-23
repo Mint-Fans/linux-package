@@ -1,0 +1,11 @@
+REGEDIT4
+
+[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\FontLink\SystemLink]
+"Lucida Sans Unicode"="wqy-microhei.ttc"
+"Microsoft Sans Serif"="wqy-microhei.ttc"
+"MS Sans Serif"="wqy-microhei.ttc"
+"Tahoma"="wqy-microhei.ttc"
+"Tahoma Bold"="wqy-microhei.ttc"
+"SimSun"="wqy-microhei.ttc"
+"Arial"="wqy-microhei.ttc"
+"Arial Black"="wqy-microhei.ttc"
