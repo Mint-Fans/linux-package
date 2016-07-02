@@ -1,0 +1,84 @@
+#!/bin/bash
+
+
+### install get adobe flash version
+rm -rf get-flash-version
+wget https://github.com/Mint-Fans/linux-package/raw/master/get-flash-version
+rm -rf /usr/local/bin/get-flash-version
+mv get-flash-version /usr/local/bin/
+chmod 755 /usr/local/bin/get-flash-version
+
+if [ "$(uname -m)" == "x86_64" ]; then
+    ARCH=x86_64
+else
+    ARCH=i386
+fi
+
+CURRENT_VER=$(get-flash-version $ARCH)
+
+### Update Adobe official Flash Player
+ADOBE_OFFCOAL=https://fpdownload.adobe.com/get/flashplayer/pdc/"$CURRENT_VER"/install_flash_player_11_linux."$ARCH".tar.gz
+FLASH_PLAYER_PACKAGE=install_flash_player_11_linux."$ARCH".tar.gz
+
+DISTRIB=$(uname -r)
+
+mkdir flash_player
+cd flash_player
+wget $ADOBE_OFFCOAL
+tar zxvf $FLASH_PLAYER_PACKAGE
+
+rm -rf /usr/share/icons/hicolor/16x16/apps/flash-player-properties.png
+rm -rf /usr/share/icons/hicolor/22x22/apps/flash-player-properties.png
+rm -rf /usr/share/icons/hicolor/24x24/apps/flash-player-properties.png
+rm -rf /usr/share/icons/hicolor/32x32/apps/flash-player-properties.png
+rm -rf /usr/share/icons/hicolor/48x48/apps/flash-player-properties.png
+cp usr/share/icons/hicolor/16x16/apps/flash-player-properties.png /usr/share/icons/hicolor/16x16/apps/
+cp usr/share/icons/hicolor/22x22/apps/flash-player-properties.png /usr/share/icons/hicolor/22x22/apps/
+cp usr/share/icons/hicolor/24x24/apps/flash-player-properties.png /usr/share/icons/hicolor/24x24/apps/
+cp usr/share/icons/hicolor/32x32/apps/flash-player-properties.png /usr/share/icons/hicolor/32x32/apps/
+cp usr/share/icons/hicolor/48x48/apps/flash-player-properties.png /usr/share/icons/hicolor/48x48/apps/
+rm -rf /usr/share/pixmaps/flash-player-properties.png
+ln -s /usr/share/icons/hicolor/48x48/apps/flash-player-properties.png /usr/share/pixmaps/flash-player-properties.png
+
+rm -rf /usr/share/applications/flash-player-properties.desktop
+cp usr/share/applications/flash-player-properties.desktop /usr/share/applications/
+
+rm /usr/bin/flash-player-properties
+cp usr/bin/flash-player-properties /usr/bin/
+
+
+if [ -d "/usr/lib/kde4" ]; then
+    rm -rf /usr/share/kde4/services/kcm_adobe_flash_player.desktop
+    cp usr/share/kde4/services/kcm_adobe_flash_player.desktop /usr/share/kde4/services/
+
+    if [ "$ARCH" == "x86_64" ]; then
+        rm -rf /usr/lib/kde4/kcm_adobe_flash_player.so
+        cp usr/lib64/kde4/kcm_adobe_flash_player.so /usr/lib/kde4/
+    else
+        rm -rf /usr/lib/kde4/kcm_adobe_flash_player.so
+        cp usr/lib/kde4/kcm_adobe_flash_player.so /usr/lib/kde4/
+    fi
+fi
+
+case $DISTRIB in
+	*"-generic")
+	### Ubuntu / Linux Mint
+	rm /usr/lib/flashplugin-installer/libflashplayer.so
+	cp libflashplayer.so /usr/lib/flashplugin-installer/
+	;;
+
+	*"-amd64"|*"-686")
+	### Debian / LMDE
+	rm /usr/lib/flashplugin-nonfree/libflashplayer.so
+	cp libflashplayer.so /usr/lib/flashplugin-nonfree/
+	;;
+
+	*"-ARCH")
+	### Arch Linux / LMAE
+	rm /usr/lib/mozilla/plugins/libflashplayer.so
+	cp libflashplayer.so /usr/lib/mozilla/plugins/
+	;;
+esac
+
+cd ../
+rm -r flash_player
