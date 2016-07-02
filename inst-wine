@@ -1,0 +1,49 @@
+#!/bin/bash
+
+
+sudo pacman -S --noconfirm wine wine_gecko wine-mono winetricks
+
+wget https://github.com/Mint-Fans/linux-package/raw/arch/wine-launcher-1.9-1-any.pkg.tar.xz
+sudo pacman -U --noconfirm wine-launcher-1.9-1-any.pkg.tar.xz
+rm *.pkg.tar.xz
+
+sudo pacman -S --noconfirm lib32-mesa lib32-alsa-lib lib32-libpulse lib32-openal
+sudo pacman -S --noconfirm lib32-libxml2 lib32-mpg123 lib32-lcms2 lib32-giflib lib32-libpng lib32-gnutls
+
+#############################
+### Wine Settings
+#############################
+## Wine 32-bit for Wine amd64
+# WINEARCH=win32 winecfg
+winecfg
+
+### font settings
+### WenQuanYi Micro Hei
+sudo pacman -S --noconfirm wqy-microhei
+cp /usr/share/fonts/wenquanyi/wqy-microhei/wqy-microhei.ttc .wine/drive_c/windows/Fonts/
+wget https://github.com/Mint-Fans/linux-package/raw/master/wqy-microhei.reg
+mv wqy-microhei.reg .wine/drive_c/windows/
+wine regedit wqy-microhei.reg
+
+### MingLiU
+# wget https://github.com/Mint-Fans/linux-package/raw/master/mingliu.ttc
+# mv mingliu.ttc .wine/drive_c/windows/Fonts/
+# wget https://github.com/Mint-Fans/linux-package/raw/master/mingliu.reg
+# mv mingliu.reg .wine/drive_c/windows/
+# wine regedit mingliu.reg
+
+#############################
+### Install libraries
+#############################
+winetricks comctl32
+winetricks vb6run
+
+#############################
+### Install applications
+#############################
+wget https://down.xfplay.com/xfplay9.92.exe
+wine xfplay9.92.exe
+
+wget http://download.cdn.mozilla.net/pub/firefox/releases/47.0/win32/zh-TW/Firefox%20Setup%2047.0.exe
+wine Firefox\ Setup\ 47.0.exe
+
