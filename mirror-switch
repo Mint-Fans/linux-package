@@ -1,0 +1,92 @@
+#!/bin/bash
+
+###### Translations ###### 
+	text1="1).Switching Latest Archlinux Official Repository"
+	text2="2).Switching LMAE Repository (Arch Linux Archive 20160320)"
+	text3="3).Custom Arch Linux Archive Repository"
+	text4="0).Press 0 or any key to exit"
+	text5="Options:"
+
+	text6="Custom Arch Linux Archive Repository"
+	text7="Enter dates, for example: 2016/07/03"
+
+case $LANG in
+	zh_TW* | zh_HK*)
+	text1="1).切換 Arch linux 官方最新套件庫"
+	text2="2).切換 LMAE 套件庫 (即 Arch Linux Archive 20160320)"
+	text3="3).自訂 Arch Linux Archive 套件庫"
+	text4="0).按0或其他任意鍵退出"
+	text5="輸入選項:"
+
+	text6="自訂 Arch Linux Archive 套件庫"
+	text7="輸入日期, 範例: 2016/07/03"
+
+esac
+
+main_fun(){
+cat << ENTER
+
+  $text1
+  $text2
+  $text3
+  $text4
+  $text5
+
+ENTER
+
+read switch
+[[ "$switch" ]] && switch="$switch"
+
+}
+
+edit_ala_fun(){
+cat << ENTER
+
+  $text6
+  $text7
+
+ENTER
+
+read ala
+[[ "$ala" ]] && ala=$ala
+
+cat > /etc/pacman.d/mirrorlist << EOF
+Server = https://archive.archlinux.org/repos/$ala/$repo/os/$arch
+EOF
+## sh -c 'echo Server = https://archive.archlinux.org/repos/$ala/$repo/os/$arch > /etc/pacman.d/mirrorlist'
+sed -i 's/\/os\//$repo\/os\/$arch/g' /etc/pacman.d/mirrorlist
+rm -rf /var/lib/pacman/sync/*
+pacman -Sy
+
+# main_fun
+}
+
+main_fun
+
+## Latest Archlinux Official Repository
+if [ "$switch" == "1" ]; then
+	rm -rf /etc/pacman.d/mirrorlist
+	cp -rf /etc/pacman.d/pkglist-current /etc/pacman.d/mirrorlist
+	rm -rf /var/lib/pacman/sync/*
+	pacman -Sy
+
+	# main_fun
+
+else
+	## LMAE Repository (ArchLinux mirrorlist 20160320)
+	if [ "$switch" == "2" ]; then
+		sh -c 'echo Server = https://archive.archlinux.org/repos/2016/03/20/$repo/os/$arch > /etc/pacman.d/mirrorlist'
+		sed -i 's/\/os\//$repo\/os\/$arch/g' /etc/pacman.d/mirrorlist
+		rm -rf /var/lib/pacman/sync/*
+		pacman -Sy
+
+		# main_fun
+
+	else
+		if [ "$switch" == "3" ]; then
+        		edit_ala_fun
+		else
+			exit
+		fi
+	fi
+fi
