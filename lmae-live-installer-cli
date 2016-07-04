@@ -1,0 +1,724 @@
+#!/bin/bash
+
+###### Translations ######
+	main01="LMAE Installer CLI"
+	main02="Create or Delete Partitions"
+	main03="Install LMAE"
+	main04="EXIT"
+
+	instset01="Settings filesystem mount point"
+	instset02="for Example:  sda3"
+	instset03="format filesystem mount partitions"
+	instset04="Default"
+	instset05="Options[y/n]"
+	instset06="mount /boot to another partitions"
+	instset07="settings /boot mount point"
+	instset08="for Example:  sda2"
+	instset09="format /boot mount partitions"
+	instset10="mount /boot to another partitions"
+	instset11="settings /home mount point"
+	instset12="for Example:  sda4"
+	instset13="format /home mount partitions"
+	instset14="Install GRUB Loader"
+	instset15="The UEFI boot mode"
+	instset16="if is the BIOS or Legacy Bios boot mode, press n"
+	instset17="Using the MBR Partition Table"
+	instset18="if Using the GPT Partition Table, press n"
+	instset19="Settings Username"
+	instset20="Settings Password"
+	instset21="Settings Fullname"
+	instset22="for example: Mint Fans"
+	instset23="Setting hostname"
+	instset24="Autologin"
+	instset25="Setting Timezone"
+	instset26="Settings Language"
+
+	setinfo01="Installation Information:"
+	setinfo02="Filesystem Mount Point"
+	setinfo03="Format Filesystem Mount Partition"
+	setinfo04="/boot Mount Point"
+	setinfo05="Format /boot Mount Partition"
+	setinfo06="/home Mount Point"
+	setinfo07="Format /home Mount Partition"
+	setinfo08="Install GRUB Loader"
+	setinfo09="Boot Mode"
+	setinfo10="Fullname"
+	setinfo11="Username"
+	setinfo12="Password"
+	setinfo13="Hostname"
+	setinfo14="Autologin"
+	setinfo15="Timezone"
+	setinfo16="Language"
+	setinfo17="Continue"
+	setinfo18="Resetting"
+	setinfo19="Return to Main Menu"
+	setinfo20="EXIT"
+
+	instfs01="Copy file to the target system"
+	instfs02="Rebuild fstab"
+	instfs03="Install GRUB Loader"
+	instfs04="Rebuild initramfs"
+	instfs05="Settings Hostname"
+	instfs06="Settings Timezone"
+	instfs07="Create a new user"
+	instfs08="Settings Password"
+	instfs09="Update Repository"
+	instfs10="LMAE Installer"
+	instfs11="The installation is complete."
+
+case $LANG in
+	zh_TW* | zh_HK*)
+
+	main01="LMAE 安裝程式指令行界面"
+	main02="建立或刪除分割區"
+	main03="安裝 LMAE"
+	main04="退出"
+
+	instset01="設定檔案系統掛載點"
+	instset02="輸入範例:  sda3"
+	instset03="格式化檔案系統掛載分割區"
+	instset04="預設"
+	instset05="選項[y/n]"
+	instset06="將/boot掛載到其他分割區"
+	instset07="設定/boot目錄掛載點"
+	instset08="輸入範例:  sda2"
+	instset09="格式化/boot掛載分割區"
+	instset10="將/home掛載到其他分割區"
+	instset11="設定/home目錄掛載點"
+	instset12="輸入範例:  sda4"
+	instset13="格式化/home掛載分割區"
+	instset14="安裝GRUB引導選單"
+	instset15="使用UEFI啟動模式"
+	instset16="如果使用傳統「BIOS」或「Legacy Bios」啟動, 則按 n"
+	instset17="使用MBR磁碟分割表"
+	instset18="如果使用GPT磁碟分割表, 則按 n"
+	instset19="設定使用者帳號"
+	instset20="設定密碼"
+	instset21="設定全名"
+	instset22="範例: Mint Fans (可空白)"
+	instset23="設定主機名稱"
+	instset24="自動登入"
+	instset25="設定時區"
+	instset26="設定語言"
+
+	setinfo01="安裝設定資訊"
+	setinfo02="檔案系統掛載點"
+	setinfo03="格式化檔案系統掛載分割區"
+	setinfo04="boot目錄掛載點"
+	setinfo05="格式化/boot掛載分割區"
+	setinfo06="home目錄掛載點"
+	setinfo07="格式化/home掛載分割區"
+	setinfo08="安裝GRUB引導選單"
+	setinfo09="引導模式"
+	setinfo10="全名"
+	setinfo11="使用者帳號"
+	setinfo12="密碼"
+	setinfo13="主機名稱"
+	setinfo14="自動登入"
+	setinfo15="時區"
+	setinfo16="語言"
+	setinfo17="繼續安裝"
+	setinfo18="重新設定"
+	setinfo19="回主選單"
+	setinfo20="退出"
+
+	instfs01="複製檔案系統到目標"
+	instfs02="重建 fstab"
+	instfs03="安裝GRUB選單"
+	instfs04="重建 initramfs"
+	instfs05="設定 hostname"
+	instfs06="設定時區"
+	instfs07="建立新的使用者"
+	instfs08="設定密碼"
+	instfs09="更新套件庫"
+	instfs10="LMAE 安裝程式"
+	instfs11="安裝完成."
+
+esac
+##########################"
+
+FORMAT_FS='y'
+MOUNT_BOOT='n'
+FORMAT_BOOT='y'
+MOUNT_HOME='n'
+FORMAT_HOME='n'
+
+INST_GRUB='n'
+IS_UEFI='n'
+IS_MBR='n'
+
+AUTOLOGIN='n'
+
+RUN_IN_CHROOT="arch-chroot /mnt/ /bin/bash -c"
+FSFILE=/run/archiso/bootmnt/arch/x86_64/airootfs.sfs
+
+LIVENAME=mint
+USERNAME=mint
+FULLNAME=""
+HOST="localhosts"
+
+main_fun(){
+clear
+echo -e ""
+echo -e "$main01"
+echo -e ""
+echo -e "1)  $main02"
+echo -e "2)  $main03"
+echo -e "3)  $main04"
+
+read menu
+[[ "$menu" ]] && menu="$menu"
+
+if [ "$menu" == "1" ]; then
+	gparted_polkit
+	main_fun
+else
+	if [ "$menu" == "2" ]; then
+		instset_fun
+	else
+		exit
+	fi
+fi
+
+}
+
+instset_fun(){
+clear
+echo -e ""
+echo -e "$instset01"
+echo -e "$instset02"
+lsblk -f | grep sd
+
+read FS_MP
+[[ "$FS_MP" ]] && FS_MP="$FS_MP"
+
+TARGET=/dev/"$FS_MP"
+
+clear
+echo -e ""
+echo -e "$instset03"
+echo -e "($instset04: $FORMAT_FS) $instset05"
+read FORMAT_FS
+[[ "$FORMAT_FS" ]] && FORMAT_FS="$FORMAT_FS"
+if [ "$FORMAT_FS" == "" ]; then
+	FORMAT_FS='y'
+fi
+
+clear
+echo -e ""
+echo -e "$instset06"
+echo -e "($instset04: $MOUNT_BOOT) $instset05"
+
+read MOUNT_BOOT
+[[ "$MOUNT_BOOT" ]] && MOUNT_BOOT="$MOUNT_BOOT"
+if [ "$MOUNT_BOOT" == "" ]; then
+	MOUNT_BOOT='n'
+fi
+
+if [ "$MOUNT_BOOT" == "y" ]; then
+	echo -e ""
+	echo -e "$instset07"
+	echo -e "$instset08"
+	lsblk -f | grep sd
+
+	read BOOT_MP
+	[[ "$BOOT_MP" ]] && BOOT_MP="$BOOT_MP"
+
+	BOOT=/dev/"$BOOT_MP"
+
+	echo -e ""
+	echo -e "$instset09"
+	echo -e "$instset05"
+	read FORMAT_BOOT
+	[[ "$FORMAT_BOOT" ]] && FORMAT_BOOT="$FORMAT_BOOT"
+	if [ "$FORMAT_BOOT" == "" ]; then
+		FORMAT_BOOT='n'
+	fi
+fi
+
+clear
+echo -e ""
+echo -e "$instset10"
+echo -e "($instset04: $MOUNT_HOME) $instset05"
+
+read MOUNT_HOME
+[[ "$MOUNT_HOME" ]] && MOUNT_HOME="$MOUNT_HOME"
+if [ "$MOUNT_HOME" == "" ]; then
+	MOUNT_HOME='n'
+fi
+
+if [ "$MOUNT_HOME" == "y" ]; then
+	echo -e ""
+	echo -e "$instset11"
+	echo -e "$instset12"
+	lsblk -f | grep sd
+
+	read HOME_MP
+	[[ "$HOME_MP" ]] && HOME_MP="$HOME_MP"
+
+	HOME=/dev/"$HOME_MP"
+
+	echo -e ""
+	echo -e "$instset13"
+	echo -e "$instset05"
+	read FORMAT_HOME
+	[[ "$FORMAT_HOME" ]] && FORMAT_HOME="$FORMAT_HOME"
+	if [ "$FORMAT_HOME" == "" ]; then
+		FORMAT_HOME='n'
+	fi
+
+fi
+
+clear
+echo -e ""
+echo -e "$instset14"
+echo -e "($instset04: $INST_GRUB)$instset05"
+read INST_GRUB
+[[ "$INST_GRUB" ]] && INST_GRUB="$INST_GRUB"
+if [ "$INST_GRUB" == "" ]; then
+	INST_GRUB='n'
+fi
+
+if [ "$INST_GRUB" == "y" ]; then
+	echo -e ""
+	echo -e "$instset15"
+	echo -e "$instset16"
+	echo -e "($instset04: $IS_UEFI) $instset05"
+	read IS_UEFI
+	[[ "$IS_UEFI" ]] && IS_UEFI="$IS_UEFI"
+	if [ "$INST_UEFI" == "" ]; then
+		INST_UEFI='n'
+	fi
+
+	if [ ! "$IS_UEFI" == "y" ]; then
+		echo -e ""
+		echo -e "$instset17"
+		echo -e "$instset18"
+		echo -e "($instset04: $IS_MBR)$instset05"
+		read IS_MBR
+		[[ "$IS_MBR" ]] && IS_MBR="$IS_MBR"
+		if [ "$INST_MBR" == "" ]; then
+			INST_MBR='n'
+		fi
+	fi
+fi
+
+
+clear
+cat << ENTER
+1)  aa_DJ  26) bs_BA  51) en_US  76) fi_FI  101) ku_TR  126) so_KE
+2)  af_ZA  27) ca_AD  52) en_ZA  77) fo_FO  102) kw_GB  127) so_SO
+3)  an_ES  28) ca_ES  53) en_ZW  78) fr_BE  103) lg_UG  128) sq_AL
+4)  ar_AE  29) ca_FR  54) es_AR  79) fr_CA  104) lt_LT  129) st_ZA
+5)  ar_BH  30) ca_IT  55) es_BO  80) fr_CH  105) lv_LV  130) sv_FI
+6)  ar_DZ  31) cs_CZ  56) es_CL  81) fr_FR  106) mg_MG  131) sv_SE
+7)  ar_EG  32) cy_GB  57) es_CO  82) fr_LU  107) mi_NZ  132) tcy_IN
+8)  ar_IQ  33) da_DK  58) es_CR  83) ga_IE  108) mk_MK  133) tg_TJ
+9)  ar_JO  34) de_AT  59) es_DO  84) gd_GB  109) ms_MY  134) th_TH
+10) ar_KW  35) de_BE  60) es_EC  85) gl_ES  110) mt_MT  135) tl_PH
+11) ar_LB  36) de_CH  61) es_ES  86) gv_GB  111) nb_NO  136) tr_CY
+12) ar_LY  37) de_DE  62) es_GT  87) he_IL  112) nl_BE  137) tr_TR
+13) ar_MA  38) de_LU  63) es_HN  88) hr_HR  113) nl_NL  138) uk_UA
+14) ar_OM  39) el_GR  64) es_MX  89) hsb_DE 114) nn_NO  139) uz_UZ
+15) ar_QA  40) el_CY  65) es_NI  90) hu_HU  115) oc_FR  140) wa_BE
+16) ar_SA  41) en_AU  66) es_PA  91) id_ID  116) om_KE  141) xh_ZA
+17) ar_SD  42) en_BW  67) es_PE  92) is_IS  117) pl_PL  142) yi_US
+18) ar_SY  43) en_CA  68) es_PR  93) it_CH  118) pt_BR  143) zh_CN
+19) ar_TN  44) en_DK  69) es_PY  94) it_IT  119) pt_PT  144) zh_HK
+20) ar_YE  45) en_GB  70) es_SV  95) iw_IL  120) ro_RO  145) zh_SG
+21) ast_ES 46) en_HK  71) es_US  96) ja_JP  121) ru_RU  146) zh_TW
+22) be_BY  47) en_IE  72) es_UY  97) ka_GE  122) ru_UA  147) zu_ZA
+23) bg_BG  48) en_NZ  73) es_VE  98) kk_KZ  123) sk_SK
+24) bhb_IN 49) en_PH  74) et_EE  99) kl_GL  124) sl_SI
+25) br_FR  50) en_SG  75) eu_ES 100) ko_KR  125) so_DJ
+ENTER
+echo -e "$instset26"
+echo -e "($instset04: en_US) "
+
+read SET_LANG
+[[ "$SET_LANG" ]] && SET_LANG=$SET_LANG
+
+case "$SET_LANG" in
+	"1") LANG=aa_DJ;;
+	"2") LANG=af_ZA;;
+	"3") LANG=an_ES;;
+	"4") LANG=ar_AE;;
+	"5") LANG=ar_BH;;
+	"6") LANG=ar_DZ;;
+	"7") LANG=ar_EG;;
+	"8") LANG=ar_IQ;;
+	"9") LANG=ar_JO;;
+	"10") LANG=ar_KW;;
+	"11") LANG=ar_LB;;
+	"12") LANG=ar_LY;;
+	"13") LANG=ar_MA;;
+	"14") LANG=ar_OM;;
+	"15") LANG=ar_QA;;
+	"16") LANG=ar_SA;;
+	"17") LANG=ar_SD;;
+	"18") LANG=ar_SY;;
+	"19") LANG=ar_TN;;
+	"20") LANG=ar_YE;;
+	"21") LANG=ast_ES;;
+	"22") LANG=be_BY;;
+	"23") LANG=bg_BG;;
+	"24") LANG=bhb_IN;;
+	"25") LANG=br_FR;;
+	"26") LANG=bs_BA;;
+	"27") LANG=ca_AD;;
+	"28") LANG=ca_ES;;
+	"29") LANG=ca_FR;;
+	"30") LANG=ca_IT;;
+	"31") LANG=cs_CZ;;
+	"32") LANG=cy_GB;;
+	"33") LANG=da_DK;;
+	"34") LANG=de_AT;;
+	"35") LANG=de_BE;;
+	"36") LANG=de_CH;;
+	"37") LANG=de_DE;;
+	"38") LANG=de_LU;;
+	"39") LANG=el_GR;;
+	"40") LANG=el_CY;;
+	"41") LANG=en_AU;;
+	"42") LANG=en_BW;;
+	"43") LANG=en_CA;;
+	"44") LANG=en_DK;;
+	"45") LANG=en_GB;;
+	"46") LANG=en_HK;;
+	"47") LANG=en_IE;;
+	"48") LANG=en_NZ;;
+	"49") LANG=en_PH;;
+	"50") LANG=en_SG;;
+	"51") LANG=en_US;;
+	"52") LANG=en_ZA;;
+	"53") LANG=en_ZW;;
+	"54") LANG=es_AR;;
+	"55") LANG=es_BO;;
+	"56") LANG=es_CL;;
+	"57") LANG=es_CO;;
+	"58") LANG=es_CR;;
+	"59") LANG=es_DO;;
+	"60") LANG=es_EC;;
+	"61") LANG=es_ES;;
+	"62") LANG=es_GT;;
+	"63") LANG=es_HN;;
+	"64") LANG=es_MX;;
+	"65") LANG=es_NI;;
+	"66") LANG=es_PA;;
+	"67") LANG=es_PE;;
+	"68") LANG=es_PR;;
+	"69") LANG=es_PY;;
+	"70") LANG=es_SV;;
+	"71") LANG=es_US;;
+	"72") LANG=es_UY;;
+	"73") LANG=es_VE;;
+	"74") LANG=et_EE;;
+	"75") LANG=eu_ES;;
+	"76") LANG=fi_FI;;
+	"77") LANG=fo_FO;;
+	"78") LANG=fr_BE;;
+	"79") LANG=fr_CA;;
+	"80") LANG=fr_CH;;
+	"81") LANG=fr_FR;;
+	"82") LANG=fr_LU;;
+	"83") LANG=ga_IE;;
+	"84") LANG=gd_GB;;
+	"85") LANG=gl_ES;;
+	"86") LANG=gv_GB;;
+	"87") LANG=he_IL;;
+	"88") LANG=hr_HR;;
+	"89") LANG=hsb_DE;;
+	"90") LANG=hu_HU;;
+	"91") LANG=id_ID;;
+	"92") LANG=is_IS;;
+	"93") LANG=it_CH;;
+	"94") LANG=it_IT;;
+	"95") LANG=iw_IL;;
+	"96") LANG=ja_JP;;
+	"97") LANG=ka_GE;;
+	"98") LANG=kk_KZ;;
+	"99") LANG=kl_GL;;
+	"100") LANG=ko_KR;;
+	"101") LANG=ku_TR;;
+	"102") LANG=kw_GB;;
+	"103") LANG=lg_UG;;
+	"104") LANG=lt_LT;;
+	"105") LANG=lv_LV;;
+	"106") LANG=mg_MG;;
+	"107") LANG=mi_NZ;;
+	"108") LANG=mk_MK;;
+	"109") LANG=ms_MY;;
+	"110") LANG=mt_MT;;
+	"111") LANG=nb_NO;;
+	"112") LANG=nl_BE;;
+	"113") LANG=nl_NL;;
+	"114") LANG=nn_NO;;
+	"115") LANG=oc_FR;;
+	"116") LANG=om_KE;;
+	"117") LANG=pl_PL;;
+	"118") LANG=pt_BR;;
+	"119") LANG=pt_PT;;
+	"120") LANG=ro_RO;;
+	"121") LANG=ru_RU;;
+	"122") LANG=ru_UA;;
+	"123") LANG=sk_SK;;
+	"124") LANG=sl_SI;;
+	"125") LANG=so_DJ;;
+	"126") LANG=so_KE;;
+	"127") LANG=so_SO;;
+	"128") LANG=sq_AL;;
+	"129") LANG=st_ZA;;
+	"130") LANG=sv_FI;;
+	"131") LANG=sv_SE;;
+	"132") LANG=tcy_IN;;
+	"133") LANG=tg_TJ;;
+	"134") LANG=th_TH;;
+	"135") LANG=tl_PH;;
+	"136") LANG=tr_CY;;
+	"137") LANG=tr_TR;;
+	"138") LANG=uk_UA;;
+	"139") LANG=uz_UZ;;
+	"140") LANG=wa_BE;;
+	"141") LANG=xh_ZA;;
+	"142") LANG=yi_US;;
+	"143") LANG=zh_CN;;
+	"144") LANG=zh_HK;;
+	"145") LANG=zh_SG;;
+	"146") LANG=zh_TW;;
+	"147") LANG=zu_ZA;;
+esac
+
+if [ "$SET_LANG" == "" ]; then
+	LAMG="en_US"
+fi
+
+clear
+echo -e ""
+echo -e "$instset19"
+echo -e "($instset04: $USERNAME)"
+read USERNAME
+[[ "$USERNAME" ]] && USERNAME="$USERNAME"
+if [ "$USERNAME" == "" ]; then
+	USERNAME="mint"
+fi
+
+echo -e ""
+echo -e "$instset20"
+read PASSWD
+[[ "$PASSWD" ]] && PASSWD="$PASSWD"
+
+echo -e ""
+echo -e "$instset21"
+echo -e "$instset22"
+read FULLNAME
+[[ "$FULLNAME" ]] && FULLNAME="$FULLNAME"
+
+echo -e ""
+echo -e "$instset23"
+echo -e "($instset04: $HOST)"
+read HOST
+[[ "$HOST" ]] && HOST="$HOST"
+if [ "$HOST" == "" ]; then
+	HOST="localhosts"
+fi
+
+echo -e ""
+echo -e "$instset24"
+echo -e "($instset04: $AUTOLOGIN) $instset05"
+read AUTOLOGIN
+[[ "$AUTOLOGIN" ]] && AUTOLOGIN="$AUTOLOGIN"
+if [ "$AUTOLOGIN" == "" ]; then
+	AUTOLOGIN='n'
+fi
+
+echo -e ""
+echo -e "$instset25"
+tzselect
+TIMEZONE=$(ls -l  /etc/localtime | sed -e 's/.*\/zoneinfo\///g' )
+
+setinfo_fun
+
+}
+
+setinfo_fun(){
+clear
+echo -e ""
+echo -e "$setinfo01:"
+echo -e ""
+echo -e "$setinfo02: $TARGET"
+echo -e "$setinfo03: $FORMAT_FS"
+
+if [ "$MOUNT_BOOT" == "y" ]; then
+	echo -e "$setinfo04: $BOOT"
+	echo -e "$setinfo05: $FORMAT_BOOT"
+fi
+
+if [ "$MOUNT_HOME" == "y" ]; then
+	echo -e "$setinfo06: $HOME"
+	echo -e "$setinfo07: $FORMAT_HOME"
+
+fi
+
+echo -e "$setinfo08: $INST_GRUB"
+
+if [ "$INST_GRUB" == "y" ]; then
+	if [ "$IS_UEFI" == "y" ]; then
+		LOADER_MODE='UEFI/GPT'
+	else
+		if [ "$IS_MBR" == "y" ]; then
+			LOADER_MODE='BIOS/MBR'
+		else
+			LOADER_MODE='BIOS/GPT'
+		fi
+	fi
+	echo -e "$setinfo09: $LOADER_MODE"
+fi
+
+echo -e ""
+echo -e "$setinfo10: $FULLNAME"
+echo -e "$setinfo11: $USERNAME"
+echo -e "$setinfo12: $PASSWD"
+echo -e "$setinfo13: $HOST"
+echo -e "$setinfo14: $AUTOLOGIN"
+echo -e "$setinfo15: $TIMEZONE"
+echo -e "$setinfo16: $LANG"
+
+echo -e ""
+echo -e "1)  $setinfo17"
+echo -e "2)  $setinfo18"
+echo -e "3)  $setinfo19"
+echo -e "4)  $setinfo20"
+
+read inst_info
+[[ "$inst_info" ]] && inst_info="$inst_info"
+
+if [ "$inst_info" == "1" ]; then
+	instfs_fun
+else
+	if [ "$inst_info" == "2" ]; then
+		instset_fun
+	else
+		if [ "$inst_info" == "3" ]; then
+			main_fun
+		else
+			exit
+		fi
+	fi
+fi
+
+}
+
+instfs_fun(){
+clear
+if [ "$FORMAT_FS" == "y" ]; then
+	mkfs.ext4 -F $TARGET -L LMAE
+fi
+
+if [ "$FORMAT_BOOT" == "y" ]; then
+	mkfs.ext4 -F $BOOT -L BOOT
+fi
+
+if [ "$FORMAT_HOME" == "y" ]; then
+	mkfs.ext4 -F $HOME -L HOME
+fi
+
+echo -e "----> $instfs01"
+mount $TARGET /mnt
+cd /mnt
+unsquashfs $FSFILE
+mv squashfs-root/* /mnt
+rm -r squashfs-root
+rm -r lost+found
+
+if [ "$MOUNT_BOOT" == "y" ]; then
+	mv boot /mnt/tmp/
+	mkdir -p /mnt/boot
+	mount $BOOT /mnt/boot
+	mv /mnt/tmp/boot/* /mnt/boot/
+fi
+
+if [ "$MOUNT_HOME" == "y" ]; then
+	rm -rf /mnt/home/$LIVENAME
+	mount $HOME /mnt/home
+fi
+
+echo -e "----> $instfs02"
+genfstab -U /mnt > /mnt/etc/fstab
+
+
+if [ "$INST_GRUB" == "y" ]; then
+	echo -e "----> $instfs03"
+	if [ "$IS_UEFI" == "y" ]; then
+		## UEFI
+		mkdir -p /mnt/boot/EFI
+		mount /dev/sda1 /mnt/boot/EFI
+		$RUN_IN_CHROOT "grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=linuxmint --recheck"
+	else
+		if [ "$IS_MBR" == "y" ]; then
+			## BIOS/MBR
+			$RUN_IN_CHROOT "grub-install --recheck /dev/sda"
+		else
+			## BIOS/GPT
+			$RUN_IN_CHROOT "grub-install --force /dev/sda"
+		fi
+	fi
+	#### Make Grub Menu
+	$RUN_IN_CHROOT "grub-mkconfig -o /boot/grub/grub.cfg"
+fi
+
+echo -e "----> $instfs04"
+$RUN_IN_CHROOT "mkinitcpio -p linux"
+
+echo -e "----> $instfs05"
+$RUN_IN_CHROOT "echo $HOST > /etc/hostname"
+
+echo -e "----> $instfs06"
+$RUN_IN_CHROOT "ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime"
+$RUN_IN_CHROOT "hwclock --systohc --localtime"
+
+echo -e "----> $instset26"
+sed -i '$d' /mnt/etc/locale.gen
+echo $LANG.UTF-8 UTF-8 >> /mnt/etc/locale.gen
+echo LANG=$LANG.UTF-8 > /mnt/etc/locale.conf
+$RUN_IN_CHROOT "locale-gen"
+
+echo -e "----> $instfs07"
+$RUN_IN_CHROOT "userdel -r $LIVENAME"
+$RUN_IN_CHROOT "groupadd sudo"
+$RUN_IN_CHROOT "useradd -G wheel -s /bin/bash -m $USERNAME -c '$FULLNAME'"
+$RUN_IN_CHROOT "gpasswd -a $USERNAME sudo"
+$RUN_IN_CHROOT "gpasswd -a $USERNAME wheel"
+
+### MDM Settings
+sed -i s/mint/$USERNAME/g /mnt/etc/mdm/custom.conf
+if [ "$AUTOLOGIN" == "y" ]; then
+	sed -i 's/AutomaticLoginEnable=false/AutomaticLoginEnable=true/g' /mnt/etc/mdm/custom.conf
+	sed -i 's/TimedLoginEnable=true/TimedLoginEnable=false/g' /mnt/etc/mdm/custom.conf
+fi
+
+echo -e "----> $instfs08"
+echo $USERNAME:$PASSWD > /mnt/pw.txt
+echo root:$PASSWD >> /mnt/pw.txt
+$RUN_IN_CHROOT "chpasswd < /pw.txt"
+rm /mnt/pw.txt
+
+echo -e "----> $instfs09"
+$RUN_IN_CHROOT "pacman -Sy"
+
+rm -rf /mnt/home/*/.*
+rm -rf /mnt/home/*/*
+rm -rf /mnt/root/.*
+rm -rf /mnt/root/*
+
+### EXIT & UMOUNT
+umount /mnt/boot
+umount /mnt/home
+umount -l /mnt
+
+zenity --title="$instfs10" --info --text="$instfs11"
+
+exit
+
+}
+
+main_fun
