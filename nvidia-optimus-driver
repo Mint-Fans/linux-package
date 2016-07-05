@@ -1,0 +1,281 @@
+#!/bin/bash
+
+
+DISTRIB=$(uname -r)
+
+### Debian
+DPKG_ARCH=$(cat /var/lib/dpkg/arch | grep i386)
+
+if [ "$DPKG_ARCH" == "i386" ]; then
+    DPKG_I386='y'
+else
+    DPKG_I386='n'
+fi
+
+### Arch Linux
+MULTLIB_STATUS=$(cat /etc/pacman.conf |grep multilib] | tail -n 1)
+
+if [ "$MULTLIB_STATUS" == "[multilib]" ]; then
+    MULT32LIB='y'
+else
+    MULT32LIB='n'
+fi
+
+
+main_fun(){
+clear
+echo -e ""
+echo -e "    NVIDIA Optimus Driver [bumblebee]"
+echo -e ""
+echo -e "    1) Install NVIDIA Optimus Driver"
+echo -e "    2) Remove NVIDIA Optimus Driver"
+if [ "$(uname -m)" == "x86_64" ]; then
+    if [ -d "/var/lib/dpkg" ]; then
+        if [ ! "$DPKG_I386" == "y" ]; then
+            echo -e "    3) Enable i386 Repository for Debian (i386: $DPKG_I386)"
+        fi
+    fi
+
+    if [ -d "/var/lib/pacman" ]; then
+        if [ ! "$MULT32LIB" == "y" ]; then
+            echo -e "    3) Enable multilib Repository for ArchLinux (multilib: $MULT32LIB)"
+        fi
+    fi
+fi
+
+echo -e "    0) Press 0 or Any key to Exit"
+echo -e ""
+echo -e "    Enter Options:"
+
+read menu
+[[ "$menu" ]] && menu="$menu"
+
+if [ "$menu" == "1" ]; then
+    case $DISTRIB in
+        *"-amd64"|*"-686") debian_nv_fun;;
+        *"-ARCH") arch_nv_fun;;
+    esac
+else
+    if [ "$menu" == "2" ]; then
+        case $DISTRIB in
+            *"-amd64"|*"-686") debian_rm_fun;;
+            *"-ARCH") arch_rm_fun;;
+        esac
+    else
+        if [ "$menu" == "3" ]; then
+            case $DISTRIB in
+                *"-amd64"|*"-686") i386_repo_fun;;
+                *"-ARCH") multilib_fun;;
+            esac
+        else
+            exit
+        fi
+    fi
+fi
+}
+
+i386_repo_fun(){
+clear
+cat << ENTER
+    Enable i386 Repository 
+
+    (Status: $DPKG_I386) Options[y/n]
+ENTER
+
+read DPKG_I386
+[[ "$DPKG_I386" ]] && DPKG_I386="$DPKG_I386"
+if [ ! "$DPKG_I386" == "y" ]; then
+    DPKG_I386='n'
+fi
+
+if [ "$DPKG_I386" == "y" ]; then
+    sudo dpkg --add-architecture i386
+fi
+
+main_fun
+
+}
+
+multilib_fun(){
+clear
+cat << ENTER
+    Enable multilib Repository
+
+    (Status: $MULT32LIB) Options[y/n]
+ENTER
+
+read MULT32LIB
+[[ "$MULT32LIB" ]] && MULT32LIB="$MULT32LIB"
+if [ ! "$MULT32LIB" == "y" ]; then
+    MULT32LIB='n'
+fi
+
+if [ "$MULT32LIB" == "y" ]; then
+    sudo sh -c 'echo "[multilib]" >> /etc/pacman.conf'
+    sudo sh -c 'echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf'
+fi
+
+main_fun
+
+}
+
+############## Debian Install Driver
+debian_nv_fun(){
+
+sudo apt-get update
+
+### Intel Driver
+sudo apt-get install xserver-xorg-video-intel libdrm-intel1 -y
+
+if [ "$DPKG_I386" == "y" ]; then
+    sudo apt-get install libdrm-intel1:i386 -y
+fi
+
+sudo apt-get install vainfo intel-gpu-tools -y
+
+### NVIDIA Optimus
+# sudo apt-get --purge remove xserver-xorg-video-nouveau -y
+sudo apt-get --purge remove bumblebee* bbswitch-dkms -y
+sudo apt-get --purge remove ubuntu-drivers-common -y
+sudo apt autoremove
+
+sudo apt-get install bumblebee-nvidia primus -y
+sudo apt-get install nvidia-settings nvidia-xconfig mesa-utils -y
+
+### For 32-bit applications support on 64-bit machines
+if [ "$DPKG_I386" == "y" ]; then
+    sudo apt-get install primus-libs:i386 -y
+fi
+
+sudo sed -i 's/Exec=nvidia-settings/Exec=sudo optirun -b none nvidia-settings -c :8/g' /usr/lib/nvidia/current/nvidia-settings.desktop
+
+# NV_BUSID=$(lspci |grep NVIDIA | sed -e 's/ .*//g')
+
+# if [ ! "$NV_BUSID" == "" ]; then
+#     sudo sed -i s/01:00:0/$NV_BUSID/g /etc/bumblebee/xorg.conf.nvidia
+#     sudo sed -i 's/#   BusID/    BusID/g' /etc/bumblebee/xorg.conf.nvidia
+# fi
+
+# sudo sed -i 's/BusID/#BusID/g' /etc/bumblebee/xorg.conf.nouveau
+
+exit
+
+}
+
+############## Arch Linux Install Driver
+arch_nv_fun(){
+clear
+cat << ENTER
+
+    NVIDIA Optimus Driver Version
+
+    1) nVidia 352 [AUR]
+
+    2) nvidia current
+
+    3) nVidia 340
+
+ENTER
+
+read NV_VER
+[[ "$NV_VER" ]] && NV_VER="$NV_VER"
+
+if [ "$NV_VER" == "1" ]; then
+    sudo pacman -Sy
+    sudo pacman -S --noconfirm linux-headers
+    sudo pacman -S --noconfirm xf86-video-intel libva-intel-driver libva
+    yaourt -S nvidia-352
+    sudo pacman -S --noconfirm bumblebee bbswitch primus
+
+else
+    if [ "$NV_VER" == "2" ]; then
+        sudo pacman -Sy
+        sudo pacman -S --noconfirm xf86-video-intel libva-intel-driver libva
+        sudo pacman -S --noconfirm nvidia nvidia-utils opencl-nvidia nvidia-settings
+        sudo pacman -S --noconfirm bumblebee bbswitch primus
+    else
+        if [ "$NV_VER" == "3" ]; then
+            sudo pacman -Sy
+            sudo pacman -S --noconfirm xf86-video-intel libva-intel-driver libva
+            sudo pacman -S --noconfirm nvidia-340xx nvidia-340xx-utils opencl-nvidia-340xx
+            sudo pacman -S --noconfirm bumblebee bbswitch primus
+        else
+            main_fun
+        fi
+    fi
+fi
+
+sudo gpasswd -a $USER bumblebee
+sudo systemctl enable bumblebeed.service
+
+### For 32-bit applications support on 64-bit machines
+if [ "$MULT32LIB" == "y" ]; then
+    sudo pacman -S --noconfirm lib32-primus lib32-nvidia-utils lib32-mesa-libgl lib32-mesa
+fi
+
+sudo sed -i 's/i915 radeon nouveau/i915 bbswitch/g' /etc/mkinitcpio.conf
+sudo sed -i 's/MODULES=""/MODULES="i915 bbswitch"/g' /etc/mkinitcpio.conf
+sudo mkinitcpio -p linux
+
+sudo sed -i 's/Exec=\/usr\/bin\/nvidia-settings/Exec=sudo optirun -b none nvidia-settings -c :8/g' /usr/share/applications/nvidia-settings.desktop
+
+# NV_BUSID=$(lspci |grep NVIDIA | sed -e 's/ .*//g')
+# if [ ! "$NV_BUSID" == "" ]; then
+#     sudo sed -i s/01:00:0/$NV_BUSID/g /etc/bumblebee/xorg.conf.nvidia
+#     sudo sed -i 's/#   BusID/    BusID/g' /etc/bumblebee/xorg.conf.nvidia
+# fi
+# sudo sed -i 's/BusID/#BusID/g' /etc/bumblebee/xorg.conf.nouveau
+
+exit
+}
+
+############## Debian Remove Driver
+debian_rm_fun(){
+clear
+sudo apt-get --purge remove bumblebee-nvidia bumblebee bbswitch-dkms
+sudo apt-get --purge remove primus-libs -y
+sudo apt-get --purge remove nvidia-driver glx-alternative-nvidia nvidia-settings nvidia-xconfig -y
+sudo apt-get --purge remove nvidia-* -y
+
+if [ "$DPKG_I386" == "y" ]; then
+    sudo apt-get --purge remove  primus-libs:i386 libdrm-intel1:i386 -y
+fi
+
+sudo apt-get autoremove
+
+exit
+}
+
+############## Arch Linux Remove Driver
+arch_rm_fun(){
+clear
+
+NVINST=$(pacman -Q  | grep nvidia | sed -e 's/ .*//g' | sed -e 's/opencl-//g' | tail -n 1)
+
+if [ "$NVINST" == "nvidia-352" ]; then
+    sudo pacman -R virtualgl bbswitch bumblebee primus
+    sudo pacman -R --noconfirm nvidia-352 nvidia-utils-352 opencl-nvidia-352
+    sudo pacman -R --noconfirm lib32-acl lib32-attr lib32-bzip2 lib32-elfutils lib32-expat lib32-gcc-libs lib32-glibc lib32-libcap lib32-libdrm lib32-libffi lib32-libgcrypt lib32-libglvnd lib32-libgpg-error lib32-libidn lib32-libpciaccess lib32-libtxc_dxtn lib32-libx11 lib32-libxau lib32-libxcb lib32-libxdamage lib32-libxdmcp lib32-libxext lib32-libxfixes lib32-libxml2 lib32-libxshmfence lib32-libxxf86vm lib32-llvm-libs lib32-ncurses lib32-readline lib32-systemd lib32-wayland lib32-xz lib32-zlib lib32-mesa lib32-mesa-libgl lib32-nvidia-utils lib32-primus
+    sudo rm -rf /etc/bumblebee
+else
+    if [ "$NVINST" == "nvidia-340xx" ]; then
+        sudo pacman -R virtualgl bbswitch bumblebee primus
+        sudo pacman -R --noconfirm nvidia-340xx nvidia-340xx-utils opencl-nvidia-340xx ocl-icd
+        sudo pacman -R --noconfirm lib32-acl lib32-attr lib32-bzip2 lib32-elfutils lib32-expat lib32-gcc-libs lib32-glibc lib32-libcap lib32-libdrm lib32-libffi lib32-libgcrypt lib32-libglvnd lib32-libgpg-error lib32-libidn lib32-libpciaccess lib32-libtxc_dxtn lib32-libx11 lib32-libxau lib32-libxcb lib32-libxdamage lib32-libxdmcp lib32-libxext lib32-libxfixes lib32-libxml2 lib32-libxshmfence lib32-libxxf86vm lib32-llvm-libs lib32-ncurses lib32-readline lib32-systemd lib32-wayland lib32-xz lib32-zlib lib32-mesa lib32-mesa-libgl lib32-nvidia-utils lib32-primus
+        sudo rm -rf /etc/bumblebee
+    else
+        if [ "$NVINST" == "nvidia" ]; then
+            sudo pacman -R virtualgl bbswitch bumblebee primus
+            sudo pacman -R --noconfirm nvidia nvidia-settings nvidia-utils opencl-nvidia ocl-icd
+            sudo pacman -R --noconfirm lib32-acl lib32-attr lib32-bzip2 lib32-elfutils lib32-expat lib32-gcc-libs lib32-glibc lib32-libcap lib32-libdrm lib32-libffi lib32-libgcrypt lib32-libglvnd lib32-libgpg-error lib32-libidn lib32-libpciaccess lib32-libtxc_dxtn lib32-libx11 lib32-libxau lib32-libxcb lib32-libxdamage lib32-libxdmcp lib32-libxext lib32-libxfixes lib32-libxml2 lib32-libxshmfence lib32-libxxf86vm lib32-llvm-libs lib32-ncurses lib32-readline lib32-systemd lib32-wayland lib32-xz lib32-zlib lib32-mesa lib32-mesa-libgl lib32-nvidia-utils lib32-primus
+            sudo rm -rf /etc/bumblebee
+        fi
+    fi
+fi
+
+exit
+
+}
+
+main_fun
+
