@@ -69,7 +69,7 @@
 case $LANG in
 	zh_TW* | zh_HK*)
 
-	main01="安裝程式指令行界面"
+	main01="安裝程式指令行介面"
 	main02="建立或刪除分割區"
 	main03="安裝"
 	main04="退出"
