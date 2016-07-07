@@ -131,7 +131,7 @@ case $LANG in
 	instfs07="建立新的使用者"
 	instfs08="設定密碼"
 	instfs09="更新APT套件庫清單"
-	instfs10="Linux Mint 安裝程式"
+	instfs10="安裝程式"
 	instfs11="安裝完成."
 
 esac
