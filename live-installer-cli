@@ -840,7 +840,7 @@ umount /mnt/home
 umount /mnt/boot
 umount -l /mnt
 
-zenity --title="$MENU_TITLE" "$instfs10" --info --text="$instfs11"
+zenity --title="$MENU_TITLE $instfs10" --info --text="$instfs11"
 
 exit
 
