@@ -1,1 +1,1 @@
-# Kali Linux Packages fix for Linux Mint
+# Linux Emulator Packages
