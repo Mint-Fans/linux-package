@@ -1,0 +1,14 @@
+#!/bin/bash
+
+
+### Install GTK 1.2
+wget http://archive.debian.org/debian/pool/main/g/gtk+1.2/libgtk1.2-common_1.2.10-18.1_all.deb
+wget http://archive.debian.org/debian/pool/main/g/glib1.2/libglib1.2ldbl_1.2.10-19_i386.deb
+wget http://archive.debian.org/debian/pool/main/g/gtk+1.2/libgtk1.2_1.2.10-18.1_i386.deb
+sudo dpkg -i libgtk1.2-common_1.2.10-18.1_all.deb
+sudo dpkg -i libglib1.2ldbl_1.2.10-19_i386.deb
+sudo dpkg -i libgtk1.2_1.2.10-18.1_i386.deb
+sudo rm libgtk1.2-common_1.2.10-18.1_all.deb
+sudo rm libglib1.2ldbl_1.2.10-19_i386.deb
+sudo rm libgtk1.2_1.2.10-18.1_i386.deb
+
