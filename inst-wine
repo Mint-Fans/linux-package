@@ -1,0 +1,92 @@
+#!/bin/bash
+
+
+INST_RECS='n'
+
+ostype=$(uname -r)
+arch=$(uname -m)
+distributor=$(lsb_release -i)
+fontconfig_ver=$(dpkg -s libfontconfig1 | grep -i version)
+
+sudo rm /var/lib/apt/lists/*
+
+if [ "$arch" == "x86_64" ]; then
+    sudo dpkg --add-architecture i386
+fi
+
+case $ostype in
+	*"-generic")
+        ### Linux Mint / Ubuntu
+        sudo add-apt-repository ppa:wine/wine-builds
+        sudo apt-get update
+	;;
+	*"-amd64"|*"-686")
+        ### LMDE / Debian
+        wget https://dl.winehq.org/wine-builds/Release.key
+        sudo apt-key add Release.key
+        rm Release.key
+        sudo sh -c 'echo "deb http://dl.winehq.org/wine-builds/debian stretch main" > /etc/apt/sources.list.d/wine-official.list'
+        sudo apt-get update
+	;;
+esac
+
+
+# sudo apt-get install winehq-devel -y
+sudo apt-get install wine-staging-compat -y
+
+if [ "$INST_RECS" == "y" ]; then
+    sudo apt-get install libcapi20-3 libcups2 libdbus-1-3 libfontconfig1 libfreetype6 libgnutls-deb0-28 libjpeg62-turbo libosmesa6 libpcap0.8 libpng16-16 libssl1.0.0 libtiff5 libtxc-dxtn-s2tc0 libv4l-0 libva-drm1 libva-x11-1 libx11-xcb1 libxcomposite1 libxcursor1 libxi6 libxinerama1 libxrandr2 libxrender1 libxslt1.1 libxt6 libxxf86vm1 libodbc1 libgsm1 -y
+    if [ "$arch" == "x86_64" ]; then
+        sudo apt-get install libcapi20-3:i386 libcups2:i386 libdbus-1-3:i386 libfontconfig1:i386 libfreetype6:i386 libgnutls-deb0-28:i386 libjpeg62-turbo:i386 libosmesa6:i386 libpcap0.8:i386 libpng16-16:i386 libssl1.0.0:i386 libtiff5:i386 libtxc-dxtn-s2tc0:i386 libv4l-0:i386 libva-drm1:i386 libva-x11-1:i386 libx11-xcb1:i386 libxcomposite1:i386 libxcursor1:i386 libxi6:i386 libxinerama1:i386 libxrandr2:i386 libxrender1:i386 libxslt1.1:i386 libxt6:i386 libxxf86vm1:i386 libodbc1:i386 libgsm1:i386 -y
+    fi
+fi
+
+wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
+chmod +x winetricks
+sudo cp winetricks /usr/local/bin
+rm winetricks
+
+wget https://github.com/Mint-Fans/linux-package/raw/debian/wine-launcher_1.9-0_all.deb
+sudo dpkg -i wine-launcher_*.deb
+sudo apt-get install xdg-utils -y
+rm wine-launcher_*.deb
+
+#############################
+### Wine Settings
+#############################
+## Wine 32-bit for Wine amd64
+# WINEARCH=win32 winecfg
+winecfg
+
+### font settings
+### WenQuanYi Micro Hei
+apt-get install fonts-wqy-microhei
+cp /usr/share/fonts/truetype/wqy/wqy-microhei.ttc .wine/drive_c/windows/Fonts/
+wget https://github.com/Mint-Fans/linux-package/raw/master/wqy-microhei.reg
+mv wqy-microhei.reg .wine/drive_c/windows/
+wine regedit wqy-microhei.reg
+
+### MingLiU
+# wget https://github.com/Mint-Fans/linux-package/raw/master/mingliu.ttc
+# mv mingliu.ttc .wine/drive_c/windows/Fonts/
+# wget https://github.com/Mint-Fans/linux-package/raw/master/mingliu.reg
+# mv mingliu.reg .wine/drive_c/windows/
+# wine regedit mingliu.reg
+
+
+#############################
+### Install libraries
+#############################
+winetricks comctl32
+winetricks vb6run
+
+#############################
+### Install applications
+#############################
+
+wget https://down.xfplay.com/xfplay9.92.exe
+wine xfplay9.92.exe
+
+wget http://download.cdn.mozilla.net/pub/firefox/releases/47.0/win32/zh-TW/Firefox%20Setup%2047.0.exe
+wine Firefox\ Setup\ 47.0.exe
+
