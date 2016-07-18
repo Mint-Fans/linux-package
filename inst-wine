@@ -1,0 +1,80 @@
+#!/bin/bash
+
+
+sudo pacman -S --noconfirm wine wine_gecko wine-mono winetricks
+
+wget https://github.com/Mint-Fans/linux-package/raw/arch/wine-launcher-1.9-1-any.pkg.tar.xz
+sudo pacman -U --noconfirm wine-launcher-1.9-1-any.pkg.tar.xz
+rm *.pkg.tar.xz
+
+sudo pacman -S --noconfirm lib32-mesa lib32-alsa-lib lib32-libpulse lib32-openal
+sudo pacman -S --noconfirm lib32-libxml2 lib32-mpg123 lib32-lcms2 lib32-giflib lib32-libpng lib32-gnutls
+
+#############################
+### Wine Settings
+#############################
+### font settings
+sed -i '/MS Shell Dlg 2/i HKLM,%FontSubStr%,MS Shell Dlg,,WenQuanYi Micro Hei' /usr/share/wine/wine.inf
+sed -i '/MS Shell Dlg 2/i HKLM,%FontSubStr%,FixedSys,,DejaVu Sans Mono' /usr/share/wine/wine.inf
+
+sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,System,,DejaVu Sans Mono' /usr/share/wine/wine.inf
+sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,Tahoma,,WenQuanYi Micro Hei' /usr/share/wine/wine.inf
+sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,新細明體,,WenQuanYi Micro Hei' /usr/share/wine/wine.inf
+sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,PMingLiU,,WenQuanYi Micro Hei' /usr/share/wine/wine.inf
+
+sed -i '/Times New Roman TUR/a HKLM,%FontSubStr%,Tms Rmn,,WenQuanYi Micro Hei' /usr/share/wine/wine.inf
+
+sed -i 's/,FixedSys,/,"FixedSys",/g' /usr/share/wine/wine.inf
+sed -i 's/,MS Shell Dlg,/,"MS Shell Dlg",/g' /usr/share/wine/wine.inf
+sed -i 's/,Tahoma,/,"Tahoma",/g' /usr/share/wine/wine.inf
+sed -i 's/,新細明體,/,"新細明體",/g' /usr/share/wine/wine.inf
+sed -i 's/,PMingLiU,/,"PMingLiU",/g' /usr/share/wine/wine.inf
+sed -i 's/,Tms Rmn,/,"Tms Rmn",/g' /usr/share/wine/wine.inf
+sed -i 's/,System,,DejaVu Sans Mono/,"System",,"DejaVu Sans Mono"/g' /usr/share/wine/wine.inf
+
+sed -i 's/,WenQuanYi Micro Hei/,"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/,DejaVu Sans Mono/,"DejaVu Sans Mono"/g' /usr/share/wine/wine.inf
+
+sed -i 's/"Arial,186"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Arial,238"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Arial,204"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Arial,161"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Arial,162"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Courier New,186"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Courier New,238"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Courier New,204"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Courier New,161"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Courier New,162"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"MS Sans Serif"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Arial"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Tahoma"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Times New Roman"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Times New Roman,186"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Times New Roman,238"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Times New Roman,204"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Times New Roman,161"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+sed -i 's/"Times New Roman,162"/"WenQuanYi Micro Hei"/g' /usr/share/wine/wine.inf
+
+### language settings
+sed -i 's/InstallLanguage",,"0409/InstallLanguage",,"0404/g' /usr/share/wine/wine.inf
+sed -i 's/Default",,"0409/Default",,"0404/g' /usr/share/wine/wine.inf
+sed -i 's/,,"00000409/,,"00000404/g' /usr/share/wine/wine.inf
+
+## Wine 32-bit for Wine amd64
+# WINEARCH=win32 winecfg
+winecfg
+
+#############################
+### Install libraries
+#############################
+winetricks comctl32
+winetricks vb6run
+
+#############################
+### Install applications
+#############################
+wget https://down.xfplay.com/xfplay9.92.exe
+wine xfplay9.92.exe
+
+wget http://download.cdn.mozilla.net/pub/firefox/releases/45.0.2/win32/zh-TW/Firefox%20Setup%2045.0.2.exe
+wine Firefox\ Setup\ 45.0.2.exe
