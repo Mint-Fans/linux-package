@@ -86,11 +86,6 @@ chmod +x winetricks
 sudo cp winetricks /usr/local/bin
 rm winetricks
 
-wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
-chmod +x winetricks
-sudo cp winetricks /usr/local/bin
-rm winetricks
-
 sudo apt-get install ttf-wqy-microhei ttf-dejavu ttf-dejavu-extra
 
 sudo mkdir -p /opt/wine-devel/share/wine/mono
@@ -279,7 +274,7 @@ fi
 
 
 ###################################
-### Kali Utility for Mint Fix
+### Kali Utility Fix
 ###################################
 
 /usr/share/kali-menu/update-kali-menu
