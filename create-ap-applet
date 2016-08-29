@@ -1,0 +1,320 @@
+#!/bin/bash
+
+
+########################################
+### Create AP Applet By Mint Fans
+########################################
+
+### Translations ########################
+    text01="AP mode is not support"
+    main01="Start Create WIFI AP"
+    main02="Configuration"
+    main03="Remove Config"
+    main04="Remove automatically starting"
+    main05="STOP AP"
+    main06="Press 0 to exit"
+    choose01="choose wifi interface"
+    config01="Enter the desired Access Point name or press ENTER to use the default one"
+    config02="Enter the desired WPA Passphrase below or press ENTER to use the default one"
+    config03="Create a settings file ?"
+    config04="Options"
+    config05="automatically starting on startup ?"
+
+case $LANG in
+    zh_TW* | zh_HK*)
+    text01="無限網卡不支援AP模式"
+    main01="啟動無線網路基地台"
+    main02="編輯設定檔"
+    main03="移除設定檔"
+    main04="停止自動啟動AP"
+    main05="停止 AP"
+    main06="按「0」退出"
+    choose01="選擇建立AP的介面卡"
+    config01="輸入AP名稱或按ENTER鍵使用預設名稱"
+    config02="輸入WPA密碼或按ENTER鍵使用無密碼開放式AP"
+    config03="是否建立設定檔"
+    config04="選項"
+    config05="開機時自動啟動"
+
+esac
+
+
+#########################################
+### Interface with internet
+INTERFACE_NET=$(sudo route | grep default 2>&1 | awk '{printf "%s ", $NF}' | sed -s 's/ $//' | sed -e 's/ .*//g')
+
+### TEST
+# if [ "$INTERFACE_NET" == "" ]; then
+#     INTERFACE_NET=$(sudo ifconfig -a 2>&1 | grep "^e" | sed 's/:.*//g')
+# fi
+
+PHY0=phy0
+PHYX=$(ls /sys/class/ieee80211/ | sed -e 's/phy0//g' | sed ':label;N;s/\n//;b label')
+
+### WIFI Interface
+sudo iw dev | sed -e 's/^[ \t]*//g' | sed 's/phy#/phy/g' | sed ':label;N;s/\n//;b label' | sed 's/phy0/\nphy0/' | sed 's/ifindex.*//g' | sed 's/Interface /=/g' > /tmp/iw-dev-info
+
+WLAN0=$(cat /tmp/iw-dev-info | grep $PHY0 | sed 's/.*=//')
+WLANX=$(cat /tmp/iw-dev-info | grep $PHYX | sed 's/.*=//')
+
+GET_AP=""
+if [ -f "/tmp/get-ap" ]; then
+    GET_AP=$(cat /tmp/get-ap)
+fi
+
+### default ssid name
+SSID=LinuxAP
+
+#########################################
+main_fun(){
+clear
+echo -e ""
+echo -e "    Create AP Applet"
+echo -e ""
+echo -e "    1) $main01"
+echo -e "    2) $main02"
+if [ -f "/etc/crate-ap/create-ap.conf" ]; then
+    echo -e "    3) $main03"
+fi
+if [ -f "/etc/xdg/autostart/create-ap-starting.desktop" ]; then
+    echo -e "    4) $main04"
+fi
+
+if [ ! "$GET_AP" == "" ]; then
+echo -e "    5) $main05"
+fi
+
+echo -e "    0) $main06"
+read MENU
+[[ "$MENU" ]] && MENU="$MENU"
+
+if [ "$MENU" == "1" ]; then
+    start_fun
+elif [ "$MENU" == "2" ]; then
+    config_fun
+elif [ "$MENU" == "3" ]; then
+    echo -e "----> configuration"
+    sudo rm -rf /etc/crate-ap
+    main_fun
+elif [ "$MENU" == "4" ]; then
+    sudo rm -rf /usr/local/bin/create-ap-starting
+    sudo rm -rf /etc/xdg/autostart/create-ap-starting.desktop
+    echo -e "----> remove automatically starting"
+    main_fun
+elif [ "$MENU" == "5" ]; then
+    sudo create_ap --stop $GET_AP
+    sudo rm /tmp/iw-dev-info
+    sudo rm /tmp/get-ap
+    sudo rm /tmp/create_ap.all.lock
+    echo -e "----> stop access point"
+    main_fun
+elif [ "$MENU" == "0" ]; then
+    exit
+else
+    main_fun
+fi
+}
+###############################################
+wlan_detect_fun(){
+sudo iw dev $INTERFACE_WLAN interface add ap0 type __ap
+### USB WLAN
+RNVAP=$(sudo ifconfig -a 2>&1 | grep "^rename" | sed -e 's/: .*//g')
+### Built-in WLAN
+VAP=$(sudo ifconfig -a 2>&1 | grep "^ap" | sed -e 's/: .*//g')
+
+if [ "$VAP" == "" ]; then
+    NOVAP="y"
+    GET_AP="$INTERFACE_WLAN"
+else
+    GET_AP="$VAP"
+fi
+
+### Built-in WLAN
+sudo iw dev ap0 del
+### USB WLAN
+sudo iw dev "$RNVAP" del
+# sudo sh -c "echo $RNVAP > /tmp/RNVAP"
+
+sudo sh -c "echo $GET_AP > /tmp/get-ap"
+}
+
+###############################################
+choose_interface_fun(){
+if [ "$PHYX" == "" ]; then
+    INTERFACE_WLAN="$WLAN0"
+    wlan_detect_fun
+else
+    ### choose wifi interface
+    echo -e "    $choose01"
+    echo -e "    1) $WLAN0"
+    echo -e "    2) $WLANX"
+    read choose
+    [[ "$choose" ]] && choose="$choose"
+
+    if [ "$choose" == "1" ]; then
+        INTERFACE_WLAN="$WLAN0"
+        wlan_detect_fun
+    else
+        if [ "$choose" == "2" ]; then
+            INTERFACE_WLAN="$WLANX"
+            wlan_detect_fun
+        else
+            INTERFACE_WLAN="$WLAN0"
+            wlan_detect_fun
+        fi
+    fi
+fi
+}
+
+###############################################
+set_ssid_fun(){
+clear
+echo -e ""
+echo -e "    $config01 ($SSID):"
+read ssid
+[[ "$ssid" ]] && SSID="$ssid"
+if [ "$ssid" == "" ]; then
+    SSID=LinuxAP
+fi
+}
+
+###############################################
+set_wpapass_fun(){
+echo -e ""
+echo -e "    $config02 ($WPAPASS):"
+read wpapass
+[[ "$wpapass" ]] && WPAPASS="$wpapass"
+}
+###############################################
+
+###############################################
+create_config_fun(){
+echo -e ""
+echo -e "    $config03"
+echo -e ""
+echo -e "$config04 [y/n]"
+read CONF
+[[ "$CONF" ]] && CONF="$CONF"
+if [ "$CONF" == "y" ]; then
+    mkdir -p /etc/crate-ap
+    sudo sh -c "echo SSID=$SSID > /etc/crate-ap/create-ap.conf"
+    sudo sh -c "echo WPAPASS=$WPAPASS >> /etc/crate-ap/create-ap.conf"
+    sudo sh -c "echo NET=$INTERFACE_NET >> /etc/crate-ap/create-ap.conf"
+    sudo sh -c "echo WLAN=$INTERFACE_WLAN >> /etc/crate-ap/create-ap.conf"
+fi
+}
+
+auto_conf_fun(){
+
+cat > create-ap-starting << EOF
+#!/bin/bash
+
+EOF
+
+wlan_detect_fun
+
+if [ "$NOVAP" == "y" ]; then
+    sudo sh -c "echo create_ap --no-virt $INTERFACE_WLAN $INTERFACE_NET $SSID $WPAPASS >> create-ap-starting"
+else
+    sudo sh -c "echo create_ap $INTERFACE_WLAN $INTERFACE_NET $SSID $WPAPASS >> create-ap-starting"
+fi
+
+sudo chmod 755 create-ap-starting
+sudo rm -rf /usr/local/bin/create-ap-starting
+sudo mv create-ap-starting /usr/local/bin/
+
+cat > create-ap-starting.desktop << EOF
+[Desktop Entry]
+Type=Application
+Name=Create AP Starting
+Comment=Create AP Auto Starting
+Exec=create-ap-starting
+EOF
+
+sudo rm -rf /etc/xdg/autostart/create-ap-starting.desktop
+sudo mv create-ap-starting.desktop /etc/xdg/autostart/
+
+}
+
+### automatically starting on startup
+autostart_fun(){
+echo -e ""
+echo -e "    $config05"
+echo -e ""
+echo -e "$config04 [y/n]"
+read CONF
+[[ "$CONF" ]] && CONF="$CONF"
+if [ "$CONF" == "y" ]; then
+    SSID=$(cat /etc/crate-ap/create-ap.conf | grep SSID | sed -e 's/.*=//g')
+    WPAPASS=$(cat /etc/crate-ap/create-ap.conf | grep WPAPASS | sed -e 's/.*=//g')
+    INTERFACE_NET=$(cat /etc/crate-ap/create-ap.conf | grep NET | sed -e 's/.*=//g')
+    INTERFACE_WLAN=$(cat /etc/crate-ap/create-ap.conf | grep WLAN | sed -e 's/.*=//g')
+    auto_conf_fun
+fi
+}
+
+###############################################
+config_fun(){
+clear
+
+### Settings SSID
+set_ssid_fun
+
+### Settings WPA Password
+set_wpapass_fun
+
+### choose wifi interface
+choose_interface_fun
+
+### create configuration
+create_config_fun
+
+### automatically starting on startup
+if [ -f "/etc/crate-ap/create-ap.conf" ]; then
+    autostart_fun
+fi
+
+main_fun
+}
+###############################################
+start_fun(){
+
+if [ -f "/etc/crate-ap/create-ap.conf" ]; then
+    SSID=$(cat /etc/crate-ap/create-ap.conf | grep SSID | sed -e 's/.*=//g')
+    WPAPASS=$(cat /etc/crate-ap/create-ap.conf | grep WPAPASS | sed -e 's/.*=//g')
+else
+    set_ssid_fun
+    set_wpapass_fun
+fi
+
+choose_interface_fun
+
+if [ "$WPAPASS" == "" ]; then
+    if [ "$NOVAP" == "y" ]; then
+        create_ap --no-virt $INTERFACE_WLAN $INTERFACE_NET $SSID
+        sudo rm /tmp/iw-dev-info
+        sudo rm /tmp/get-ap
+        sudo rm /tmp/create_ap.all.lock
+    else
+        create_ap $INTERFACE_WLAN $INTERFACE_NET $SSID
+        sudo rm /tmp/iw-dev-info
+        sudo rm /tmp/get-ap
+        sudo rm /tmp/create_ap.all.lock
+    fi
+else
+    if [ "$NOVAP" == "y" ]; then
+        create_ap --no-virt $INTERFACE_WLAN $INTERFACE_NET $SSID $WPAPASS
+        sudo rm /tmp/iw-dev-info
+        sudo rm /tmp/get-ap
+        sudo rm /tmp/create_ap.all.lock
+    else
+        create_ap $INTERFACE_WLAN $INTERFACE_NET $SSID $WPAPASS
+        sudo rm /tmp/iw-dev-info
+        sudo rm /tmp/get-ap
+        sudo rm /tmp/create_ap.all.lock
+    fi
+fi
+
+}
+
+main_fun
