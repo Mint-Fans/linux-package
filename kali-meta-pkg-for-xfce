@@ -1,0 +1,39 @@
+========================
+kali-defaults 修改
+========================
+rm -rf DEBIAN/postrm
+rm -rf DEBIAN/preinst
+rm -rf DEBIAN/postinst
+rm -rf etc/xdg
+rm -rf usr/share/glib-2.0
+rm -rf usr/share/kali-defaults/xsettings.xml
+
+sed -i '/xfce4/d' DEBIAN/conffiles
+sed -i 's/, gnome-brave-icon-theme//g' DEBIAN/control
+
+cat > DEBIAN/postinst << EOF
+#!/bin/sh
+
+set -e
+
+### Changing Network Interfaces Name
+mkdir -p /etc/systemd/network
+ln -sf /dev/null /etc/systemd/network/99-default.link
+ln -sf /dev/null /etc/systemd/network/90-mac-for-usb.link
+ln -sf /dev/null /etc/udev/rules.d/73-usb-net-by-mac.rules
+touch /etc/udev/rules.d/70-persistent-cd.rules
+touch /etc/udev/rules.d/73-special-net-names.rules
+update-initramfs -u
+EOF
+
+sudo chmod 755 DEBIAN/postinst
+
+========================
+kali-debtags 不用改
+========================
+
+========================
+kali-desktop-common
+========================
+sed -i 's/kali-root-login, //g' DEBIAN/control
+sed -i 's/desktop-base, //g' DEBIAN/control
