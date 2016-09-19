@@ -37,3 +37,8 @@ kali-desktop-common
 ========================
 sed -i 's/kali-root-login, //g' DEBIAN/control
 sed -i 's/desktop-base, //g' DEBIAN/control
+
+========================
+kali-theme-color-fix
+========================
+sed -i 's/#1D8ECE/#6CABCD/g' gtk-3.20/gtk-contained.css
