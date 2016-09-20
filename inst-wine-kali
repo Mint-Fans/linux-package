@@ -1,0 +1,176 @@
+#!/bin/bash
+
+
+########### Settings ###########
+
+### Install mono & gecko
+INST_MG='y'
+
+### Install Recommends
+INST_RECS='y'
+
+### wine settings
+WINE_SET='n'
+
+## Wine32 Only on the linux 64-bit
+WINE32_CFG='n'
+
+### winehq launcher
+INST_LACHER='y'
+
+### font for wine
+INST_FONT='y'
+
+### windows xfplay
+INST_XFPLAY='n'
+
+### windows firefox
+INST_FIREFOX='n'
+
+################################
+
+KERN=$(uname -r)
+ARCH=$(uname -m)
+
+sudo rm /var/lib/apt/lists/*
+
+if [ "$ARCH" == "x86_64" ]; then
+    sudo dpkg --add-architecture i386
+fi
+
+wget https://dl.winehq.org/wine-builds/Release.key
+sudo apt-key add Release.key
+rm Release.key
+sudo sh -c 'echo "deb http://dl.winehq.org/wine-builds/debian stretch main" > /etc/apt/sources.list.d/wine-official.list'
+sudo apt-get update
+
+if [ "$INST_RECS" == "y" ]; then
+    sudo apt-get install --install-recommends winehq-devel -y
+else
+    sudo apt-get install winehq-devel -y
+fi
+
+#############################
+### install winetricks
+#############################
+wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
+chmod +x winetricks
+rm -rf /usr/local/bin/winetricks
+sudo cp winetricks /usr/local/bin
+rm winetricks
+
+#############################
+### winehq-launcher
+#############################
+if [ "$INST_LACHER" == "y" ]; then
+    wget https://github.com/Mint-Fans/linux-package/raw/kali/wine-launcher_1.9-0_all.deb
+    sudo dpkg -i wine-launcher_*.deb
+    sudo apt-get install xdg-utils -y
+    rm wine-launcher_*.deb
+fi
+
+#############################
+### for wine font
+#############################
+if [ "$INST_FONT" == "y" ]; then
+    sudo apt-get install ttf-wqy-microhei ttf-dejavu ttf-dejavu-extra
+fi
+#############################
+### preinst mono & gecko
+#############################
+if [ "$INST_MG" == "y" ]; then
+    sudo mkdir -p /opt/wine-devel/share/wine/mono
+    sudo mkdir -p /opt/wine-devel/share/wine/gecko
+
+    wget https://dl.winehq.org/wine/wine-mono/4.6.3/wine-mono-4.6.3.msi
+    sudo mv wine-mono-4.6.3.msi /opt/wine-devel/share/wine/mono/
+    wget https://dl.winehq.org/wine/wine-gecko/2.47/wine_gecko-2.47-x86.msi
+    wget https://dl.winehq.org/wine/wine-gecko/2.47/wine_gecko-2.47-x86_64.msi
+    sudo mv wine_gecko-2.47-x86.msi /opt/wine-devel/share/wine/gecko/
+    sudo mv wine_gecko-2.47-x86_64.msi /opt/wine-devel/share/wine/gecko/
+fi
+
+#############################
+### Wine Language Patch
+#############################
+### locale settings
+sudo sh -c "echo zh_TW.UTF-8 UTF-8 > /etc/locale.gen"
+sudo locale-gen
+sudo sh -c "echo LANG=zh_TW.UTF-8 > /etc/default/locale"
+sudo sh -c "echo LC_NUMERIC=zh_TW.UTF-8 >> /etc/default/locale"
+
+### font settings
+sudo sed -i '/MS Shell Dlg 2/i HKLM,%FontSubStr%,MS Shell Dlg,,WenQuanYi Micro Hei' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i '/MS Shell Dlg 2/i HKLM,%FontSubStr%,FixedSys,,DejaVu Sans Mono' /opt/wine-devel/share/wine/wine.inf
+
+sudo sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,System,,DejaVu Sans Mono' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,Tahoma,,WenQuanYi Micro Hei' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,PMingLiU,,WenQuanYi Micro Hei' /opt/wine-devel/share/wine/wine.inf
+
+sudo sed -i '/Times New Roman TUR/a HKLM,%FontSubStr%,Tms Rmn,,WenQuanYi Micro Hei' /opt/wine-devel/share/wine/wine.inf
+
+sudo sed -i 's/,FixedSys,/,"FixedSys",/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/,MS Shell Dlg,/,"MS Shell Dlg",/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/,Tahoma,/,"Tahoma",/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/,PMingLiU,/,"PMingLiU",/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/,Tms Rmn,/,"Tms Rmn",/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/,System,,DejaVu Sans Mono/,"System",,"DejaVu Sans Mono"/g' /opt/wine-devel/share/wine/wine.inf
+
+sudo sed -i 's/,WenQuanYi Micro Hei/,"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/,DejaVu Sans Mono/,"DejaVu Sans Mono"/g' /opt/wine-devel/share/wine/wine.inf
+
+sudo sed -i 's/"Arial,186"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Arial,238"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Arial,204"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Arial,161"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Arial,162"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Courier New,186"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Courier New,238"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Courier New,204"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Courier New,161"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Courier New,162"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"MS Sans Serif"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Arial"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Tahoma"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Times New Roman"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Times New Roman,186"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Times New Roman,238"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Times New Roman,204"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Times New Roman,161"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/"Times New Roman,162"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+
+### language settings
+sudo sed -i 's/InstallLanguage",,"0409/InstallLanguage",,"0404/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/Default",,"0409/Default",,"0404/g' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i 's/,,"00000409/,,"00000404/g' /opt/wine-devel/share/wine/wine.inf
+
+### font Smoothing
+sudo sed -i '$a [Extra]' /opt/wine-devel/share/wine/wine.inf
+sudo sed -i '$a HKCU,Control Panel\Desktop,"FontSmoothing",,"2"' /opt/wine-devel/share/wine/wine.inf
+
+#############################
+### Wine Settings
+#############################
+if [ "$WINE_SET" == "y" ]; then
+    if [ "$WINE32_CFG" == "y" ]; then
+        WINEARCH=win32 winecfg
+    else
+        winecfg
+    fi
+fi
+
+#############################
+### Install applications
+#############################
+
+if [ "$INST_XFPLAY" == "y" ]; then
+    winetricks comctl32
+    winetricks vb6run
+    wget https://down.xfplay.com/xfplay9.92.exe
+    wine xfplay9.92.exe
+fi
+
+if [ "$INST_FIREFOX" == "y" ]; then
+    wget http://download.cdn.mozilla.net/pub/firefox/releases/45.0.2/win32/zh-TW/Firefox%20Setup%2045.0.2.exe
+    wine Firefox\ Setup\ 45.0.2.exe
+fi
