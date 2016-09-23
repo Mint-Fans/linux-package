@@ -131,9 +131,9 @@ if [ "$INST_WINE" == "y" ]; then
     sudo mv wine_gecko-2.47-x86_64.msi /opt/wine-devel/share/wine/gecko/
 
     ### locale settings
-    sudo sh -c "echo zh_TW.UTF-8 UTF-8 > /etc/locale.gen"
+    sudo sh -c "echo zh_TW.UTF-8 > /etc/locale.gen"
     sudo locale-gen
-    sudo sh -c "echo zh_TW.UTF-8 UTF-8 > /etc/locale.gen"
+    sudo sh -c "echo zh_TW.UTF-8 > /etc/locale.gen"
     sudo sh -c "echo LANG=zh_TW.UTF-8 > /etc/default/locale"
     sudo sh -c "echo LC_NUMERIC=zh_TW.UTF-8 >> /etc/default/locale"
 
