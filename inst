@@ -37,7 +37,7 @@ PKG_DETECT=$(cat /tmp/pkg/pkg.tmp | grep "/")
 
 if [ "$PKG_DETECT" == "" ]; then
     sudo apt-get install $PKGNAME
-    #rm -rf /tmp/pkg
+    rm -rf /tmp/pkg
 else
     DEB_TMP=$(cat /tmp/pkg/pkg.tmp | sed -e 's/.deb /.deb>>/'g | sed -e 's/ /<</'g)
     echo "$DEB_TMP" > /tmp/pkg/deb.tmp
