@@ -1,0 +1,62 @@
+#!/bin/bash
+
+
+###############################
+loc_deb_fun(){
+
+DEBNAME=$(cat /tmp/pkg/deb.tmp | sed -e 's/.deb>>/.deb \\\n/'g | sed -e 's/<</\\ /'g)
+
+cat > /tmp/pkg/instdeb << EOF
+#!/bin/bash
+
+sudo dpkg -i $DEBNAME
+
+EOF
+}
+
+###############################
+http_deb_fun(){
+
+cd /tmp/pkg
+
+HTTP_PKG=$(cat /tmp/pkg/deb.tmp | sed -e 's/.deb>>/.deb \\\n/'g)
+
+wget --no-check-certificate $HTTP_PKG
+
+sudo dpkg -i /tmp/pkg/*.deb
+sudo apt-get -f install
+}
+
+###############################
+PKGNAME=$@
+
+mkdir -p /tmp/pkg
+echo "$PKGNAME" > /tmp/pkg/pkg.tmp
+
+PKG_DETECT=$(cat /tmp/pkg/pkg.tmp | grep "/")
+
+if [ "$PKG_DETECT" == "" ]; then
+    sudo apt-get install $PKGNAME
+    #rm -rf /tmp/pkg
+else
+    DEB_TMP=$(cat /tmp/pkg/pkg.tmp | sed -e 's/.deb /.deb>>/'g | sed -e 's/ /<</'g)
+    echo "$DEB_TMP" > /tmp/pkg/deb.tmp
+
+    LOC_DETECT=$(cat /tmp/pkg/deb.tmp | grep "<<")
+    if [ "$LOC_DETECT" == "" ]; then
+        HTTP_DETECT=$(cat /tmp/pkg/deb.tmp | grep "://" | grep "http")
+        if [ "$HTTP_DETECT" == "" ]; then
+            sudo dpkg -i $PKGNAME
+            rm -rf /tmp/pkg
+        else
+            http_deb_fun
+            rm -rf /tmp/pkg
+        fi
+    else
+        loc_deb_fun
+        sudo chmod 755 /tmp/pkg/instdeb
+        /tmp/pkg/instdeb
+        rm -rf /tmp/pkg
+    fi
+fi
+
