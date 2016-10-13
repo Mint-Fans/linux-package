@@ -44,12 +44,6 @@ rm Release.key
 sudo sh -c 'echo "deb http://dl.winehq.org/wine-builds/debian stretch main" > /etc/apt/sources.list.d/wine-official.list'
 sudo apt-get update
 
-if [ "$ARCH" == "x86_64" ]; then
-    wget http://http.kali.org/kali/pool/main/libv/libvpx/libvpx4_1.6.0-2_i386.deb
-    sudo dpkg -i libvpx4_1.6.0-2_i386.deb
-    sudo apt-get -f install
-fi
-
 if [ "$INST_RECS" == "y" ]; then
     sudo apt-get install --install-recommends winehq-devel -y
 else
