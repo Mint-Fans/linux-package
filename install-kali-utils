@@ -1,0 +1,842 @@
+#!/bin/bash
+
+
+##################################################################
+### Kali Linux Utility 2016-3
+### UPD: 2016/10/18
+##################################################################
+ARCH=$(uname -m)
+
+INST_WINE='n'
+INST_WINEAPP='n'
+INST_LIB_OFFICE='n'
+INST_BLESS='n'
+INST_KDIFF3='n'
+
+WINE_DETECT=$(dpkg --get-selections | grep wine)
+WINEHQ_DETECT=$(dpkg --get-selections | grep winehq)
+
+LIBREOFFICE_DETECT=$(dpkg --get-selections | grep libreoffice)
+BLESS_DETECT=$(dpkg --get-selections | grep bless)
+KDIFF3_DETECT=$(dpkg --get-selections | grep kdiff3)
+
+if [ "$WINE_DETECT" == "" ]; then
+    WINE_INSTED='n'
+else
+    WINE_INSTED='y'
+fi
+
+if [ "$WINEHQ_DETECT" == "" ]; then
+    WINE_INSTED='n'
+else
+    WINE_INSTED='y'
+fi
+
+if [ "$LIBREOFFICE_DETECT" == "" ]; then
+    LIBREOFFICE_INSTED='n'
+else
+    LIBREOFFICE_INSTED='y'
+fi
+
+if [ "$BLESS_DETECT" == "" ]; then
+    BLESS_INSTED='n'
+else
+    BLESS_INSTED='y'
+fi
+
+if [ "$KDIFF3_DETECT" == "" ]; then
+    KDIFF3_INSTED='n'
+else
+    KDIFF3_INSTED='y'
+fi
+
+##################################################################
+KALI_LINUX='apache2 atftpd axel exe2hexbat expect florence gdisk git gparted iw lvm2 mercurial mysql-server netcat-traditional openssh-server openvpn p7zip-full parted rdesktop rfkill samba screen snmpd snmp subversion sudo tcpdump testdisk tightvncserver tftp tmux unrar upx-ucl whois zerofree'
+
+KALI_LINUX_FULL='0trace acccheck ace-voip afflib-tools aircrack-ng amap apache-users apktool armitage arping arpwatch arp-scan asleap automater autopsy backdoor-factory bbqsql bdfproxy bed beef-xss binwalk blindelephant bluelog blueranger bluesnarfer bluez bluez-hcidump braa btscanner bully bulk-extractor burpsuite cabextract cadaver casefile cdpsnarf cewl cgpt chirp chkrootkit chntpw cisco-auditing-tool cisco-global-exploiter cisco-ocs cisco-torch clang clusterd cmospwd commix copy-router-config cowpatty creddump cryptsetup crunch cryptcat curlftpfs cutycapt cymothoa darkstat davtest dbd dc3dd dcfldd ddrescue deblaze dex2jar dhcpig dirb dirbuster dissy dmitry dnmap dns2tcp dnschef dnsenum dnsmap dnsrecon dnstracer dnswalk dos2unix dotdotpwn dradis driftnet dsniff dumpzilla doona eapmd5pass edb-debugger enum4linux enumiax ethtool ettercap-graphical ewf-tools exiv2 exploitdb extundelete fcrackzip fern-wifi-cracker fierce fiked fimap findmyhash flasm foremost fping fragroute fragrouter framework2 ftester funkload galleta gdb ghost-phisher giskismet golismero gpp-decrypt grabber guymager hackrf hamster-sidejack hash-identifier hashcat hashcat-utils hexinject hexorbase hashid hotpatch hping3 httrack hydra hydra-gtk i2c-tools iaxflood ifenslave ike-scan imagemagick inetsim intersect intrace inviteflood iodine irpas jad javasnoop jboss-autopwn john johnny joomscan jsql keepnote keimpx killerbee king-phisher kismet laudanum lbd leafpad libfindrtp libfreefare-bin libhivex-bin libnfc-bin lynis macchanger magicrescue magictree maltegoce maltego-teeth maskprocessor mc hashdeep mdbtools mdk3 medusa memdump metasploit-framework mfcuk mfoc mfterm mimikatz minicom miranda miredo missidentify mitmproxy msfpc multimac nasm nbtscan ncat-w32 ncrack ncurses-hexedit netdiscover netmask netsed netsniff-ng netwag nfspy ngrep nikto nipper-ng nishang nmap ohrwurm onesixtyone ophcrack ophcrack-cli oscanner p0f pack padbuster paros pasco passing-the-hash patator pdfid pdf-parser pdgmail peepdf perl-cisco-copyconfig pev pipal pixiewps plecost polenum powerfuzzer powersploit protos-sip proxychains proxystrike proxytunnel ptunnel pwnat pyrit python-faraday python-impacket python-rfidiot python-scapy rainbowcrack radare2 rake rcracki-mt safecopy readpst reaver rebind recon-ng recordmydesktop recoverjpeg redfang redsocks reglookup responder rifiuti rifiuti2 rsmangler rtpbreak rtpflood rtpinsertsound rtpmixsound sakis3g samdump2 sbd scalpel scrounge-ntfs sctpscan sendemail set sfuzz sidguesser siege siparmyknife sipcrack sipp sipvicious skipfish sleuthkit smali smbmap smtp-user-enum sniffjoke snmpcheck socat sparta spectools spike spooftooph sqlitebrowser sqlmap sqlninja sqlsus sslcaudit ssldump sslh sslscan sslsniff sslstrip sslsplit sslyze statsprocessor stunnel4 suckless-tools sucrack swaks t50 tcpflow tcpick tcpreplay termineter tftpd32 thc-ipv6 thc-pptp-bruter thc-ssl-dos theharvester tlssled tnscmd10g truecrack twofi u3-pwn ua-tester udptunnel uniscan unicornscan unix-privesc-check urlcrazy vboot-kernel-utils vboot-utils vinetto vlan voiphopper volafox volatility vpnc w3af wafw00f wapiti wce webacoo webscarab webshells weevely winexe wfuzz whatweb wifi-honey wifitap wifite windows-binaries wireshark wol-e wordlists wpscan wvdial xpdf xprobe xspy xsser xtightvncviewer yersinia zaproxy zenmap zim'
+
+KALI_LINUX_FORENSIC='afflib-tools apktool autopsy bulk-extractor cabextract python-capstone chkrootkit creddump dc3dd dcfldd ddrescue dissy python-distorm3 dumpzilla edb-debugger ewf-tools exiv2 extundelete fcrackzip firmware-mod-kit flasm foremost galleta gdb gparted guymager inetsim iphone-backup-analyzer jad javasnoop libhivex-bin lvm2 lynis magicrescue hashdeep mdbtools memdump missidentify nasm p7zip-full parted pasco pdfid pdf-parser pdgmail peepdf pev polenum radare2 safecopy readpst recoverjpeg reglookup rifiuti rifiuti2 samdump2 scalpel scrounge-ntfs sleuthkit smali sqlitebrowser tcpdump tcpflow tcpick tcpreplay truecrack unrar upx-ucl vinetto volafox volatility wce wireshark xplico yara'
+
+KALI_LINUX_GPU='oclhashcat pyrit oclgausscrack truecrack'
+
+KALI_LINUX_NETHUNTER='nmap metasploit-framework tcpdump tshark wireshark burpsuite armitage sqlmap recon-ng wipe socat ettercap-text-only exploitdb beef-xss device-pharmer nishang wifite pixiewps iw aircrack-ng mfoc nethunter-utils gpsd kismet kismet-plugins giskismet dnsmasq dsniff sslstrip mdk3 mitmproxy autossh openssh-server tightvncserver apache2 postgresql openvpn wpasupplicant zip macchanger dbd florence libffi-dev python-setuptools python-pip hostapd ptunnel tcptrace dnsutils p0f mitmf python-twisted python-dnspython libssl-dev sslsplit python-pcapy tinyproxy isc-dhcp-server rfkill backdoor-factory bdfproxy python-lxml python-m2crypto python-netaddr python-mako sox librtlsdr-dev'
+
+KALI_LINUX_PWTOOLS='chntpw cmospwd crunch fcrackzip findmyhash gpp-decrypt hash-identifier hashcat hashcat-utils hashid hydra hydra-gtk john johnny keimpx maskprocessor medusa mimikatz ncrack ophcrack ophcrack-cli pack passing-the-hash patator pdfcrack pipal polenum rainbowcrack rarcrack rcracki-mt rsmangler samdump2 seclists sipcrack sipvicious statsprocessor sucrack thc-pptp-bruter truecrack twofi wce wordlists'
+
+KALI_LINUX_RFID='libfreefare-bin libnfc-bin mfcuk mfoc mfterm python-rfidiot'
+
+KALI_LINUX_SDR='gnuradio chirp hackrf kalibrate-rtl rtlsdr-scanner gqrx uhd-host uhd-images libgnuradio-baz gr-osmosdr gr-iqbal'
+
+KALI_LINUX_TOP10='aircrack-ng burpsuite hydra john maltegoce maltego-teeth metasploit-framework nmap zaproxy sqlmap wireshark'
+
+KALI_LINUX_VOIP='ace-voip dnmap enumiax iaxflood inviteflood libfindrtp nmap ohrwurm protos-sip rtpbreak rtpflood rtpinsertsound rtpmixsound sctpscan siparmyknife sipcrack sipp sipvicious voiphopper wireshark'
+
+KALI_LINUX_WEB='apache2 apache-users arachni automater bbqsql beef-xss blindelephant burpsuite cadaver clusterd cookie-cadger cutycapt davtest dirb dirbuster dnmap dotdotpwn eyewitness ftester funkload golismero grabber python-halberd hamster-sidejack hexorbase http-tunnel httprint httrack hydra hydra-gtk jboss-autopwn joomscan jsql laudanum lbd maltegoce maltego-teeth medusa mitmproxy mysql-server ncrack nikto nishang nmap oscanner owasp-mantra-ff padbuster paros patator plecost powerfuzzer proxychains proxystrike proxytunnel redsocks sidguesser siege skipfish slowhttptest sqlitebrowser sqlmap sqlninja sqlsus sslcaudit ssldump sslh sslscan sslsniff sslstrip sslsplit sslyze stunnel4 thc-ssl-dos tlssled tnscmd10g ua-tester uniscan vega wafw00f wapiti webacoo webhandler webscarab webshells weevely wfuzz whatweb wireshark wpscan xsser zaproxy'
+
+KALI_LINUX_WIRELESS='aircrack-ng pyrit asleap bluelog blueranger bluesnarfer bluez bluez-hcidump btscanner bully cowpatty crackle eapmd5pass fern-wifi-cracker giskismet iw killerbee kismet libfreefare-bin libnfc-bin macchanger mdk3 mfcuk mfoc mfterm oclhashcat python-rfidiot reaver redfang rfcat rfkill sakis3g spectools spooftooph ubertooth wifi-honey wifitap wifite wireshark'
+
+KALI_LINUX_EXTRA='android-sdk device-pharmer freeradius hackersh python-halberd htshells ident-user-enum ismtp linux-exploit-suggester openvas parsero sandi set shellnoob websploit teamsploit vega webhandler'
+
+KALI_FULL_EXTRA='tcptraceroute traceroute pbnj httprint dnsutils'
+
+###################################
+
+###################################
+### Install Wine
+###################################
+wine_fun(){
+
+if [ "$INST_WINE" == "y" ]; then
+
+    if [ "$ARCH" == "x86_64" ]; then
+        sudo dpkg --add-architecture i386
+    fi
+
+    wget https://dl.winehq.org/wine-builds/Release.key
+    sudo apt-key add Release.key
+    rm Release.key
+    # echo "deb http://http.kali.org/kali/ kali-last-snapshot main contrib non-free" > /etc/apt/sources.list.d/official-package-repositories.list
+    # echo "deb http://www.deb-multimedia.org sid main non-free" >> /etc/apt/sources.list.d/official-package-repositories.list
+    sudo sh -c "echo deb http://dl.winehq.org/wine-builds/debian stretch main > /etc/apt/sources.list.d/wine-official.list"
+    sudo rm /var/lib/apt/lists/*
+    sudo apt-get update
+
+    sudo apt-get install --install-recommends winehq-devel -y
+
+    wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
+    chmod +x winetricks
+    sudo rm -rf /usr/local/bin/winetricks
+    sudo cp winetricks /usr/local/bin
+    rm winetricks
+
+    wget https://github.com/Mint-Fans/linux-package/raw/kali/wine-launcher_1.9-0_all.deb
+    sudo dpkg -i wine-launcher_*.deb
+    sudo apt-get install xdg-utils -y
+    rm wine-launcher_*.deb
+
+    sudo apt-get install ttf-wqy-microhei ttf-dejavu ttf-dejavu-extra -y
+
+    if [ "$INST_MG" == "y" ]; then
+        wget https://dl.winehq.org/wine/wine-mono/
+        MONO_VER=$(cat index.html | grep "indexcolicon" | sed 's/.*href="//g' | sed 's/\/.*//g' | awk 'END {print}')
+        rm index.html
+
+        wget https://dl.winehq.org/wine/wine-gecko/
+        GECKO_VER=$(cat index.html | grep "indexcolicon" | sed 's/.*href="//g' | sed 's/\/.*//g' | awk 'END {print}')
+        rm index.html
+
+        sudo mkdir -p /opt/wine-devel/share/wine/mono
+        sudo mkdir -p /opt/wine-devel/share/wine/gecko
+
+        wget https://dl.winehq.org/wine/wine-mono/"$MONO_VER"/wine-mono-"$MONO_VER"msi
+        sudo mv wine-mono-"$MONO_VER".msi /opt/wine-devel/share/wine/mono/
+
+        if [ "$ARCH" == "x86_64" ]; then
+            wget https://dl.winehq.org/wine/wine-gecko/"$GECKO_VER"/wine_gecko-"$GECKO_VER"-x86.msi
+            wget https://dl.winehq.org/wine/wine-gecko/"$GECKO_VER"/wine_gecko-"$GECKO_VER"-x86_64.msi
+            sudo mv wine_gecko-"$GECKO_VER"-x86.msi /opt/wine-devel/share/wine/gecko/
+            sudo mv wine_gecko-"$GECKO_VER"-x86_64.msi /opt/wine-devel/share/wine/gecko/
+        else
+            wget https://dl.winehq.org/wine/wine-gecko/"$GECKO_VER"/wine_gecko-"$GECKO_VER"-x86.msi
+            sudo mv wine_gecko-"$GECKO_VER"-x86.msi /opt/wine-devel/share/wine/gecko/
+        fi
+    fi
+
+    ### locale settings
+    sudo sh -c "echo zh_TW.UTF-8 UTF-8 > /etc/locale.gen"
+    sudo sh -c "echo LANG=zh_TW.UTF-8 > /etc/default/locale"
+    sudo sh -c "echo LC_NUMERIC=zh_TW.UTF-8 >> /etc/default/locale"
+
+    ### font settings
+    sudo sed -i '/MS Shell Dlg 2/i HKLM,%FontSubStr%,MS Shell Dlg,,WenQuanYi Micro Hei' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i '/MS Shell Dlg 2/i HKLM,%FontSubStr%,FixedSys,,DejaVu Sans Mono' /opt/wine-devel/share/wine/wine.inf
+
+    sudo sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,System,,DejaVu Sans Mono' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,Tahoma,,WenQuanYi Micro Hei' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i '/MS Shell Dlg 2/a HKLM,%FontSubStr%,PMingLiU,,WenQuanYi Micro Hei' /opt/wine-devel/share/wine/wine.inf
+
+    sudo sed -i '/Times New Roman TUR/a HKLM,%FontSubStr%,Tms Rmn,,WenQuanYi Micro Hei' /opt/wine-devel/share/wine/wine.inf
+
+    sudo sed -i 's/,FixedSys,/,"FixedSys",/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/,MS Shell Dlg,/,"MS Shell Dlg",/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/,Tahoma,/,"Tahoma",/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/,PMingLiU,/,"PMingLiU",/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/,Tms Rmn,/,"Tms Rmn",/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/,System,,DejaVu Sans Mono/,"System",,"DejaVu Sans Mono"/g' /opt/wine-devel/share/wine/wine.inf
+
+    sudo sed -i 's/,WenQuanYi Micro Hei/,"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/,DejaVu Sans Mono/,"DejaVu Sans Mono"/g' /opt/wine-devel/share/wine/wine.inf
+
+    sudo sed -i 's/"Arial,186"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Arial,238"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Arial,204"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Arial,161"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Arial,162"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Courier New,186"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Courier New,238"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Courier New,204"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Courier New,161"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Courier New,162"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"MS Sans Serif"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Arial"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Tahoma"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Times New Roman"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Times New Roman,186"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Times New Roman,238"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Times New Roman,204"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Times New Roman,161"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/"Times New Roman,162"/"WenQuanYi Micro Hei"/g' /opt/wine-devel/share/wine/wine.inf
+
+    ### language settings
+    sudo sed -i 's/InstallLanguage",,"0409/InstallLanguage",,"0404/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/Default",,"0409/Default",,"0404/g' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i 's/,,"00000409/,,"00000404/g' /opt/wine-devel/share/wine/wine.inf
+
+    ### font Smoothing
+    sudo sed -i '$a [Extra]' /opt/wine-devel/share/wine/wine.inf
+    sudo sed -i '$a HKCU,Control Panel\Desktop,"FontSmoothing",,"2"' /opt/wine-devel/share/wine/wine.inf
+
+fi
+}
+
+###################################
+### Install LibreOffice
+###################################
+libreoffice_fun(){
+
+if [ "$INST_LIB_OFFICE" == "y" ]; then
+    wget http://www.libreoffice.org/download/libreoffice-still/
+    LIBOF_VER=$(cat index.html | grep "sdk.tar.gz" | sed 's/_Linux_x86_rpm.*//g' | sed 's/.*LibreOffice_//g')
+    rm index.html
+
+    LIBOF_LANG=en-US
+    SYS_LOCALE=$(locale | grep LANG= | sed 's/.*=//g')
+
+    case $SYS_LOCALE in
+        "zh_TW"*) LIBOF_LANG=zh-TW;;
+        "zh_HK"*) LIBOF_LANG=zh-TW;;
+        "zh_CN"*) LIBOF_LANG=zh-CN;;
+        "ja_JP"*) LIBOF_LANG=ja;;
+    esac
+
+    if [ "$ARCH" == "x86_64" ]; then
+        WEBPATH=x86_64
+        LIBOF_ARCH=x86-64
+    else
+        WEBPATH=x86
+        LIBOF_ARCH=x86
+    fi
+
+    wget http://free.nchc.org.tw/tdf/libreoffice/stable/"$LIBOF_VER"/deb/"$WEBPATH"/LibreOffice_"$LIBOF_VER"_Linux_"$LIBOF_ARCH"_deb.tar.gz
+    wget http://free.nchc.org.tw/tdf/libreoffice/stable/"$LIBOF_VER"/deb/"$WEBPATH"/LibreOffice_"$LIBOF_VER"_Linux_"$LIBOF_ARCH"_deb_langpack_"$LIBOF_LANG".tar.gz
+    wget http://free.nchc.org.tw/tdf/libreoffice/stable/"$LIBOF_VER"/deb/"$WEBPATH"/LibreOffice_"$LIBOF_VER"_Linux_"$LIBOF_ARCH"_deb_helppack_"$LIBOF_LANG".tar.gz
+
+    tar -zxvf LibreOffice_*_Linux_"$LIBOF_ARCH"_deb_helppack_"$LIBOF_LANG".tar.gz
+    tar -zxvf LibreOffice_*_Linux_"$LIBOF_ARCH"_deb_langpack_"$LIBOF_LANG".tar.gz
+    tar -zxvf LibreOffice_*_Linux_"$LIBOF_ARCH"_deb.tar.gz
+
+    sudo dpkg -i LibreOffice_*_Linux_"$LIBOF_ARCH"_deb/DEBS/*.deb
+    sudo dpkg -i LibreOffice_*_Linux_"$LIBOF_ARCH"_deb_langpack_"$LIBOF_LANG"/DEBS/*.deb
+    sudo dpkg -i LibreOffice_*_Linux_"$LIBOF_ARCH"_deb_helppack_"$LIBOF_LANG"/DEBS/*.deb
+
+    sudo apt-get -f install -y
+
+    rm -rf LibreOffice_*_Linux_"$LIBOF_ARCH"_deb
+    rm -rf LibreOffice_*_Linux_"$LIBOF_ARCH"_deb_langpack_"$LIBOF_LANG"
+    rm -rf LibreOffice_*_Linux_"$LIBOF_ARCH"_deb_helppack_"$LIBOF_LANG"
+fi
+
+}
+
+###################################
+### Install HEX Editor
+###################################
+bless_fun(){
+if [ "$INST_BLESS" == "y" ]; then
+    wget http://ftp.us.debian.org/debian/pool/main/b/bless/bless_0.6.0-5_all.deb
+    sudo dpkg -i bless_*_all.deb
+    sudo apt-get -f install -y
+fi
+}
+
+###################################
+### Install files Compare tools
+###################################
+kdiff3_fun(){
+if [ "$INST_KDIFF3" == "y" ]; then
+    sudo apt-get install kdiff3 -y
+fi
+}
+
+###################################
+### ALL Packages Extra
+### Meta Packages : kali-linux-all
+###################################
+kali_all_fun(){
+
+if [ "$ARCH" == "x86_64" ]; then
+    ALL_EXT='masscan multimon-ng'
+else
+    ALL_EXT='ferret-sidejack recstudio'
+fi
+
+if [ "$INST_WINEAPP" == "y" ]; then
+    WINAPP="shellter veil-catapult veil-evasion ollydbg regripper sqldict"
+fi
+
+sudo apt-get install $KALI_LINUX $KALI_LINUX_FULL $KALI_LINUX_FORENSIC $KALI_LINUX_GPU $KALI_LINUX_PWTOOLS $KALI_LINUX_RFID $KALI_LINUX_SDR $KALI_LINUX_TOP10 $KALI_LINUX_VOIP $KALI_LINUX_WEB $KALI_LINUX_WIRELESS $KALI_LINUX_EXTRA $KALI_FULL_EXTRA $ALL_EXT $WINAPP -y
+
+}
+
+###################################
+### Kali Linux complete system
+### Meta Packages : kali-linux-full
+###################################
+kali_full_fun(){
+
+if [ "$ARCH" == "x86_64" ]; then
+    FULL_EXT='masscan multimon-ng'
+else
+    FULL_EXT='ferret-sidejack recstudio'
+fi
+
+if [ "$INST_WINEAPP" == "y" ]; then
+    WINAPP="ollydbg regripper sqldict"
+fi
+
+sudo apt-get install $KALI_LINUX $KALI_LINUX_FULL $KALI_FULL_EXTRA $FULL_EXT $WINAPP -y
+
+}
+
+###################################
+### Kali Linux forensic tools
+### Meta Packages : kali-linux-forensic
+###################################
+kali_forensic_fun(){
+
+if [ "$ARCH" == "i686" ]; then
+    FORENSIC_EXT='recstudio'
+fi
+
+if [ "$INST_WINEAPP" == "y" ]; then
+    WINAPP="ollydbg regripper"
+fi
+
+sudo apt-get install $KALI_LINUX $KALI_LINUX_FORENSIC $FORENSIC_EXT $WINAPP -y
+}
+
+###################################
+### Kali Linux GPU tools
+### Meta Packages : kali-linux-gpu
+###################################
+kali_gpu_fun(){
+sudo apt-get install $KALI_LINUX $KALI_LINUX_GPU -y
+}
+
+###################################
+### Kali Linux Nethunter tools
+### Meta Packages : kali-linux-nethunter
+###################################
+kali_nethunter_fun(){
+sudo apt-get install $KALI_LINUX $KALI_LINUX_NETHUNTER -y
+}
+
+###################################
+### Kali Linux password cracking tools
+### Meta Packages : kali-linux-pwtools
+###################################
+kali_pwtools_fun(){
+
+
+if [ "$INST_WINEAPP" == "y" ]; then
+    WINAPP="sqldict"
+fi
+
+sudo apt-get install $KALI_LINUX $KALI_LINUX_PWTOOLS $KALI_LINUX_GPU $WINAPP -y
+
+}
+
+###################################
+### Kali Linux RFID tools
+### Meta Packages : kali-linux-rfid
+###################################
+kali_rfid_fun(){
+sudo apt-get install $KALI_LINUX $KALI_LINUX_RFID -y
+}
+
+###################################
+### Kali Linux SDR tools
+### Meta Packages : kali-linux-sdr
+###################################
+kali_sdr_fun(){
+
+if [ "$ARCH" == "x86_64" ]; then
+    SDR_EXT='multimon-ng'
+fi
+
+sudo apt-get install $KALI_LINUX $KALI_LINUX_SDR $SDR_EXT-y
+
+}
+
+###################################
+### Kali Linux Top 10 tools
+### Meta Packages : kali-linux-top10
+###################################
+kali_top10_fun(){
+sudo apt-get install $KALI_LINUX $KALI_LINUX_TOP10 -y
+}
+
+###################################
+### Kali Linux VoIP tools
+### Meta Packages : kali-linux-voip
+###################################
+kali_voip_fun(){
+sudo apt-get install $KALI_LINUX $KALI_LINUX_VOIP -y
+}
+
+###################################
+### Kali Linux webapp assessment tools
+### Meta Packages : kali-linux-web
+###################################
+kali_web_fun(){
+
+if [ "$ARCH" == "i686" ]; then
+    WEB_EXT='ferret-sidejack'
+fi
+
+if [ "$INST_WINEAPP" == "y" ]; then
+    WINAPP="sqldict"
+fi
+
+sudo apt-get install $KALI_LINUX $KALI_LINUX_WEB $WEB_EXT $WINAPP -y
+
+}
+
+###################################
+### Kali Linux wireless tools
+### Meta Packages : kali-linux-wireless
+###################################
+kali_wireless_fun(){
+sudo apt-get install $KALI_LINUX $KALI_LINUX_WIRELESS $KALI_LINUX_SDR -y
+}
+
+###################################
+### Install PHP
+###################################
+php_fun(){
+if [ "$INST_PHP5" == "y" ]; then
+    sudo apt-get -t jessie install php5 php5-mysql
+else
+    sudo apt-get install php php-mysql
+fi
+
+}
+
+###################################
+### Kali Utility Fix
+###################################
+kali_menu_fun(){
+### /usr/share/applications/display-im6.desktop
+sudo sed -i 's/.Q16/.q16/g' /usr/share/applications/display-im6.desktop
+sudo sed -i '/NoDisplay=/d' /usr/share/applications/display-im6.desktop
+sudo sed -i '/NoDisplay=/d' /usr/share/applications/display-im6.q16.desktop
+sudo sed -i '$a NoDisplay=y' /usr/share/applications/display-im6.desktop
+sudo sed -i '$a NoDisplay=y' /usr/share/applications/display-im6.q16.desktop
+
+### /usr/share/applications/lynis.desktop
+sudo sed -i '/Exec=/d' /usr/share/applications/lynis.desktop
+sudo sed -i '$a Exec=sudo lynis --no-colors' /usr/share/applications/lynis.desktop
+sudo sed -i '/Icon=/d' /usr/share/applications/lynis.desktop
+sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/lynis.desktop
+
+### /usr/share/applications/spectool_gtk.desktop
+sudo sed -i '/Icon=/d' /usr/share/applications/spectool_gtk.desktop
+sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/spectool_gtk.desktop
+
+### /usr/share/applications/kali-shellter.desktop
+sudo sed -i '/Icon=/d' /usr/share/kali-menu/applications/kali-shellter.desktop
+sudo sed -i '$a Icon=application-x-executable' /usr/share/kali-menu/applications/kali-shellter.desktop
+
+### /usr/share/applications/gscriptor.desktop
+sudo sed -i '/Icon=/d' /usr/share/applications/gscriptor.desktop
+sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/gscriptor.desktop
+
+### /usr/share/applications/kali-galleta.desktop
+sudo sed -i 's/galleta.png/kali-menu.png/g' /usr/share/kali-menu/applications/kali-galleta.desktop
+
+### /usr/share/applications/xdot.desktop
+# sudo sed -i '/Icon=/d' /usr/share/applications/xdot.desktop
+# sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/xdot.desktop
+
+### /usr/share/applications/texdoctk.desktop
+# sudo sed -i '/Icon=/d' /usr/share/applications/texdoctk.desktop
+# sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/texdoctk.desktop
+
+### /usr/share/applications/kali-hydra.desktop
+sudo sed -i 's/kali-hydra.png/kali-menu.png/g' /usr/share/kali-menu/applications/kali-hydra.desktop
+
+### /usr/share/applications/hydra-gtk.desktop
+sudo sed -i 's/kali-menu.png/kali-hydra.png/g' /usr/share/kali-menu/applications/hydra-gtk.desktop
+
+### /usr/share/applications/kali-yara.desktop
+sudo sed -i 's/yara.png/kali-menu.png/g' /usr/share/kali-menu/applications/kali-yara.desktop
+
+### Wine Applications
+sudo sed -i 's/Exec=sudo /Exec=/g' /usr/share/kali-menu/applications/kali-shellter.desktop
+sudo sed -i 's/Exec=sudo /Exec=/g' /usr/share/kali-menu/applications/kali-veil-catapult.desktop
+sudo sed -i 's/Exec=sudo /Exec=/g' /usr/share/kali-menu/applications/kali-veil-evasion.desktop
+sudo sed -i 's/Exec=sudo /Exec=/g' /usr/share/kali-menu/applications/kali-ollydbg.desktop
+sudo sed -i 's/Exec=sudo /Exec=/g' /usr/share/kali-menu/applications/kali-regripper.desktop
+sudo sed -i 's/Exec=sudo /Exec=/g' /usr/share/kali-menu/applications/kali-sqldict.desktop
+
+sudo /usr/share/kali-menu/update-kali-menu
+}
+
+##########################################################
+set_kdiff3_fun(){
+if [ "$KDIFF3_INSTED" == "n" ]; then
+    echo -e ""
+    echo -e "    Install File Compare Tools (Kdiff3)?"
+    echo -e ""
+    echo -e "    Options [y/n]"
+
+    read KDIFF3
+    [[ "$KDIFF3" ]]
+
+    if [ "$KDIFF3" == "y" ]; then
+        INST_KDIFF3='y'
+    fi
+fi
+}
+
+##########################################################
+set_bless_fun(){
+if [ "$BLESS_INSTED" == "n" ]; then
+    echo -e ""
+    echo -e "    Install HEX Editor (bless)?"
+    echo -e ""
+    echo -e "    Options [y/n]"
+
+    read BLESS
+    [[ "$BLESS" ]]
+
+    if [ "$BLESS" == "y" ]; then
+        INST_BLESS='y'
+    fi
+fi
+}
+
+##########################################################
+set_libreoffice_fun(){
+if [ "$LIBREOFFICE_INSTED" == "n" ]; then
+
+    echo -e ""
+    echo -e "    Install LibreOffice?"
+    echo -e ""
+    echo -e "    Options [y/n]"
+
+    read LIBOF
+    [[ "$LIBOF" ]]
+
+    if [ "$LIBOF" == "y" ]; then
+        INST_LIB_OFFICE='y'
+    fi
+fi
+
+}
+
+##########################################################
+set_wine_mono_fun(){
+
+echo -e ""
+echo -e "    Install Wine gecko & mono?"
+echo -e ""
+echo -e "    Options [y/n]"
+
+read MONO
+[[ "$MONO" ]]
+
+if [ "$MONO" == "y" ]; then
+    INST_MG='y'
+fi
+
+}
+
+##########################################################
+set_wineapp_fun(){
+echo -e ""
+echo -e "    Install Wine Application for Kali?"
+echo -e ""
+echo -e "    Options [y/n]"
+
+read WINEAPP
+[[ "$WINEAPP" ]]
+
+if [ "$WINEAPP" == "y" ]; then
+    INST_WINEAPP='y'
+
+    if [ "$WINE_INSTED" == "n" ]; then
+        echo -e ""
+        echo -e "    Install WINEHQ?"
+        echo -e ""
+        echo -e "    Options [y/n]"
+
+        read WINEHQ
+        [[ "$WINEHQ" ]]
+
+        if [ "$WINEHQ" == "y" ]; then
+            INST_WINE='y'
+        fi
+
+        set_wine_mono_fun
+    fi
+fi
+
+}
+
+##########################################################
+set_php5_fun(){
+echo -e ""
+echo -e "    Install PHP 5.6?"
+echo -e ""
+echo -e "    Options [y/n]"
+
+read PHP
+[[ "$PHP" ]]
+
+if [ "$PHP" == "y" ]; then
+    INST_PHP5='y'
+fi
+
+}
+
+##########################################################
+full_inst_fun(){
+
+wine_fun
+libreoffice_fun
+bless_fun
+kdiff3_fun
+
+if [ "$MENU" == "1" ]; then
+    kali_full_fun
+elif [ "$MENU" == "2" ]; then
+    kali_all_fun
+fi
+
+php_fun
+kali_menu_fun
+
+exit
+
+}
+
+##########################################################
+inst_info_fun(){
+clear
+echo -e ""
+echo -e "    Installation Information:"
+echo -e ""
+echo -e "    Install WineHQ: $INST_WINE"
+echo -e "    Install Wine APP: $INST_WINEAPP"
+echo -e "    Install LibreOffice: $INST_LIB_OFFICE"
+echo -e "    Install HEX Editor: $INST_BLESS"
+echo -e "    Install File Compare Tools: $INST_KDIFF3"
+
+if [ "$INST_PHP5" == "y" ]; then
+    echo -e "    Install PHP: 5.6"
+else
+    echo -e "    Install PHP: 7.0"
+fi
+
+if [ "$MENU" == "1" ]; then
+    echo -e "    Install Kali Linux Complete System: y"
+elif [ "$MENU" == "2" ]; then
+    echo -e "    Install Kali Linux ALL Packages (Extra): y"
+fi
+
+echo -e ""
+echo -e "    1) Continue"
+echo -e "    2) Return"
+echo -e "    0) EXIT"
+
+read OPT
+[[ "$OPT" ]]
+
+if [ "$OPT" == "1" ]; then
+    full_inst_fun
+elif [ "$OPT" == "2" ]; then
+    kali_main_fun
+else
+    exit
+fi
+}
+
+##########################################################
+inst_opt_fun(){
+clear
+
+set_wineapp_fun
+
+set_libreoffice_fun
+
+set_bless_fun
+
+set_kdiff3_fun
+
+set_php5_fun
+
+inst_info_fun
+
+}
+
+##########################################################
+inst_msg_fun(){
+clear
+echo -e ""
+echo -e "    The $PKG_INSTED Packages is already installed."
+echo -e ""
+read MSG
+
+custom_menu_fun
+
+}
+
+##########################################################
+custom_menu_fun(){
+clear
+echo -e ""
+echo -e "    Kali Linux Custom Install"
+echo -e ""
+echo -e "    1)  Kali forensic tools           2) Kali GPU tools"
+echo -e "    3)  Kali Nethunter tools          4) Kali password cracking tools"
+echo -e "    5)  Kali RFID tools               6) Kali SDR tools"
+echo -e "    7)  Kali Top 10 tools             8) Kali VoIP tools"
+echo -e "    9)  Kali webapp assessment tools 10) Kali wireless tools"
+echo -e "    11) WineHQ                       12) Libre Office"
+echo -e "    13) Bless                        14) KDIFF3"
+echo -e "    x)  Return                        0) EXIT"
+echo -e ""
+read CUSTOM
+[[ "$CUSTOM" ]]
+
+if [ "$CUSTOM" == "1" ]; then
+    set_wineapp_fun
+    kali_forensic_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "2" ]; then
+    kali_gpu_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "3" ]; then
+    set_php5_fun
+    kali_nethunter_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "4" ]; then
+    set_wineapp_fun
+    kali_pwtools_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "5" ]; then
+    kali_rfid_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "6" ]; then
+    kali_sdr_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "7" ]; then
+    kali_top10_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "8" ]; then
+    kali_voip_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "9" ]; then
+    set_wineapp_fun 
+    set_php5_fun
+    kali_web_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "10" ]; then
+    kali_wireless_fun
+    kali_menu_fun
+
+elif [ "$CUSTOM" == "11" ]; then
+    if [ "$WINE_INSTED" == "n" ]; then
+        set_wine_mono_fun
+        INST_WINE='y'
+        wine_fun
+    else
+        PKG_INSTED="wine"
+        inst_msg_fun
+    fi
+
+elif [ "$CUSTOM" == "12" ]; then
+    if [ "$LIBREOFFICE_INSTED" == "n" ]; then
+        INST_LIB_OFFICE='y'
+        libreoffice_fun
+    else
+        PKG_INSTED="Libre Office"
+        inst_msg_fun
+    fi
+
+elif [ "$CUSTOM" == "13" ]; then
+    if [ "$BLESS_INSTED" == "n" ]; then
+        INST_BLESS='y'
+        bless_fun
+    else
+        PKG_INSTED="bless"
+        inst_msg_fun
+    fi
+
+elif [ "$CUSTOM" == "14" ]; then
+    if [ "$KDIFF3_INSTED" == "n" ]; then
+        INST_KDIFF3='y'
+        kdiff3_fun
+    else
+        PKG_INSTED="kdiff3"
+        inst_msg_fun
+    fi
+
+elif [ "$CUSTOM" == "x" ]; then
+    kali_main_fun
+else
+    exit
+fi
+
+}
+
+
+##########################################################
+kali_main_fun(){
+
+clear
+echo -e ""
+echo -e "    Kali Linux Utility Install"
+echo -e ""
+echo -e "    1)  Install Kali Linux Complete System"
+echo -e "    2)  Install Kali Linux ALL Packages (Extra)"
+echo -e "    3)  Custom Install"
+echo -e "    0)  EXIT"
+
+read MENU
+[[ "$MENU" ]]
+
+if [ "$MENU" == "1" ]; then
+    inst_opt_fun
+elif [ "$MENU" == "2" ]; then
+    inst_opt_fun
+elif [ "$MENU" == "3" ]; then
+    custom_menu_fun
+    kali_main_fun
+else
+    exit
+fi
+
+}
+
+kali_main_fun
