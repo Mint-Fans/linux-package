@@ -49,3 +49,17 @@ Meta 包修改
 刪除 vim vim-gtk
 刪除 php php-mysql 自訂版本
 分離 wine 應用: shellter veil-catapult veil-evasion ollydbg regripper sqldict
+
+以amd64為基礎:
+kali-linux-forensic
+i386 add recstudio
+
+kali-linux-full
+i386 add ferret-sidejack recstudio
+i386 del masscan
+
+kali-linux-sdr
+i386 del multimon-ng
+
+kali-linux-web
+i386 add ferret-sidejack
