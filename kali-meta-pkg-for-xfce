@@ -42,3 +42,10 @@ sed -i 's/desktop-base, //g' DEBIAN/control
 kali-theme-color-fix
 ========================
 sed -i 's/#1D8ECE/#6CABCD/g' gtk-3.20/gtk-contained.css
+
+========================
+Meta 包修改
+========================
+刪除 vim vim-gtk
+刪除 php php-mysql 自訂版本
+分離 wine 應用: shellter veil-catapult veil-evasion ollydbg regripper sqldict
