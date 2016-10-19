@@ -20,13 +20,13 @@ LIBREOFFICE_DETECT=$(dpkg --get-selections | grep libreoffice)
 BLESS_DETECT=$(dpkg --get-selections | grep bless)
 KDIFF3_DETECT=$(dpkg --get-selections | grep kdiff3)
 
-if [ "$WINE_DETECT" == "" ]; then
+if [ "$WINEHQ_DETECT" == "" ]; then
     WINE_INSTED='n'
 else
     WINE_INSTED='y'
 fi
 
-if [ "$WINEHQ_DETECT" == "" ]; then
+if [ "$WINE_DETECT" == "" ]; then
     WINE_INSTED='n'
 else
     WINE_INSTED='y'
