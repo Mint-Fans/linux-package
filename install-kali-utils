@@ -491,12 +491,12 @@ sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/gscriptor
 sudo sed -i 's/galleta.png/kali-menu.png/g' /usr/share/kali-menu/applications/kali-galleta.desktop
 
 ### /usr/share/applications/xdot.desktop
-# sudo sed -i '/Icon=/d' /usr/share/applications/xdot.desktop
-# sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/xdot.desktop
+sudo sed -i '/Icon=/d' /usr/share/applications/xdot.desktop
+sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/xdot.desktop
 
 ### /usr/share/applications/texdoctk.desktop
-# sudo sed -i '/Icon=/d' /usr/share/applications/texdoctk.desktop
-# sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/texdoctk.desktop
+sudo sed -i '/Icon=/d' /usr/share/applications/texdoctk.desktop
+sudo sed -i '$a Icon=application-x-executable' /usr/share/applications/texdoctk.desktop
 
 ### /usr/share/applications/kali-hydra.desktop
 sudo sed -i 's/kali-hydra.png/kali-menu.png/g' /usr/share/kali-menu/applications/kali-hydra.desktop
