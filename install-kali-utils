@@ -451,9 +451,9 @@ sudo apt-get install $KALI_LINUX $KALI_LINUX_WIRELESS $KALI_LINUX_SDR -y
 ###################################
 php_fun(){
 if [ "$INST_PHP5" == "y" ]; then
-    sudo apt-get -t jessie install php5 php5-mysql
+    sudo apt-get -t jessie install php5 php5-mysql -y
 else
-    sudo apt-get install php php-mysql
+    sudo apt-get install php php-mysql -y
 fi
 
 }
