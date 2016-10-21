@@ -154,7 +154,7 @@ if [ "$INST_WINE" == "y" ]; then
         sudo mkdir -p /opt/wine-devel/share/wine/mono
         sudo mkdir -p /opt/wine-devel/share/wine/gecko
 
-        wget https://dl.winehq.org/wine/wine-mono/"$MONO_VER"/wine-mono-"$MONO_VER"msi
+        wget https://dl.winehq.org/wine/wine-mono/"$MONO_VER"/wine-mono-"$MONO_VER".msi
         sudo mv wine-mono-"$MONO_VER".msi /opt/wine-devel/share/wine/mono/
 
         if [ "$ARCH" == "x86_64" ]; then
