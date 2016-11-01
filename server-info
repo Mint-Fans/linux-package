@@ -1,6 +1,7 @@
 #!/bin/bash
 
-
+############################
+2016/11/1 by Mint Fnas
 ############################
 sudo rm -rf /tmp/http_header.txt
 sudo rm -rf /tmp/ns-tmp.txt
