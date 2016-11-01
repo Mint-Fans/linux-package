@@ -1,6 +1,7 @@
 #!/bin/bash
 
-
+############################
+2016/11/1 by Mint Fnas
 ############################
 sudo rm -rf /tmp/nmap
 sudo rm -rf /tmp/nmap/nmap-opt
