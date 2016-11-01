@@ -1,0 +1,182 @@
+#!/bin/bash
+
+
+############################
+sudo rm -rf /tmp/http_header.txt
+sudo rm -rf /tmp/ns-tmp.txt
+sudo rm -rf /tmp/ns.txt
+sudo rm -rf /tmp/ns-info.txt
+
+############################
+init_fun(){
+
+DOMAIN=$(echo "$URL" | sed 's/https:\/\///' | sed 's/http:\/\///' | sed 's/\/.*//g')
+DNS=$(host $DOMAIN | grep "has address" | awk '{print $4}')
+
+}
+
+############################
+fw_check_fun(){
+clear
+echo -e ""
+echo -e "Firewall Checking ..."
+
+wafw00f http://"$DOMAIN" > /tmp/chech-http-fw
+sed -i 1,14d /tmp/chech-http-fw
+wafw00f https://"$DOMAIN" > /tmp/chech-https-fw
+sed -i 1,14d /tmp/chech-https-fw
+
+HTTPS_FW=$(cat /tmp/chech-https-fw )
+HTTP_FW=$(cat /tmp/chech-http-fw )
+
+clear
+echo -e ""
+echo -e "Firewall Check"
+echo -e ""
+
+if [ ! "$HTTPS_FW" == "" ]; then
+    echo "HTTPS Check:"
+    echo "$HTTPS_FW"
+    echo -e ""
+else
+    echo "HTTPS Check:"
+    echo "No WAF detected by the generic detection"
+    echo -e ""
+fi
+
+if [ ! "$HTTP_FW" == "" ]; then
+    echo "HTTP Check:"
+    echo "$HTTP_FW"
+    echo -e ""
+else
+    echo "HTTP Check:"
+    echo "No WAF detected by the generic detection"
+    echo -e ""
+fi
+
+echo -e "完成! 按「ENTER」返回"
+read
+main_fun
+
+}
+############################
+get_ns_fun(){
+
+CUTS=$(nl /tmp/ns-tmp.txt | grep "Name Servers:" | awk '{print $1}')
+((CUTS+=5))
+CUTE=$(nl /tmp/ns-tmp.txt | grep "Mail (MX) Servers:" | awk '{print $1}')
+
+if [ "$CUTE" == "" ]; then
+    NS=$(dig +trace "$DOMAIN" > /tmp/ns-info.txt)
+    sed -i '$d' /tmp/ns-info.txt
+    cat /tmp/ns-info.txt | awk 'END {print}' > /tmp/ns-tmp.txt
+
+    NS=$(cat /tmp/ns-tmp.txt | sed 's/.*(//g' | sed 's/).*//g')
+    NSIP=$(cat /tmp/ns-tmp.txt | sed 's/.*from //g' | sed 's/#.*//g')
+    echo "$NSIP    $NS"
+else
+    ((CUTE+=3))
+    nl /tmp/ns-tmp.txt | sed "$CUTE",'$d' | sed 1,"$CUTS"d > /tmp/ns.txt
+    cat /tmp/ns.txt | awk '{print $6,"    " $2}'
+
+fi
+}
+
+############################
+get_dns_fun(){
+clear
+echo -e ""
+echo -e "DNS / NS INFO"
+echo -e ""
+echo "HOST:"
+echo "$DNS    $DOMAIN"
+echo -e ""
+echo "Name Server:"
+echo -e ""
+get_ns_fun
+echo -e ""
+echo -e "完成! 按「ENTER」返回"
+read
+main_fun
+}
+
+############################
+server_banner_fun(){
+# sudo rm -rf /tmp/http_header.txt
+curl -i $URL > /tmp/http_header.txt
+SERVER=$(cat /tmp/http_header.txt | grep "Server:")
+WEBAPP=$(cat /tmp/http_header.txt | grep "X-Powered-By")
+clear
+echo -e ""
+echo -e "SERVER BANNER INFO"
+echo -e ""
+echo -e "$SERVER"
+echo -e ""
+echo -e "$WEBAPP"
+echo -e ""
+echo -e "完成! 按「ENTER」返回"
+read
+main_fun
+}
+
+############################
+main_fun(){
+clear
+echo -e ""
+echo -e "    1) 取得 DNS / NS 訊息"
+echo -e ""
+echo -e "    2) 取得 Server banner 訊息"
+echo -e ""
+echo -e "    3) 防火牆檢測"
+echo -e ""
+echo -e "    4) 主機連接測試 (ping)"
+echo -e ""
+echo -e "    0) EXIT"
+echo -e ""
+read MAIN
+[[ "$MAIN" ]]
+
+if [ "$MAIN" == "1" ]; then
+    dnsenum $DOMAIN > /tmp/ns-tmp.txt
+    get_dns_fun
+elif [ "$MAIN" == "2" ]; then
+    server_banner_fun
+elif [ "$MAIN" == "3" ]; then
+    fw_check_fun
+elif [ "$MAIN" == "4" ]; then
+    clear
+    ping $DNS
+    main_fun
+else
+    exit
+fi
+
+}
+
+############################
+start_fun(){
+clear
+echo -e ""
+echo -e "    資訊收集"
+echo -e ""
+echo -e "    輸入網域名稱或網址"
+echo -e "    範例: www.google.com"
+echo -e "    或 https://www.google.com"
+echo -e ""
+echo -e "    按0退出"
+echo -e ""
+read URL
+[[ "$URL" ]]
+
+if [ "$URL" == "" ]; then
+    start_fun
+elif [ "$URL" == "0" ]; then
+    exit
+fi
+
+init_fun
+main_fun
+
+}
+
+start_fun
