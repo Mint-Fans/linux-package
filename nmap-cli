@@ -702,7 +702,7 @@ nmap_main_fun
 ############################
 scan3_fun(){
 clear
-OPT=$(zenity --file-selection --title="選擇倒導入目標" --filename=$HOME/)
+OPT=$(zenity --file-selection --title="選擇導入目標" --filename=$HOME/)
 # echo -e "$OPT"
 
 if [ "$OPT" == "" ]; then
