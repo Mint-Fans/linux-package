@@ -46,8 +46,9 @@ sed -i 's/#1D8ECE/#6CABCD/g' gtk-3.20/gtk-contained.css
 ========================
 Meta 包修改
 ========================
-刪除 vim vim-gtk
+刪除 vim vim-gtk xpdf
 刪除 php php-mysql 自訂版本
+openssh-server 改為 ssh
 分離 wine 應用: shellter veil-catapult veil-evasion ollydbg regripper sqldict
 
 以amd64為基礎:
