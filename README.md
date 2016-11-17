@@ -1,4 +1,4 @@
-Post 映射/轉發工具
+# Post 映射/轉發工具
 
 # Linux 下編譯
 $ gcc -o lcx lcx.c
