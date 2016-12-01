@@ -1,0 +1,7 @@
+mdm 2.0.15 make
+
+sudo apt-get install libpam0g-dev libdbus-glib-1-dev libglib2.0-dev libgdk-pixbuf2.0-dev libgtk2.0-dev libpango1.0-dev libglade2-dev libgnomecanvas2-dev librsvg2-dev libxml2-dev libart-2.0-dev libwrap0-dev debhelper gettext intltool libselinux1-dev libattr1-dev x11proto-core-dev x11proto-input-dev libxau-dev libxt-dev libxdmcp-dev libxinerama-dev libdmx-dev gnome-doc-utils sharutils gnome-pkg-tools quilt zenity libpopt-dev xserver-xorg libwebkitgtk-dev gnome-common libxml2-utils dh-systemd
+
+cp /usr/share/gnome-doc-utils/gnome-doc-utils.make gnome-doc-utils.make
+
+fakeroot make -j2 -f debian/rules binary-arch
