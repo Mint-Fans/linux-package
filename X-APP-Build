@@ -1,0 +1,211 @@
+#!/bin/bash
+
+#####################################
+### X-APP-Build for Debian testing / Kali by Mint Fans
+#####################################
+sudo apt-get install fakeroot -y
+
+#####################################
+CODENAME='serena'
+MDM_VER='2.0.15'
+XAPP_VER='1.0.2'
+PIX_VER='1.2.0'
+XPL_VER='1.0.2'
+XPLAYER_VER='1.2.1'
+XVIEWER_VER='1.2.1'
+XVPL_VER='1.2.0'
+XREADER_VER='1.2.1'
+XED_VER='1.2.1'
+
+ARCH=$(uname -m)
+if [ "$ARCH" == "x86_64" ]; then
+    DARCH='amd64'
+else
+    DARCH='i386'
+fi
+
+#####################################
+mkdir -p xapp-build
+cd xapp-build
+
+#####################################
+### mdm
+#####################################
+
+wget http://packages.linuxmint.com/pool/upstream/m/mdm/mdm_"$MDM_VER"%2b"$CODENAME".dsc
+DSC=mdm_"$MDM_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/upstream/m/mdm/mdm_"$MDM_VER"%2b"$CODENAME".tar.xz
+tar Jxvf mdm_"$MDM_VER"+"$CODENAME".tar.xz
+cd mdm-"$MDM_VER"+"$CODENAME"
+cp /usr/share/gnome-doc-utils/gnome-doc-utils.make gnome-doc-utils.make
+sed -i s/+"$CODENAME"//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+rm -r mdm-"$MDM_VER"+"$CODENAME"
+mkdir -p mdm
+mv *.deb mdm/
+rm *.dsc
+
+
+#####################################
+### xapp
+#####################################
+wget http://packages.linuxmint.com/pool/backport/x/xapp/xapp_"$XAPP_VER"%2b"$CODENAME".dsc
+DSC=xapp_"$XAPP_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xapp/xapp_"$XAPP_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xapp_"$XAPP_VER"+"$CODENAME".tar.xz
+cd xapp-"$XAPP_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+sudo dpkg -i gir1.2-xapp-1.0_"$XAPP_VER"_"$DARCH".deb libxapp-dev_"$XAPP_VER"_"$DARCH".deb libxapp1_"$XAPP_VER"_"$DARCH".deb xapps-common_"$XAPP_VER"_all.deb
+sudo apt-get install -f -y
+
+rm -r xapp-"$XAPP_VER"+"$CODENAME"
+mkdir -p xapp
+mv *.deb xapp/
+rm *.dsc
+
+#####################################
+### pix
+#####################################
+sudo apt-get install debhelper dh-autoreconf intltool libexiv2-dev flex bison libtiff-dev libpng-dev libjpeg-dev libsm-dev libice-dev scrollkeeper automake autoconf libtool gnome-doc-utils gnome-common gsettings-desktop-schemas-dev libgtk-3-dev libxml2-dev libglib2.0-dev libcairo2-dev libltdl3-dev libglade2-dev libsoup-gnome2.4-dev libchamplain-gtk-0.12-dev librsvg2-dev zlib1g-dev yelp-tools libgstreamer1.0-dev libsecret-1-dev libgstreamer-plugins-base1.0-dev libwebp-dev -y
+sudo apt-get install libwebkitgtk-1.0-0 libwebkitgtk-3.0-0 libwebkitgtk-3.0-dev libwebkitgtk-dev gir1.2-webkit-3.0 -y
+
+wget http://packages.linuxmint.com/pool/backport/p/pix/pix_"$PIX_VER"%2b"$CODENAME".tar.xz
+tar Jxvf pix_"$PIX_VER"+"$CODENAME".tar.xz
+cd pix-"$PIX_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+rm -r pix-"$PIX_VER"+"$CODENAME"
+mkdir -p pix
+mv *.deb pix/
+rm *.dsc
+
+#####################################
+### xplayer
+#####################################
+wget http://packages.linuxmint.com/pool/backport/x/xplayer-pl-parser/xplayer-pl-parser_"$XPL_VER"%2b"$CODENAME".dsc
+DSC=xplayer-pl-parser_"$XPL_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xplayer-pl-parser/xplayer-pl-parser_"$XPL_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xplayer-pl-parser_"$XPL_VER"+"$CODENAME".tar.xz
+cd xplayer-pl-parser-"$XPL_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+sudo dpkg -i libxplayer-plparser-dev_"$XPL_VER"_"$DARCH".deb gir1.2-xplayer-plparser-1.0_"$XPL_VER"_"$DARCH".deb libxplayer-plparser18_"$XPL_VER"_"$DARCH".deb
+sudo apt-get install -f -y
+
+mkdir -p xplayer-pl-parser
+mv *.deb xplayer-pl-parser/
+
+wget http://packages.linuxmint.com/pool/backport/x/xplayer/xplayer_"$XPLAYER_VER"%2b"$CODENAME".dsc
+DSC=xplayer_"$XPLAYER_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | sed 's/ |.*//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xplayer/xplayer_"$XPLAYER_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xplayer_"$XPLAYER_VER"+"$CODENAME".tar.xz
+cd xplayer-"$XPLAYER_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+mkdir -p xplayer
+mv *.deb xplayer/
+
+rm -r xplayer-pl-parser-"$XPL_VER"+"$CODENAME"
+rm -r xplayer-"$XPLAYER_VER"+"$CODENAME"
+rm *.dsc
+
+#####################################
+### xviewer
+#####################################
+wget http://packages.linuxmint.com/pool/backport/x/xviewer/xviewer_"$XVIEWER_VER"%2b"$CODENAME".dsc
+DSC=xviewer_"$XVIEWER_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xviewer/xviewer_"$XVIEWER_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xviewer_"$XVIEWER_VER"+"$CODENAME".tar.xz
+cd xviewer-"$XVIEWER_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+sudo dpkg -i xviewer-dev_"$XVIEWER_VER"_all.deb xviewer_"$XVIEWER_VER"_"$DARCH".deb
+sudo apt-get install -f -y
+
+mkdir -p xviewer
+mv *.deb xviewer/
+
+wget http://packages.linuxmint.com/pool/backport/x/xviewer-plugins/xviewer-plugins_"$XVPL_VER"%2b"$CODENAME".dsc
+DSC=xviewer-plugins_"$XVPL_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xviewer-plugins/xviewer-plugins_"$XVPL_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xviewer-plugins_"$XVPL_VER"+"$CODENAME".tar.xz
+cd xviewer-plugins-"$XVPL_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+mkdir -p xviewer-plugins
+mv *.deb xviewer-plugins/
+
+rm -r xviewer-"$XVIEWER_VER"+"$CODENAME"
+rm -r xviewer-plugins-"$XVPL_VER"+"$CODENAME"
+rm *.dsc
+
+#####################################
+### xreader
+#####################################
+sudo apt-get install debhelper gobject-introspection intltool libcaja-extension-dev libnemo-extension-dev libdjvulibre-dev libgail-3-dev libgirepository1.0-dev libglib2.0-dev libgtk-3-dev libgtk2.0-dev libgxps-dev libkpathsea-dev libpoppler-glib-dev libsecret-1-dev libsm-dev libspectre-dev libtiff-dev libx11-dev libxml2-dev lsb-release mate-common xsltproc yelp-tools zlib1g-dev -y
+sudo apt-get install libwebkitgtk-1.0-0 libwebkitgtk-3.0-0 libwebkitgtk-3.0-dev libwebkitgtk-dev gir1.2-webkit-3.0 -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xreader/xreader_"$XREADER_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xreader_"$XREADER_VER"+"$CODENAME".tar.xz
+cd xreader-"$XREADER_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+mkdir -p xreader
+mv *.deb xreader/
+rm -r xreader-"$XREADER_VER"+"$CODENAME"
+rm *.dsc
+
+#####################################
+### xed
+#####################################
+wget http://packages.linuxmint.com/pool/backport/x/xed/xed_"$XED_VER"%2b"$CODENAME".dsc
+DSC=xed_"$XED_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xed/xed_"$XED_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xed_"$XED_VER"+"$CODENAME".tar.xz
+cd xed-"$XED_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+mkdir -p xed
+mv *.deb xed/
+rm -r xed-"$XED_VER"+"$CODENAME"
+rm *.dsc
