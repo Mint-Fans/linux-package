@@ -1,0 +1,53 @@
+#!/bin/bash
+
+
+## libxml2 openssl bzip2
+## 編譯: libbz2-dev libxml2-dev libssl1.0-dev
+## 依賴: libxml2 libssl1.0.2
+
+XARVER='1.6.1'
+
+ARCH=$(uname -m)
+
+if [ "$ARCH" == "x86_64" ]; then
+    CARCH=amd64
+else
+    CARCH=i386
+fi
+
+DEP='autoconf libbz2-dev libxml2-dev libssl1.0-dev'
+sudo apt-get update
+sudo apt-get install $DEP -y
+
+wget https://github.com/downloads/mackyle/xar/xar-"$XARVER".tar.gz
+tar zxvf xar-"$XARVER".tar.gz
+
+wget https://aur.archlinux.org/cgit/aur.git/snapshot/xar.tar.gz
+tar zxvf xar.tar.gz
+
+cd xar-"$XARVER"
+cp ../xar/xar-ext2-bug-workaround.patch xar-ext2-bug-workaround.patch
+patch -p1 < xar-ext2-bug-workaround.patch
+
+./autogen.sh --prefix=/usr --mandir=/usr/share/man
+make
+mkdir -p build
+make DESTDIR=build install
+
+mkdir -p build/DEBIAN
+
+cat > build/DEBIAN/control << EOF
+Package: xar
+Version: $XARVER-1
+Architecture: $CARCH
+Maintainer: mackyle
+Installed-Size: 78
+Depends: libxml2, libssl1.0.2
+Section: utils
+Priority: standard
+Multi-Arch: foreign
+Homepage: http://mackyle.github.io/xar
+Description: eXtensible ARchiver
+EOF
+
+sudo dpkg -b build xar_"$XARVER"-1_"$CARCH".deb
