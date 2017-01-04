@@ -9,17 +9,18 @@ else
     ARCH=i386
 fi
 
-CURRENT_VER=$(cat index.html | grep "<td>11." | sed -e 's/.*11/11/g' | sed -e 's/<\/td>.*//g' )
+CURRENT_VER=$(cat index.html | grep "<td>2" | sed -e 's/.*<td>//g' | sed -e 's/<\/td>.*//g' | tail -n 1)
 
 rm index.html
 
 ### Update Adobe official Flash Player
-ADOBE_OFFCOAL=https://fpdownload.adobe.com/get/flashplayer/pdc/"$CURRENT_VER"/install_flash_player_11_linux."$ARCH".tar.gz
-FLASH_PLAYER_PACKAGE=install_flash_player_11_linux."$ARCH".tar.gz
+ADOBE_OFFCOAL=https://fpdownload.adobe.com/get/flashplayer/pdc/"$CURRENT_VER"/flash_player_npapi_linux."$ARCH".tar.gz
+
+FLASH_PLAYER_PACKAGE=flash_player_npapi_linux."$ARCH".tar.gz
 
 DISTRIB=$(uname -r)
 
-mkdir flash_player
+mkdir -p flash_player
 cd flash_player
 wget $ADOBE_OFFCOAL
 tar zxvf $FLASH_PLAYER_PACKAGE
@@ -60,8 +61,8 @@ fi
 case $DISTRIB in
 	*"-generic")
 	### Ubuntu / Linux Mint
-	sudo rm -rf /usr/lib/flashplugin-installer/libflashplayer.so
-        mkdir -p /usr/lib/flashplugin-installer
+	sudo rm /usr/lib/flashplugin-installer/libflashplayer.so
+	sudo mkdir -p /usr/lib/flashplugin-installer
 	sudo cp libflashplayer.so /usr/lib/flashplugin-installer/
 	sudo update-alternatives --quiet --remove "mozilla-flashplugin" /usr/lib/flashplugin-installer/libflashplayer.so
 	sudo update-alternatives --quiet --install "/usr/lib/mozilla/plugins/flashplugin-alternative.so" "mozilla-flashplugin" /usr/lib/flashplugin-installer/libflashplayer.so 50
@@ -69,8 +70,8 @@ case $DISTRIB in
 
 	*"-amd64"|*"-686")
 	### Debian / LMDE
-	sudo rm -rf /usr/lib/flashplugin-nonfree/libflashplayer.so
-        mkdir -p /usr/lib/flashplugin-nonfree
+	sudo rm /usr/lib/flashplugin-nonfree/libflashplayer.so
+	sudo mkdir -p /usr/lib/flashplugin-nonfree
 	sudo cp libflashplayer.so /usr/lib/flashplugin-nonfree/
 	sudo update-alternatives --quiet --remove flash-mozilla.so /usr/lib/flashplugin-nonfree/libflashplayer.so
 	sudo update-alternatives --quiet --install /usr/lib/mozilla/plugins/flash-mozilla.so flash-mozilla.so /usr/lib/flashplugin-nonfree/libflashplayer.so 50
@@ -78,8 +79,8 @@ case $DISTRIB in
 
 	*"-ARCH")
 	### Arch Linux / LMAE
-	sudo rm -rf /usr/lib/mozilla/plugins/libflashplayer.so
-        mkdir -p /usr/lib/mozilla/plugins
+	sudo rm /usr/lib/mozilla/plugins/libflashplayer.so
+	sudo mkdir -p /usr/lib/mozilla/plugins
 	sudo cp libflashplayer.so /usr/lib/mozilla/plugins/
 	;;
 esac
