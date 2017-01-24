@@ -1,0 +1,176 @@
+#!/bin/bash
+
+
+########################################
+### SSH SHELL By Mint Fans
+########################################
+SCP=/usr/bin/scp
+SSH=/usr/bin/ssh
+CLEAR=/usr/bin/clear
+SU=/usr/bin/sudo
+
+#########################################
+msg_fun(){
+$CLEAR
+echo -e ""
+echo -e "    $TITLE"
+echo -e ""
+echo -e "    $TEXT"
+echo -e ""
+read MSG
+}
+
+#########################################
+set_login_fun(){
+$CLEAR
+echo -e ""
+echo -e "    設定登入IP"
+echo -e ""
+echo -e "    輸入連接目標IP"
+echo -e "    輸入範例: 192.168.12.75"
+echo -e ""
+read IP
+[[ "$IP" ]]
+if [ "$IP" == "" ]; then
+    main_fun
+fi
+
+}
+#########################################
+sshcmd_fun(){
+$CLEAR
+echo -e ""
+echo -e "    SSH 命令/登入"
+echo -e ""
+echo -e "    輸入單一命令，或者直接按ENTER進入SHELL"
+echo -e ""
+read CMD
+[[ "$CMD" ]]
+
+$SSH root@$IP "$CMD"
+
+main_fun
+
+}
+
+
+#########################################
+down_fun(){
+$CLEAR
+echo -e ""
+echo -e "    從安卓下載檔案"
+
+echo -e ""
+echo -e "    1) 目錄"
+echo -e ""
+echo -e "    2) 檔案"
+echo -e ""
+read IS_DIR
+[[ "$IS_DIR" ]]
+
+echo -e ""
+echo -e "    輸入要下載的檔案"
+echo -e ""
+read FILE
+[[ "$FILE" ]]
+
+if [ "$FILE" == "" ]; then
+    main_fun
+fi
+
+DIR_NAME=$(/usr/bin/dirname $FILE)
+BASE_NAME=$(/usr/bin/basename $FILE)
+
+/bin/mkdir -p $HOME/Android/$DIR_NAME
+
+if [ "$IS_DIR" == "1" ]; then
+    $SCP -r root@$IP:$FILE $HOME/Android/$DIR_NAME
+else
+    $SCP root@$IP:$FILE $HOME/Android/$DIR_NAME
+fi
+
+TITLE="下載"
+TEXT="從安卓下載檔案完成!"
+msg_fun
+main_fun
+
+}
+
+#########################################
+up_fun(){
+$CLEAR
+echo -e ""
+echo -e "    上傳檔案到安卓"
+
+echo -e ""
+echo -e "    1) 目錄"
+echo -e ""
+echo -e "    2) 檔案"
+echo -e ""
+read IS_DIR
+[[ "$IS_DIR" ]]
+
+echo -e ""
+echo -e "    拖放檔案到此"
+echo -e ""
+read FILE
+[[ "$FILE" ]]
+if [ "$FILE" == "" ]; then
+    main_fun
+fi
+
+echo -e ""
+echo -e "    輸入複製到安卓的路徑"
+echo -e ""
+echo -e "    範例 /system/bin/"
+echo -e ""
+read PATH
+[[ "$PATH" ]]
+
+if [ "$PATH" == "" ]; then
+    main_fun
+fi
+
+if [ "$IS_DIR" == "1" ]; then
+    $SU $SCP -r $FILE root@$IP:$PATH
+else
+    $SU $SCP $FILE root@$IP:$PATH
+fi
+
+TITLE="上傳檔案"
+TEXT="上傳檔案到安卓完成!"
+msg_fun
+main_fun
+
+}
+
+#########################################
+main_fun(){
+$CLEAR
+echo -e ""
+echo -e "    SSH SHELL"
+echo -e ""
+echo -e "    1) 上傳檔案到安卓"
+echo -e ""
+echo -e "    2) 從安卓下載檔案"
+echo -e ""
+echo -e "    3) SSH 命令/登入"
+echo -e ""
+echo -e "    0) EXIT"
+echo -e ""
+read MAIN
+[[ "$MAIN" ]]
+
+if [ "$MAIN" == "1" ]; then
+    up_fun
+elif [ "$MAIN" == "2" ]; then
+    down_fun
+elif [ "$MAIN" == "3" ]; then
+    sshcmd_fun
+else
+    exit
+fi
+}
+
+set_login_fun
+main_fun
