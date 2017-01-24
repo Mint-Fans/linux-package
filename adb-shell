@@ -50,6 +50,7 @@ if [ "$FILE" == "" ]; then
     main_fun
 fi
 
+$ADB remount
 $ADB install $FILE
 
 TITLE="安裝 APK"
@@ -83,6 +84,7 @@ if [ "$CHMOD" == "" ]; then
     main_fun
 fi
 
+$ADB remount
 $ADB shell chown 0.0 $FILE
 $ADB shell chmod $CHMOD $FILE
 
