@@ -1,0 +1,63 @@
+######## yaourt ########
+wget http://mir.archlinux.fr/~tuxce/releases/package-query/package-query-1.8.tar.gz
+tar zxvf package-query-1.8.tar.gz
+cd package-query-1.8
+wget https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=package-query
+mv PKGBUILD?h=package-query PKGBUILD
+makepkg -si
+cd ..
+
+wget http://mir.archlinux.fr/~tuxce/releases/yaourt/yaourt-1.8.tar.gz
+tar zxvf yaourt-1.8.tar.gz
+cd yaourt-1.8
+wget https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=yaourt
+mv PKGBUILD?h=yaourt PKGBUILD
+makepkg -si
+cd ..
+
+yaourt -Sb --export <dir> <package>
+######## Audio ########
+mkdir pa-applet
+yaourt -Sb --export ~/pa-applet pa-applet-git
+
+mkdir xfce4-volumed-pulse
+yaourt -Sb --export ~/xfce4-volumed-pulse xfce4-volumed-pulse
+
+######## Mint ########
+mkdir mdm
+yaourt -Sb --export ~/mdm mdm-display-manager
+
+mkdir plymouth
+yaourt -Sb --export ~/plymouth plymouth
+
+
+######## firmware ########
+mkdir aic94xx
+yaourt -Sb --export ~/aic94xx aic94xx-firmware
+
+mkdir wd719x
+yaourt -Sb --export ~/wd719x wd719x-firmware
+
+######## XAPP ########
+
+mkdir xreader
+sudo pacman -S ghostscript poppler-glib djvulibre mate-common
+yaourt -Sb --export ~/xreader xreader
+
+mkdir xviewer
+sudo pacman -S libpeas gobject-introspection
+yaourt -Sb --export ~/xviewer xviewer
+
+mkdir xviewer-plugins
+yaourt -Sb --export ~/xviewer-plugins xviewer-plugins
+
+mkdir pix
+sudo pacman -S gconf liboauth
+yaourt -Sb --export ~/pix pix
+
+mkdir xplayer-plparser
+yaourt -Sb --export ~/xplayer-plparser xplayer-plparser
+
+mkdir xplayer
+sudo pacman -S clutter-gtk clutter-gst python2-gobject xapps vala
+yaourt -Sb --export ~/xplayer xplayer
