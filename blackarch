@@ -1,0 +1,14 @@
+#!/bin/sh
+
+pacman -U --noconfirm https://www.blackarch.org/keyring/blackarch-keyring.pkg.tar.xz
+
+sed -i '/blackarch/{N;d}' /etc/pacman.conf
+
+MIRROR='https://www.mirrorservice.org/sites/blackarch.org/blackarch/'
+
+cat >> "/etc/pacman.conf" << EOF
+[blackarch]
+Server = $MIRROR/\$repo/os/\$arch
+EOF
+
+pacman -Syy
