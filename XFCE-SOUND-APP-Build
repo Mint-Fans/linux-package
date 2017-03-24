@@ -1,0 +1,99 @@
+#!/bin/bash
+
+##########################################
+CARCH=$(uname -m)
+if [ "$CARCH" == "x86_64" ]; then
+    ARCH='amd64'
+else
+    ARCH='i386'
+fi
+
+##########################################
+### pa-applet
+##########################################
+
+sudo apt-get install libpulse-dev libnotify-dev -y
+
+git clone https://github.com/fernandotcl/pa-applet.git
+cd pa-applet
+./autogen.sh
+./configure --prefix=/usr
+# sed -i 's/gdk_display_get_screen/gdk_display_get_default_screen/g' src/key_grabber.c
+sed -i s'/ -Wall -Werror //'g src/Makefile
+make
+
+make install DESTDIR=~/DEB
+cd ../DEB
+mkdir DEBIAN
+
+cat > DEBIAN/control << EOF
+Package: pa-applet
+Version: 17.33-1
+Architecture: $ARCH
+Maintainer: https://github.com/fernandotcl/pa-applet
+Installed-Size: 86
+Depends: 
+Recommends: 
+Section: xfce
+Priority: optional
+Homepage: https://github.com/fernandotcl/pa-applet
+Description: Pulse Audio Applet
+EOF
+
+mkdir -p etc/xdg/autostart
+
+cat > etc/xdg/autostart/pa-applet.desktop << EOF
+[Desktop Entry]
+Name=Pulse Audio Applet
+Icon=audio-volume-high
+Exec=pa-applet
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;System;
+StartupNotify=true
+EOF
+
+cd ../
+sudo dpkg -b DEB pa-applet_17.33-1_"$ARCH".deb
+rm -rf DEB
+rm -rf pa-applet
+
+##########################################
+### xfce4-volumed-pulse
+##########################################
+sudo apt-get install libxfconf-0-dev libpulse-dev libnotify-dev libkeybinder-dev -y
+
+wget http://archive.xfce.org/src/apps/xfce4-volumed-pulse/0.2/xfce4-volumed-pulse-0.2.2.tar.bz2
+tar jxvf xfce4-volumed-pulse-0.2.2.tar.bz2
+cd xfce4-volumed-pulse-0.2.2
+./configure --prefix=/usr --sysconfdir=/etc --libexecdir=/usr/lib --localstatedir=/var
+make
+make install DESTDIR=~/xfce4-volumed-pulse
+cd ../xfce4-volumed-pulse
+mkdir DEBIAN
+
+cat > DEBIAN/control << EOF
+Package: xfce4-volumed-pulse
+Version: 0.2.0-1
+Architecture: $ARCH
+Maintainer: Mint-Fans
+Installed-Size: 86
+Depends: libc6 (>= 2.4), libglib2.0-0 (>= 2.16.0), libgtk2.0-0 (>= 2.8.0), libkeybinder0 (>= 0.2.1), libnotify4 (>= 0.7.0), libpulse-mainloop-glib0 (>= 0.99.1), libpulse0 (>= 0.99.1), libxfconf-0-2 (>= 4.6.0)
+Recommends: pulseaudio
+Section: xfce
+Priority: optional
+Homepage: http://goodies.xfce.org/projects/applications/xfce4-volumed
+Description: volume keys daemon
+EOF
+
+cat > DEBIAN/conffiles << EOF
+/etc/xdg/autostart/xfce4-volumed-pulse.desktop
+EOF
+
+cd ../
+
+sudo dpkg -b xfce4-volumed-pulse xfce4-volumed-pulse_0.2.0-1_"$ARCH".deb
+
+rm -rf xfce4-volumed-pulse
+rm -rf xfce4-volumed-pulse-0.2.2
+
