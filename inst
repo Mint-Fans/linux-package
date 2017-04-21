@@ -1,6 +1,0 @@
-#!/bin/bash
-
-
-PKGNAME=$@
-
-pkg-get install $PKGNAME
