@@ -133,7 +133,7 @@ set_orig_fun
 set_iv_fun
 set_key_fun
 
-xpwntool "$ROM_PATCH" "$SAVE_PATH"/"$ROM_NAME" -t "$TEMPLATE" -iv "$ROM_IV" -k "$ROM_KEY"
+"$XPWN" "$ROM_PATCH" "$SAVE_PATH"/"$ROM_NAME" -t "$TEMPLATE" -iv "$ROM_IV" -k "$ROM_KEY"
 
 TITLE="$ROM_NAME"
 TEXT="$ROM_NAME Encrypted!"
@@ -152,7 +152,7 @@ set_save_fun
 set_iv_fun
 set_key_fun
 
-xpwntool "$ROM_PATCH" "$SAVE_PATH"/"$ROM_NAME" -iv "$ROM_IV" -k "$ROM_KEY"
+"$XPWN" "$ROM_PATCH" "$SAVE_PATH"/"$ROM_NAME" -iv "$ROM_IV" -k "$ROM_KEY"
 
 TITLE="$ROM_NAME"
 TEXT="$ROM_NAME Decrypted!"
