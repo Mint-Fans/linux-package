@@ -1,0 +1,195 @@
+#!/bin/bash
+
+
+####### Depends ###############################
+### xpwn
+###############################################
+
+rm -rf /tmp/ios
+mkdir -p /tmp/ios
+
+###############################################
+find_xpwn_fun(){
+clear
+echo -e ""
+echo -e "    設置 xpwntool 路徑"
+echo -e ""
+echo -e "    將 xpwntool 拖放到此"
+echo -e ""
+read XPWN
+[[ "$XPWN" ]]
+
+}
+
+set_xpwn_fun(){
+if [ -f "/usr/local/bin/xpwntool" ]; then
+    XPWN="/usr/local/bin/xpwntool"
+elif [ -f "/usr/bin/xpwntool" ]; then
+    XPWN="/usr/bin/xpwntool"
+else
+    find_xpwn_fun
+fi
+
+}
+
+
+###############################################
+
+###############################################
+msg_fun(){
+clear
+echo -e ""
+echo -e "    $TITLE"
+echo -e ""
+echo -e "    $TEXT"
+echo -e ""
+read MSG
+
+}
+
+###############################################
+set_key_fun(){
+echo -e ""
+echo -e "    輸入 KEY"
+echo -e ""
+read ROM_KEY
+[[ "$ROM_KEY" ]]
+
+}
+###############################################
+set_iv_fun(){
+echo -e ""
+echo -e "    輸入 IV"
+echo -e ""
+read ROM_IV
+[[ "$ROM_IV" ]]
+
+}
+
+###############################################
+set_save_fun(){
+echo -e ""
+echo -e "    選擇要保存的路徑"
+echo -e ""
+echo -e "    將保存的路徑拖放到此"
+echo -e ""
+read SAVE
+[[ "$SAVE" ]]
+
+if [ "$SAVE" == "" ]; then
+    exit
+fi
+
+SAVE_PATH=$(echo $SAVE | sed s/"'"//g)
+
+}
+
+###############################################
+set_path_fun(){
+echo -e ""
+echo -e "    $TITLE"
+echo -e ""
+echo -e "    將文件拖放到此"
+echo -e ""
+read ROM
+[[ "$ROM" ]]
+
+echo "$ROM" > /tmp/ios/romfile
+
+ROM_PATCH=$(cat /tmp/ios/romfile | sed s/"'"//g)
+ROM_NAME=$(cat /tmp/ios/romfile | sed s/"\/"/" "/g | tr ' ' '\n' | awk 'END {print}' | sed s/"'"//g)
+
+if [ "$ROM_PATCH" == "" ]; then
+    exit
+fi
+
+}
+
+###############################################
+set_orig_fun(){
+echo -e ""
+echo -e "    設置原始加密文件路徑"
+echo -e ""
+echo -e "    將原始加密文件拖放到此"
+echo -e ""
+read ORIG
+[[ "$ORIG" ]]
+
+if [ "$ORIG" == "" ]; then
+    exit
+fi
+
+TEMPLATE=$(echo $ORIG | sed s/"'"//g)
+
+}
+
+###############################################
+img3_enc_fun(){
+clear
+TITLE="選擇要加密的文件"
+set_path_fun
+set_save_fun
+set_orig_fun
+set_iv_fun
+set_key_fun
+
+xpwntool "$ROM_PATCH" "$SAVE_PATH"/"$ROM_NAME" -t "$TEMPLATE" -iv "$ROM_IV" -k "$ROM_KEY"
+
+TITLE="$ROM_NAME"
+TEXT="$ROM_NAME Encrypted!"
+msg_fun
+
+main_fun
+
+}
+
+###############################################
+img3_dec_fun(){
+clear
+TITLE="選擇要解密的文件"
+set_path_fun
+set_save_fun
+set_iv_fun
+set_key_fun
+
+xpwntool "$ROM_PATCH" "$SAVE_PATH"/"$ROM_NAME" -iv "$ROM_IV" -k "$ROM_KEY"
+
+TITLE="$ROM_NAME"
+TEXT="$ROM_NAME Decrypted!"
+msg_fun
+
+main_fun
+}
+
+###############################################
+
+main_fun(){
+clear
+echo -e ""
+echo -e "    IMG3 加解密"
+echo -e ""
+echo -e "    1) IMG3 解密"
+echo -e ""
+echo -e "    2) IMG3 加密"
+echo -e ""
+echo -e "    3) EXIT"
+echo -e ""
+read OPT
+[[ "$OPT" ]]
+
+if [ "$OPT" == "1" ]; then
+	set_xpwn_fun
+    img3_dec_fun
+elif [ "$OPT" == "2" ]; then
+	set_xpwn_fun
+    img3_enc_fun
+else
+    exit
+fi
+
+exit
+
+}
+
+
+main_fun
