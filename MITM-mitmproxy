@@ -1,0 +1,30 @@
+mitmproxy
+
+sudo apt-get install python-pyasn1 python-flask python-urwid python-dev libxml2-dev libxslt-dev libffi-dev python-pip
+ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install mitmproxy --proxy=127.0.0.1:8087
+
+or
+sudo apt-get install mitmproxy
+
+===============================
+端口轉發
+===============================
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
+設置
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 8080
+
+查看轉發表
+iptables -t nat -L
+
+刪除轉發表
+iptables -t nat -D PREROUTING 1
+
+查找網關IP
+netstat -nr
+
+===============================
+
+===============================
+mitmproxy -p 8080
