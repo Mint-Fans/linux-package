@@ -1,0 +1,93 @@
+export NDKROOT=/media/kali/UXDB/android/android-ndk-r15c
+export SYSROOT=$NDKROOT/platforms/android-9/arch-arm
+export DEVROOT=$NDKROOT/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64
+
+export CC=$DEVROOT/bin/arm-linux-androideabi-gcc
+export CXX=$DEVROOT/bin/arm-linux-androideabi-g++
+export LD=$DEVROOT/bin/arm-linux-androideabi-ld
+export AR=$DEVROOT/bin/arm-linux-androideabi-ar
+export AS=$DEVROOT/bin/arm-linux-androideabi-as
+export NM=$DEVROOT/bin/arm-linux-androideabi-nm
+export RANLIB=$DEVROOT/bin/arm-linux-androideabi-ranlib
+export CFLAGS="-I$SYSROOT/usr/include/ -isysroot $SYSROOT"
+export LDFLAGS="-L$SYSROOT/usr/lib/"
+export CPPFLAGS=$CFLAGS
+export CXXFLAGS=$CFLAGS
+
+rm $DEVROOT/lib/gcc/arm-linux-androideabi/4.9.x/crtbegin_dynamic.o
+rm $DEVROOT/lib/gcc/arm-linux-androideabi/4.9.x/crtend_android.o
+ln -s $SYSROOT/usr/lib/crtbegin_dynamic.o $DEVROOT/lib/gcc/arm-linux-androideabi/4.9.x/crtbegin_dynamic.o
+ln -s $SYSROOT/usr/lib/crtend_android.o $DEVROOT/lib/gcc/arm-linux-androideabi/4.9.x/crtend_android.o
+
+LIBS=""
+======================================================
+用法
+======================================================
+編譯 .o
+$CC $CFLAGS -c main.c -o main.o
+
+合併與連結 .o
+$CC $LDFLAGS $LIBS main.o -o main
+
+直接編譯
+$CC $CFLAGS $LDFLAGS $LIBS main.c -o main
+
+編譯動態連結庫
+$CC -shared $CFLAGS $LDFLAGS $LIBS main.c -o main.so
+或
+$CXX -shared $CFLAGS $LDFLAGS $LIBS main.c -o main.so
+
+======================================================
+腳本範例
+======================================================
+# 編譯 .o
+make_o_fun(){
+find * -name "*.c" | sed /\\//d > /tmp/ccc
+FILE=$(cat /tmp/ccc | sed "s/\.cpp//g" | sed "s/\.c//g")
+for i in $FILE; do
+    $CC $CFLAGS -c $i.c -o $i.o
+done
+
+if [ "$ENABLE_CXX" == "y" ]; then
+    find * -name "*.cpp" | sed /\\//d > /tmp/cpp
+    FILE=$(cat /tmp/cpp | sed "s/\.cpp//g" | sed "s/\.c//g")
+    for i in $FILE; do
+        $CC -x c++ $CFLAGS -c $i.cpp -o $i.o
+    done
+fi
+
+}
+
+# 連結 .0
+link_o_fun(){
+find * -name "*.o" | sed /\\//d > /tmp/ooo
+ALLO=$(cat /tmp/ooo | tr "\n" " ")
+if [ "$ENABLE_CXX" == "y" ]; then
+    $CXX $LDFLAGS $ALLO -o $TARGET
+else
+    $CC $LDFLAGS $ALLO -o $TARGET
+fi
+
+}
+
+# 直接編譯
+make_fun(){
+find * -name "*.c" | sed /\\//d > /tmp/ccc
+find * -name "*.cpp" | sed /\\//d >> /tmp/ccc
+ALLC=$(cat /tmp/ccc | tr "\n" " ")
+
+if [ "$DYLIB" == "y" ]; then
+	$CC -shared $CFLAGS $LDFLAGS $ALLC -o $TARGET
+	DYLIB="n"
+else
+	$CC $CFLAGS $LDFLAGS $XLINK $ALLC -o $TARGET
+fi
+}
+
+
+======================================================
+執行程式
+======================================================
+$ adb push main /data/local/
+$ adb shell
+$ /data/local/main
