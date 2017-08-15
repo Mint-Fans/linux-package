@@ -1,0 +1,36 @@
+#!/bin/bash
+
+FILE1=$1
+FILE2=$2
+
+filecmp_fun(){
+cmp -l $FILE1 $FILE2 | gawk '{printf "%08X %02X %02X\n", $1, strtonum(0$2), strtonum(0$3)}' > filecmp-hex.txt
+xdg-open filecmp-hex.txt
+}
+
+
+menu_fun(){
+clear
+echo -e ""
+echo -e "    ************************"
+echo -e "      HEX 比對"
+echo -e "    ************************"
+echo -e ""
+echo -e "      拖放原始文件(File 1)到這裡"
+read FILE1
+[[ "$FILE1" ]]
+
+echo -e ""
+echo -e "    拖放修改文件(File 2)到這裡"
+read FILE2
+[[ "$FILE2" ]]
+
+filecmp_fun
+
+}
+
+if [ "$FILE1" == "" ] | [ "$FILE2" == "" ] ; then
+    menu_fun
+else
+    filecmp_fun
+fi
