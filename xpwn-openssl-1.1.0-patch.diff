@@ -1,0 +1,70 @@
+diff -uNr xpwn.org/dmg/filevault.c xpwn/dmg/filevault.c
+--- xpwn.org/dmg/filevault.c	2017-09-03 17:24:19.000000000 +0800
++++ xpwn/dmg/filevault.c	2017-09-03 18:49:04.452305210 +0800
+@@ -15,6 +15,8 @@
+ #define CHUNKNO(oft, info) ((uint32_t)((oft)/info->blockSize))
+ #define CHUNKOFFSET(oft, info) ((size_t)((oft) - ((off_t)(CHUNKNO(oft, info)) * (off_t)info->blockSize)))
+ 
++HMAC_CTX *hmacCTX = NULL;
++
+ static void flipFileVaultV2Header(FileVaultV2Header* header) {
+ 	FLIPENDIAN(header->signature);
+ 	FLIPENDIAN(header->version);
+@@ -51,9 +53,9 @@
+ 	myChunk = info->curChunk;
+ 
+ 	FLIPENDIAN(myChunk);
+-	HMAC_Init_ex(&(info->hmacCTX), NULL, 0, NULL, NULL);
+-	HMAC_Update(&(info->hmacCTX), (unsigned char *) &myChunk, sizeof(uint32_t));
+-	HMAC_Final(&(info->hmacCTX), msgDigest, &msgDigestLen);
++	HMAC_Init_ex(hmacCTX, NULL, 0, NULL, NULL);
++	HMAC_Update(hmacCTX, (unsigned char *) &myChunk, sizeof(uint32_t));
++	HMAC_Final(hmacCTX, msgDigest, &msgDigestLen);
+ 
+ 	AES_cbc_encrypt(info->chunk, buffer, info->blockSize, &(info->aesEncKey), msgDigest, AES_ENCRYPT);
+ 
+@@ -85,9 +87,9 @@
+ 	info->curChunk = chunk;
+ 
+ 	FLIPENDIAN(chunk);
+-	HMAC_Init_ex(&(info->hmacCTX), NULL, 0, NULL, NULL);
+-	HMAC_Update(&(info->hmacCTX), (unsigned char *) &chunk, sizeof(uint32_t));
+-	HMAC_Final(&(info->hmacCTX), msgDigest, &msgDigestLen);
++	HMAC_Init_ex(hmacCTX, NULL, 0, NULL, NULL);
++	HMAC_Update(hmacCTX, (unsigned char *) &chunk, sizeof(uint32_t));
++	HMAC_Final(hmacCTX, msgDigest, &msgDigestLen);
+ 
+ 	AES_cbc_encrypt(buffer, info->chunk, info->blockSize, &(info->aesKey), msgDigest, AES_DECRYPT);
+ }
+@@ -177,7 +179,7 @@
+ 		cacheChunk(info, 0);
+ 	}
+ 
+-	HMAC_CTX_cleanup(&(info->hmacCTX));
++	HMAC_CTX_free(hmacCTX);
+ 
+ 	if(info->headerDirty) {
+ 		if(info->version == 2) {
+@@ -234,8 +236,8 @@
+ 		hmacKey[i] = curByte;
+ 	}
+ 
+-	HMAC_CTX_init(&(info->hmacCTX));
+-	HMAC_Init_ex(&(info->hmacCTX), hmacKey, sizeof(hmacKey), EVP_sha1(), NULL);
++	HMAC_CTX_reset(hmacCTX);
++	HMAC_Init_ex(hmacCTX, hmacKey, sizeof(hmacKey), EVP_sha1(), NULL);
+ 	AES_set_decrypt_key(aesKey, FILEVAULT_CIPHER_KEY_LENGTH * 8, &(info->aesKey));
+ 	AES_set_encrypt_key(aesKey, FILEVAULT_CIPHER_KEY_LENGTH * 8, &(info->aesEncKey));
+ 
+diff -uNr xpwn.org/includes/dmg/filevault.h xpwn/includes/dmg/filevault.h
+--- xpwn.org/includes/dmg/filevault.h	2017-09-03 17:24:20.000000000 +0800
++++ xpwn/includes/dmg/filevault.h	2017-09-03 18:37:20.476280140 +0800
+@@ -79,7 +79,7 @@
+ 
+ 	AbstractFile*	file;
+ 
+-	HMAC_CTX	hmacCTX;
++	HMAC_CTX	*hmacCTX;
+ 	AES_KEY		aesKey;
+ 	AES_KEY		aesEncKey;
+ 
