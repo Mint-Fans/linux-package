@@ -1,0 +1,22 @@
+#!/system/bin/sh
+
+# Run iPhone bootx
+run_bootx_fun(){
+    ssh root@$ROUTE /usr/bin/bootx
+}
+
+check_fun(){
+ROUTE=$(arp | awk -F'[,(]' '{print $2}' | awk -F'[,)]' '{print $1}')
+
+if [ "$ROUTE" == "" ]; then
+    echo "Waiting Route ..."
+    sleep 1
+    check_fun
+else
+    echo "Route: $ROUTE"
+    echo "Run BootX"
+    run_bootx_fun
+fi
+}
+
+check_fun
