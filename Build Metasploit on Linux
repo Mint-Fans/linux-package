@@ -13,7 +13,6 @@ mv metasploit-framework metasploit
 cd metasploit
 sudo gem install bundler
 
-cd metasploit-framework
 rm .*
 rm -rf .git
 rm -r .github
