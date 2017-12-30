@@ -44,7 +44,7 @@ or
 sudo service postgresql start
 
 # Configuration VNCViewer
-echo '#!/usr/bin/env bash'>> /usr/local/bin/vncviewer
+echo '#!/usr/bin/env bash' > /usr/local/bin/vncviewer
 echo open vnc://\$1 >> /usr/local/bin/vncviewer
 chmod +x /usr/local/bin/vncviewer
 
@@ -69,6 +69,8 @@ sudo msfconsole
 =======================================
 Remove Metasploit
 =======================================
+sudo msfdb delete
+
 sudo -s
 sed -i '/metasploit/d' /etc/profile 
 
