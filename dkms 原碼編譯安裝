@@ -1,0 +1,72 @@
+====================
+dkms 指令編譯安裝
+====================
+範例: virtualbox
+
+NAME=virtualbox
+VERSION=5.2.4
+KERNEL=$(uname -r)
+
+移除 KMS 與原始碼目錄
+dkms remove -m $NAME -v $VERSION --all
+
+添加原始碼到 /var/lib/dkms/ 目錄
+dkms add -m $NAME -v $VERSION
+
+檢查 KMS 狀態
+dkms_status=$(dkms status -m $NAME -v $VERSION -k $KERNEL)
+
+編譯 KMS (目錄 /var/lib/dkms/)
+dkms build -m $NAME -v $VERSION -k $KERNEL
+
+安裝 KMS (目錄 /lib/modules/"$KERNEL"/)
+dkms install -m $NAME -v $VERSION -k $KERNEL
+
+
+====================
+dkms 腳本編譯安裝
+====================
+腳本參數:
+NAME=$1
+VERSION=$2
+TARBALL_ROOT=$3 # 排除目錄(壓縮檔存在則退出安裝)
+ARCH=$4
+UPGRADE=$5
+
+DKMS_NAME=virtualbox
+DKMS_VERSION=5.2.4
+DKMS_PACKAGE_NAME=$DKMS_NAME-dkms
+
+/usr/lib/dkms/common.postinst $DKMS_NAME $VERSION /usr/share/$DKMS_PACKAGE_NAME $ARCH $UPGRADE
+or
+/usr/lib/dkms/common.postinst virtualbox 5.2.4
+
+====================
+載入/卸載 KMS
+====================
+範例: virtualbox
+
+載入模組:
+sudo modprobe vboxdrv
+sudo modprobe vboxnetadp
+sudo modprobe vboxnetflt
+sudo modprobe vboxpci
+
+重建 modules.dep
+sudo depmod
+
+寫入核心
+sudo update-initramfs -u
+
+
+卸載模組:
+sudo modprobe -r vboxdrv
+sudo modprobe -r vboxnetadp
+sudo modprobe -r vboxnetflt
+sudo modprobe -r vboxpci
+
+重建 modules.dep
+sudo depmod
+
+寫入核心
+sudo update-initramfs -u
