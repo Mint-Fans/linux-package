@@ -1,0 +1,173 @@
+=====================================
+安裝 PostgreSQL
+=====================================
+# 安裝套件
+sudo apt-get install postgresql
+
+# 編譯
+* 安裝依賴
+wget http://http.debian.net/debian/pool/main/p/postgresql-10/postgresql-10_10.1-2.dsc
+DSC=postgresql-10_10.1-2.dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/ |.*//g' | sed 's/ \[.*//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+sudo apt-get install fakeroot build-essential quilt -y
+
+* 下載原始碼
+wget https://ftp.postgresql.org/pub/source/v10.1/postgresql-10.1.tar.gz
+wget http://http.debian.net/debian/pool/main/p/postgresql-10/postgresql-10_10.1-2.debian.tar.xz
+tar zxvf postgresql-10.1.tar.gz
+cd postgresql-10.1
+tar Jxvf ../postgresql-10_10.1-2.debian.tar.xz
+
+* 編譯 debian 套件
+fakeroot make -j2 -f debian/rules binary-arch
+
+或
+export QUILT_PATCHES=debian/patches
+quilt push -a
+DEB_HOST_MULTIARCH=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+./configure  --mandir=/usr/share/postgresql/10/man \
+  --docdir=/usr/share/doc/postgresql-doc-10 \
+  --sysconfdir=/etc/postgresql-common \
+  --datarootdir=/usr/share/ \
+  --datadir=/usr/share/postgresql/10 \
+  --bindir=/usr/lib/postgresql/10/bin \
+  --libdir=/usr/lib/$(DEB_HOST_MULTIARCH)/ \
+  --libexecdir=/usr/lib/postgresql/ \
+  --includedir=/usr/include/postgresql/ \
+  --enable-nls \
+  --enable-integer-datetimes \
+  --enable-thread-safety \
+  --enable-tap-tests \
+  --enable-debug \
+  --enable-cassert \
+  --disable-rpath \
+  --with-uuid=e2fs \
+  --with-gnu-ld \
+  --with-pgport=5432 \
+  --with-system-tzdata=/usr/share/zoneinfo \
+  --with-systemd \
+  --disable-spinlocks
+
+make
+sudo make install
+
+=====================================
+初始化
+=====================================
+# 添加使用者群組
+adduser --system --quiet --home /var/lib/postgresql --no-create-home --shell /bin/bash --group --gecos "PostgreSQL administrator" postgres
+
+# 如有安裝 ssl-cert
+addgroup --quiet --system --force-badname ssl-cert
+adduser --quiet postgres ssl-cert
+
+# 建立 home 目錄
+mkdir -p /var/lib/postgresql
+chown postgres:postgres /var/lib/postgresql
+
+# 建立 log 目錄
+mkdir -p /var/log/postgresql
+chmod 1775 /var/log/postgresql
+chown root:postgres /var/log/postgresql
+sudo mkdir -p /var/run/postgresql
+chown postgres:postgres /var/run/postgresql
+
+# 建立資料庫目錄
+sudo mkdir -p /var/lib/postgresql/10/main
+sudo chown -R postgres:postgres /var/lib/postgresql
+sudo chmod -R 700 /var/lib/postgresql/10/main
+
+
+# 安裝資料庫
+sudo su postgres
+INITDB=/usr/lib/postgresql/10/bin/initdb
+DBDIR=/var/lib/postgresql/10/main
+$INITDB -E UTF8 -D $DBDIR
+
+=====================================
+啟動服務
+=====================================
+# 切換 postgres 使用者權限
+sudo su postgres
+
+# 方法1
+PGEXEC=/usr/lib/postgresql/10/bin/pg_ctl
+DATABASE=/var/lib/postgresql/10/main
+PG_LOG=/var/log/postgresql/logfile
+
+$PGEXEC -D $DATABASE start
+或
+$PGEXEC -D $DATABASE -l $PG_LOG start
+
+# 方法2
+PGEXEC=/usr/lib/postgresql/10/bin/postgres
+DATABASE=/var/lib/postgresql/10/main
+CONFIG='config_file=/var/lib/postgresql/10/main/postgresql.conf'
+
+$PGEXEC -D $DATABASE -c $CONFIG
+或
+$PGEXEC -D $DATABASE
+
+=====================================
+停止服務
+=====================================
+PGEXEC=/usr/lib/postgresql/10/bin/pg_ctl
+DATABASE=/var/lib/postgresql/10/main
+PG_LOG=/var/log/postgresql/logfile
+
+$PGEXEC -D $DATABASE stop
+或
+$PGEXEC -D $DATABASE -l $PG_LOG stop
+
+=====================================
+移除
+=====================================
+# 移除使用者群組
+userdel -f -r postgres
+
+# 如有安裝 ssl-cert
+delgroup ssl-cert
+
+# 套件移除
+sudo apt-get --purge remove postgresql
+sudo apt-get autoremove
+
+# 手動移除
+sudo rm -r /usr/include/postgresql
+sudo rm -r /usr/lib/postgresql
+sudo rm -r /usr/share/postgresql
+sudo rm /usr/lib/pkgconfig/libecpg_compat.pc
+sudo rm /usr/lib/pkgconfig/libecpg.pc
+sudo rm /usr/lib/pkgconfig/libpgtypes.pc
+sudo rm /usr/lib/pkgconfig/libpq.pc
+sudo rm /usr/lib/libecpg.a
+sudo rm /usr/lib/libecpg.so
+sudo rm /usr/lib/libecpg.so.6
+sudo rm /usr/lib/libecpg.so.6.10
+sudo rm /usr/lib/libecpg_compat.a
+sudo rm /usr/lib/libecpg_compat.so
+sudo rm /usr/lib/libecpg_compat.so.3.10
+sudo rm /usr/lib/libpgcommon.a
+sudo rm /usr/lib/libpgfeutils.a
+sudo rm /usr/lib/libpgport.a
+sudo rm /usr/lib/libpgtypes.a
+sudo rm /usr/lib/libpgtypes.so
+sudo rm /usr/lib/libpgtypes.so.3
+sudo rm /usr/lib/libpgtypes.so.3.10
+sudo rm /usr/lib/libpq.a
+sudo rm /usr/lib/libpq.so
+sudo rm /usr/lib/libpq.so.5
+sudo rm /usr/lib/libpq.so.5.10'
+sudo rm /usr/share/locale/*/LC_MESSAGES/ecpg-*.mo' 
+sudo rm /usr/share/locale/*/LC_MESSAGES/ecpglib6-*.mo' 
+sudo rm /usr/share/locale/*/LC_MESSAGES/initdb-*.mo' 
+sudo rm /usr/share/locale/*/LC_MESSAGES/libpq5-*.mo' 
+sudo rm /usr/share/locale/*/LC_MESSAGES/pg_*.mo' 
+sudo rm /usr/share/locale/*/LC_MESSAGES/plpgsql-*.mo' 
+sudo rm /usr/share/locale/*/LC_MESSAGES/psql-*.mo' 
+
+sudo rm -r /var/lib/postgresql
+sudo rm -r /var/log/postgresql
+sudo rm -r /var/run/postgresql

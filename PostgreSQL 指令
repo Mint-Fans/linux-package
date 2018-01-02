@@ -1,0 +1,117 @@
+PostgreSQL 指令
+
+===============================
+登入與修改密碼
+===============================
+登入 PostgreSQL
+sudo su postgres
+psql
+
+postgres=#
+
+修改密碼
+ALTER USER postgres WITH PASSWORD 'postgres';
+
+===============================
+控制台指令
+===============================
+\password           設定密碼。
+\q                  退出。
+\h                  查看SQL指令註解，例如\h select。
+\?                  說明。
+\l                  列出所有資料庫。
+\c [database_name]  連接指定資料庫。
+\d                  列出目前資料庫的所有表格。
+\d [table_name]     列出指並表格結構。
+\du                 列出所有用戶。
+\e                  打開文字編輯器。
+\conninfo           列出目前資料庫和連接訊息。
+
+===============================
+修改 linux 系統 postgres 用戶密碼
+===============================
+刪除 postgres 用戶密碼
+sudo passwd -d postgres
+
+設定 postgres 用戶密碼
+sudo -u postgres passwd
+
+===============================
+資料庫指令
+===============================
+建立一個叫做 test 的資料庫
+create database test;
+
+查詢資料庫
+postgres=# \l
+
+切換資料庫
+postgres=# \c postgres
+
+查詢 table
+postgres=# \d
+
+查詢 table 結構
+postgres=# \d api_keys
+
+===============================
+基本SQL指令
+===============================
+
+# 建立新表格
+CREATE TABLE user_tbl(name VARCHAR(20), signup_date DATE);
+
+# 插入資料
+INSERT INTO user_tbl(name, signup_date) VALUES('小猛虎', '2017-12-30');
+
+# 查詢紀錄
+SELECT * FROM user_tbl;
+
+# 更新資料
+UPDATE user_tbl set name = '響尾蛇' WHERE name = '小猛虎';
+
+# 刪除資料
+DELETE FROM user_tbl WHERE name = '響尾蛇';
+
+# 添加字段
+ALTER TABLE user_tbl ADD email VARCHAR(40);
+
+# 更改字段類型
+ALTER TABLE user_tbl ALTER COLUMN signup_date SET NOT NULL;
+
+# 設定字段預設值
+ALTER TABLE user_tbl ALTER COLUMN email SET DEFAULT 'example@example.com';
+
+# 刪除字段預設值
+ALTER TABLE user_tbl ALTER email DROP DEFAULT;
+
+# 重新命名字段
+ALTER TABLE user_tbl RENAME COLUMN signup_date TO signup;
+
+# 刪除字段
+ALTER TABLE user_tbl DROP COLUMN email;
+
+# 重新命名表格
+ALTER TABLE user_tbl RENAME TO backup_tbl;
+
+# 刪除表格
+DROP TABLE IF EXISTS backup_tbl;
+
+# 刪除資料庫
+DROP DATABASE IF EXISTS hello;
+
+===============================
+備份與恢復
+===============================
+pg_dump 備份
+pg_dumpall 備份所有資料庫
+pg_restore 恢復所有資料庫
+psql exampledb < exampledb.sql 導入資料
+
+範例:
+$ pg_dump --format=t -d db_name -U user_name 
+pg_dump: [archiver (db)] connection to database "db_name" failed: FATAL:  Peer authentication failed for user "user_name"
+指定 hostname 即可
+$ pg_dump --format=t -d db_name -U user_name -h 127.0.0.1
+
+
