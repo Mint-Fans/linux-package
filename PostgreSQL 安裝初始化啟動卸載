@@ -65,14 +65,14 @@ adduser --quiet postgres ssl-cert
 
 # 建立 home 目錄
 mkdir -p /var/lib/postgresql
-chown postgres:postgres /var/lib/postgresql
+chown -R postgres:postgres /var/lib/postgresql
 
 # 建立 log 目錄
 mkdir -p /var/log/postgresql
 chmod 1775 /var/log/postgresql
-chown root:postgres /var/log/postgresql
+chown -R root:postgres /var/log/postgresql
 sudo mkdir -p /var/run/postgresql
-chown postgres:postgres /var/run/postgresql
+chown -R postgres:postgres /var/run/postgresql
 
 # 建立資料庫目錄
 sudo mkdir -p /var/lib/postgresql/10/main
