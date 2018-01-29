@@ -1,0 +1,11 @@
+Dashboard:
+https://minergate.com/internal
+
+minergate XMR
+xmr.pool.minergate.com:45560
+
+﻿minergate FCN
+fcn.pool.minergate.com:45610
+
+﻿minergate BCN
+bcn.pool.minergate.com:45550
