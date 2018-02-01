@@ -1,0 +1,66 @@
+==============================
+Build xmrig-nvidia
+==============================
+* 必要依賴
+sudo apt-get install git build-essential cmake libuv1-dev libmicrohttpd-dev
+sudo apt-get install gcc-5 g++-5
+
+* 安裝CUDA
+NVIDIA 官方版本:
+https://developer.nvidia.com/cuda-toolkit-archive
+套件庫版本安裝:
+sudo apt-get install nvidia-cuda-dev nvidia-cuda-toolkit
+
+* 編譯
+git clone https://github.com/xmrig/xmrig-nvidia.git
+cd xmrig-nvidia
+sed -i 's/kDonateLevel = 5/kDonateLevel = 0/g' src/donate.h
+sed -i s/'arg < 1 || arg > 99'/'arg < 0 || arg > 99'/g src/Options.cpp
+sed -i s/'donate-level": 5'/'donate-level": 0'/g src/config.json
+
+mkdir build
+cd build
+export CC=/usr/bin/gcc-5
+export CXX=/usr/bin/g++-5
+
+## NVIDIA CUDA 官方版參數:
+CUDA_SOVERSION='8.0.44'
+CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
+CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib
+export PATH=$PATH:$CUDA_BIN
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_LIB
+
+cmake .. -DUV_LIBRARY=/usr/lib/x86_64-linux-gnu/libuv.a \
+         -DCUDA_ARCH="20;30;32;35;37;50;52;53;60;61;62" \
+         -DCMAKE_C_COMPILER=gcc-5 -DCMAKE_CXX_COMPILER=g++-5
+make
+
+cp ../src/config.json .
+
+==============================
+CMake 額外選項
+==============================
+* Disable CryptoNight-Lite support:
+-DWITH_AEON=OFF
+
+* Build without built in http server and API:
+-DWITH_HTTPD=OFF
+
+* Use static libuv version:
+-DUV_LIBRARY=/usr/lib/x86_64-linux-gnu/libuv.a
+
+* 設定 GPU 架構:
+請注意CUDA 9不支持Fermi GPU和CUDA 7.5不支持Pascal GPU。
+CUDA SDK 6.5: Last version with support for compute capability 1.x (Tesla)
+CUDA SDK 7.5 support for compute capability 2.0 – 5.x (Fermi, Kepler, Maxwell)
+CUDA SDK 8.0 support for compute capability 2.0 – 6.x (Fermi, Kepler, Maxwell, Pascal), last version with support for Compute Capability 2.x (Fermi)
+CUDA SDK 9.0 support for compute capability 3.0 – 7.x (Kepler, Maxwell, Pascal, Volta)
+
+* CUDA 6.5
+-DCUDA_ARCH="10;11;12;13"
+* CUDA 7.5
+-DCUDA_ARCH="20;30;32;35;37;50;52;53"
+* CUDA 8
+-DCUDA_ARCH="20;30;32;35;37;50;52;53;60;61;62"
+* CUDA 9
+-DCUDA_ARCH="30;32;35;37;50;52;53;60;61;62;70;71"
