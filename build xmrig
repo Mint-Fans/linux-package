@@ -1,0 +1,36 @@
+==============================
+Build xmrig
+==============================
+* 必要依賴
+sudo apt-get install git build-essential cmake libuv1-dev libmicrohttpd-dev
+sudo apt-get install gcc g++
+
+* 編譯 xmrig
+git clone https://github.com/xmrig/xmrig.git
+
+cd xmrig
+sed -i 's/kDonateLevel = 5/kDonateLevel = 0/g' src/donate.h
+sed -i s/'arg < 1 || arg > 99'/'arg < 0 || arg > 99'/g src/Options.cpp
+sed -i s/'donate-level": 5'/'donate-level": 0'/g src/config.json
+
+mkdir build
+cd build
+cmake .. -DUV_LIBRARY=/usr/lib/x86_64-linux-gnu/libuv.a
+make
+
+cp ../src/config.json .
+
+==============================
+CMake 額外選項
+==============================
+* 禁用 libcpuid 之後CPU的自動配置將非常有限
+-DWITH_LIBCPUID=OFF
+
+* 禁用 CryptoNight-Lite 支持
+-DWITH_AEON=OFF
+
+* 在沒有內置HTTP服務器和API的情況下構建
+-DWITH_HTTPD=OFF
+
+* 使用靜態 libuv 版本
+-DUV_LIBRARY=/usr/lib/x86_64-linux-gnu/libuv.a
