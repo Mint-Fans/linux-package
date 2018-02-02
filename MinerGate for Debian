@@ -1,7 +1,8 @@
 ##################################
 ### MinerGate for Debian
 ##################################
-sudo dpkg -i minergate-7.2.deb
+wget https://download.minergate.com/ubuntu/7.1 -O minergate-7.1.deb
+sudo dpkg -i minergate-*.deb
 sudo apt-get install libcudart8.0 ocl-icd-libopencl1
 sudo apt-get install libqt5core5a libqt5gui5 libqt5network5 libqt5websockets5 libqt5widgets5 
 
