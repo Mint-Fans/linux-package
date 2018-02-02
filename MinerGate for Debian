@@ -1,0 +1,26 @@
+##################################
+### MinerGate for Debian
+##################################
+sudo dpkg -i minergate-7.2.deb
+sudo apt-get install libcudart8.0 ocl-icd-libopencl1
+sudo apt-get install libqt5core5a libqt5gui5 libqt5network5 libqt5websockets5 libqt5widgets5 
+
+sudo rm /opt/minergate/lib/libOpenCL.so
+sudo rm /opt/minergate/lib/libOpenCL.so.1
+sudo rm /opt/minergate/lib/libQt5Core.so.5
+sudo rm /opt/minergate/lib/libQt5Core.so.5.8.0
+sudo rm /opt/minergate/lib/libQt5Gui.so.5
+sudo rm /opt/minergate/lib/libQt5Gui.so.5.8.0
+sudo rm /opt/minergate/lib/libQt5Network.so.5
+sudo rm /opt/minergate/lib/libQt5Network.so.5.8.0
+sudo rm /opt/minergate/lib/libQt5WebSockets.so.5
+sudo rm /opt/minergate/lib/libQt5WebSockets.so.5.8.0
+sudo rm /opt/minergate/lib/libQt5Widgets.so.5
+sudo rm /opt/minergate/lib/libQt5Widgets.so.5.8.0
+sudo rm /opt/minergate/lib/libQt5XcbQpa.so.5
+sudo rm /opt/minergate/lib/libQt5XcbQpa.so.5.8.0
+
+Run:
+minergate
+or
+optirun minergate
