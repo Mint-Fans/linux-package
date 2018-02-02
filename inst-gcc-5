@@ -1,0 +1,14 @@
+#!/bin/bash
+
+wget http://opensource.nchc.org.tw/debian/pool/main/g/gcc-5/cpp-5_5.5.0-8_amd64.deb
+wget http://opensource.nchc.org.tw/debian/pool/main/g/gcc-5/g++-5_5.5.0-8_amd64.deb
+wget http://opensource.nchc.org.tw/debian/pool/main/g/gcc-5/gcc-5_5.5.0-8_amd64.deb
+wget http://opensource.nchc.org.tw/debian/pool/main/g/gcc-5/gcc-5-base_5.5.0-8_amd64.deb
+wget http://opensource.nchc.org.tw/debian/pool/main/g/gcc-5/libasan2_5.5.0-8_amd64.deb
+wget http://opensource.nchc.org.tw/debian/pool/main/g/gcc-5/libgcc-5-dev_5.5.0-8_amd64.deb
+wget http://opensource.nchc.org.tw/debian/pool/main/g/gcc-5/libmpx0_5.5.0-8_amd64.deb
+wget http://opensource.nchc.org.tw/debian/pool/main/g/gcc-5/libstdc++-5-dev_5.5.0-8_amd64.deb
+wget http://opensource.nchc.org.tw/debian/pool/main/m/mpfr4/libmpfr6_4.0.0-7_amd64.deb
+
+sudo dpkg -i *.deb
+sudo apt-get install -f
