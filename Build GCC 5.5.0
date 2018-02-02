@@ -1,0 +1,148 @@
+##################################
+###### Build GCC 5.5.0
+##################################
+# Example: Based on Debian buster
+
+##################################
+###### Install Build Depends
+##################################
+sudo apt-get install gcc g++ gawk m4 gcc-multilib binutils lzip
+sudo apt-get install patch texinfo flex
+
+wget https://gmplib.org/download/gmp/gmp-6.1.2.tar.xz
+wget http://www.mpfr.org/mpfr-current/mpfr-4.0.0.tar.xz
+wget https://ftp.gnu.org/gnu/mpc/mpc-1.1.0.tar.gz
+wget https://ftp.gnu.org/gnu/gcc/gcc-5.5.0/gcc-5.5.0.tar.xz
+wget https://ftp.gnu.org/gnu/binutils/binutils-2.30.tar.xz
+
+tar Jxvf gmp-6.1.2.tar.xz
+tar Jxvf mpfr-4.0.0.tar.xz
+tar zxvf mpc-1.1.0.tar.gz
+tar Jxvf binutils-2.30.tar.xz
+tar Jxvf gcc-5.5.0.tar.xz
+
+export CFLAGS="-I/usr/include/ -I/opt/gcc/5.5.0/include/"
+export LDFLAGS="-L/usr/lib/ -L/usr/lib/x86_64-linux-gnu/ -L/opt/gcc/5.5.0/lib/"
+
+##################################
+###### gmp
+##################################
+cd gmp-6.1.2
+./configure --prefix=/opt/gcc/5.5.0 --build=x86_64-linux-gnu
+make
+sudo make install
+
+##################################
+###### mpfr
+##################################
+cd ../mpfr-4.0.0
+./configure --prefix=/opt/gcc/5.5.0 --build=x86_64-linux-gnu
+make
+sudo make install
+
+##################################
+###### mpc
+##################################
+cd ../mpc-1.1.0
+./configure --prefix=/opt/gcc/5.5.0 --build=x86_64-linux-gnu
+make
+sudo make install
+
+##################################
+###### binutils
+##################################
+cd ..
+#### Debian Patch ####
+wget http://http.debian.net/debian/pool/main/b/binutils/binutils_2.30-1.debian.tar.xz
+tar Jxvf binutils_2.30-1.debian.tar.xz
+mv binutils-2.30 a
+
+PATCH_LIST=$(cat debian/patches/series | sed '/^#/d' | sed '/^$/d')
+for i in $PATCH_LIST; do
+    patch -p0 -i debian/patches/"$i"
+done
+mv a binutils-2.30
+#####################
+
+cd binutils-2.30
+
+./configure --build=x86_64-linux-gnu \
+            --host=x86_64-linux-gnu \
+            --enable-shared \
+            --enable-plugins \
+            --enable-threads \
+            --with-system-zlib \
+            --prefix=/opt/gcc/5.5.0 \
+            --enable-deterministic-archives \
+            --disable-compressed-debug-sections \
+            --enable-new-dtags
+
+make
+sudo make install
+rm -r ../debian
+
+##################################
+###### gcc-5
+##################################
+cd ../gcc-5.5.0
+#### Patch ####
+sed -i 's@\./fixinc\.sh@-c true@' gcc/Makefile.in
+sed -i "/ac_cpp=/s/\$CPPFLAGS/\$CPPFLAGS -O2/" configure
+cd host-x86_64-linux-gnu
+ln -s ../x86_64-linux-gnu .
+cd ..
+###############
+
+export CFLAGS="-I/usr/include/ -I/opt/gcc/5.5.0/include/"
+export LDFLAGS="-L/usr/lib/ -L/usr/lib/x86_64-linux-gnu/ -L/opt/gcc/5.5.0/lib/"
+export PATH=$PATH:/opt/gcc/5.5.0/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/gcc/5.5.0/lib/
+
+# CFLAGS=${CFLAGS/-pipe/}
+# CXXFLAGS=${CXXFLAGS/-pipe/}
+# CFLAGS=${CFLAGS/-fno-plt/}
+# CXXFLAGS=${CXXFLAGS/-fno-plt/}
+
+./configure --prefix=/opt/gcc/5.5.0 \
+            --with-gmp=/opt/gcc/5.5.0 \
+            --with-mpc=/opt/gcc/5.5.0 \
+            --with-mpfr=/opt/gcc/5.5.0 \
+            --build=x86_64-linux-gnu \
+            --host=x86_64-linux-gnu \
+            --target=x86_64-linux-gnu \
+            --program-suffix=-5 \
+            --enable-languages=c,c++,fortran,go,lto,objc,obj-c++ \
+            --enable-shared --enable-threads=posix --enable-libmpx \
+            --enable-__cxa_atexit \
+            --disable-libunwind-exceptions --enable-clocale=gnu \
+            --disable-libstdcxx-pch --disable-libssp \
+            --enable-gnu-unique-object --enable-linker-build-id \
+            --enable-lto --enable-plugin \
+            --with-linker-hash-style=gnu --enable-gnu-indirect-function \
+            --disable-multilib --disable-werror \
+            --enable-checking=release \
+            --enable-version-specific-runtime-libs
+
+export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+
+make
+# sudo make install DESTDIR=gcc-5
+sudo make install
+
+##################################
+###### usage
+##################################
+GCC5_ROOT='/opt/gcc/5.5.0'
+#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GCC5_ROOT/lib
+export CC=$GCC5_ROOT/bin/gcc-5
+export CXX=$GCC5_ROOT/bin/g++-5
+export LD=$GCC5_ROOT/bin/ld
+export AR=$GCC5_ROOT/bin/ar
+export AS=$GCC5_ROOT/bin/as
+export NM=$GCC5_ROOT/bin/nm
+export RANLIB=$GCC5_ROOT/usr/bin/ranlib
+export CFLAGS="-I/usr/include/ -I$GCC5_ROOT/include/ -I$GCC5_ROOT/lib/gcc/x86_64-linux-gnu/5.5.0/include/"
+export LDFLAGS="-L/usr/lib/ -L/usr/lib/x86_64-linux-gnu/"
+export CPPFLAGS=$CFLAGS
+export CXXFLAGS=$CFLAGS
+
