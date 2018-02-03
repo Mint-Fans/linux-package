@@ -80,6 +80,8 @@ chmod 755 $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
 chmod 755 $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
 chmod 755 $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
 
+sed -i '/unsupported GNU version/d' $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/include/host_config.h
+
 =============================================
 打包 CUDA
 =============================================
