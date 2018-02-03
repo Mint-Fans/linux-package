@@ -21,6 +21,33 @@ sudo rm /opt/minergate/lib/libQt5Widgets.so.5.8.0
 sudo rm /opt/minergate/lib/libQt5XcbQpa.so.5
 sudo rm /opt/minergate/lib/libQt5XcbQpa.so.5.8.0
 
+HARCH=$(uname -m)
+if [ "$HARCH" == "x86_64" ]; then
+    ARCH=amd64
+else
+    ARCH=i386
+fi
+
+NVGLX_VER='384.111-3'
+
+wget http://ftp.us.debian.org/debian/pool/non-free/n/nvidia-graphics-drivers/libgl1-glvnd-nvidia-glx_"$NVGLX_VER"_$ARCH.deb
+dpkg -X libgl1-glvnd-nvidia-glx_"$NVGLX_VER"_$ARCH.deb libgl1-glvnd-nvidia-glx
+sudo mv libgl1-glvnd-nvidia-glx/usr/lib/x86_64-linux-gnu/nvidia/current/libGL.so.1.0.0 /opt/minergate/lib/
+sudo ln -s /opt/minergate/lib/libGL.so.1.0.0 /usr/lib/nvidia/libGL.so.1
+
+rm /usr/bin/minergate
+cat > minergate << EOF
+#!/bin/bash
+
+if [ -f /usr/bin/optirun ]; then
+    optirun /opt/minergate/minergate
+else
+    /opt/minergate/minergate
+fi
+EOF
+sudo mv minergate /usr/bin/
+sudo chmod 755 /usr/bin/minergate
+
 Run:
 minergate
 or
