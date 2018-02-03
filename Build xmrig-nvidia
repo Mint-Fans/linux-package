@@ -1,6 +1,6 @@
-==============================
-Build xmrig-nvidia
-==============================
+##############################
+### Build xmrig-nvidia
+##############################
 * 必要依賴
 sudo apt-get install git build-essential cmake libuv1-dev libmicrohttpd-dev
 sudo apt-get install gcc-5 g++-5
@@ -11,8 +11,24 @@ https://developer.nvidia.com/cuda-toolkit-archive
 套件庫版本安裝:
 sudo apt-get install nvidia-cuda-dev nvidia-cuda-toolkit
 
-NVIDIA 官方版本 Patch:
+* NVIDIA 官方版本 Patch:
 sed -i '/unsupported GNU version/d' /opt/cuda/*/include/host_config.h
+
+* NVIDIA CUDA 官方版參數:
+CUDA_SOVERSION='8.0.44'
+CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
+CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib
+export PATH=$PATH:$CUDA_BIN
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_LIB
+
+* 切換GCC版本 (for nVidia CUDA)
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 40
+sudo update-alternatives --config gcc
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 40
+sudo update-alternatives --config g++
+or
+export CC=/usr/bin/gcc-5
+export CXX=/usr/bin/g++-5
 
 * 編譯
 git clone https://github.com/xmrig/xmrig-nvidia.git
@@ -23,15 +39,6 @@ sed -i s/'donate-level": 5'/'donate-level": 0'/g src/config.json
 
 mkdir build
 cd build
-export CC=/usr/bin/gcc-5
-export CXX=/usr/bin/g++-5
-
-## NVIDIA CUDA 官方版參數:
-CUDA_SOVERSION='8.0.44'
-CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
-CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib
-export PATH=$PATH:$CUDA_BIN
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_LIB
 
 cmake .. -DUV_LIBRARY=/usr/lib/x86_64-linux-gnu/libuv.a \
          -DCUDA_ARCH="20;30;32;35;37;50;52;53;60;61;62" \
