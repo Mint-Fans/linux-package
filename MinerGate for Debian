@@ -1,7 +1,7 @@
 ##################################
 ### MinerGate for Debian
 ##################################
-MINER_VER'7.1'
+MINER_VER='7.1'
 wget https://download.minergate.com/ubuntu/$MINER_VER -O minergate-$MINER_VER.deb
 sudo dpkg -i minergate-*.deb
 sudo apt-get install ocl-icd-libopencl1
