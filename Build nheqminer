@@ -1,0 +1,52 @@
+########################
+### Build nheqminer
+########################
+* 安裝必要依賴 (Ubuntu / Debian)
+sudo apt-get install cmake build-essential libboost-all-dev
+
+* 安裝CUDA
+NVIDIA 官方版本:
+https://developer.nvidia.com/cuda-toolkit-archive
+套件庫版本安裝:
+sudo apt-get install nvidia-cuda-dev nvidia-cuda-toolkit
+
+* NVIDIA 官方版本 Patch:
+sed -i '/unsupported GNU version/d' /opt/cuda/*/include/host_config.h
+
+* NVIDIA CUDA 官方版參數:
+CUDA_SOVERSION='8.0.44'
+CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
+CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib
+export PATH=$PATH:$CUDA_BIN
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_LIB
+
+* 切換GCC版本 (for nVidia CUDA)
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 40
+sudo update-alternatives --config gcc
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 40
+sudo update-alternatives --config g++
+or
+export CC=/usr/bin/gcc-5
+export CXX=/usr/bin/g++-5
+
+* 下載原始碼
+git clone -b Linux https://github.com/nicehash/nheqminer.git
+
+##### Build CPU_XENONCAT #####
+cd nheqminer/cpu_xenoncat/Linux/asm/
+sh assemble.sh
+cd ../../../Linux_cmake/nheqminer_cpu
+cmake .
+make -j $(nproc)
+
+##############################
+
+###### Build CUDA_TROMP ######
+cd nheqminer/Linux_cmake/nheqminer_cuda_tromp
+## CUDA 8 ARCH Patch
+sed -i 's/CUDA_NVCC_FLAGS};;.*/CUDA_NVCC_FLAGS};; -gencode arch=compute_20,code=sm_20; -gencode arch=compute_20,code=sm_21; -gencode arch=compute_30,code=sm_30; -gencode arch=compute_32,code=sm_32; -gencode arch=compute_35,code=sm_35; -gencode arch=compute_37,code=sm_37; -gencode arch=compute_50,code=sm_50; -gencode arch=compute_52,code=sm_52; -gencode arch=compute_53,code=sm_53; -gencode arch=compute_60,code=sm_60; -gencode arch=compute_61,code=sm_61; -gencode arch=compute_62,code=sm_62 )/g' CMakeLists.txt
+
+cmake .
+make -j $(nproc)
+
+##############################
