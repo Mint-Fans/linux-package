@@ -6,6 +6,7 @@ sudo dpkg -i minergate-*.deb
 sudo apt-get install ocl-icd-libopencl1
 sudo apt-get install libqt5core5a libqt5gui5 libqt5network5 libqt5websockets5 libqt5widgets5 
 
+sudo rm -r /opt/minergate/platforms
 sudo rm /opt/minergate/lib/libOpenCL.so
 sudo rm /opt/minergate/lib/libOpenCL.so.1
 sudo rm /opt/minergate/lib/libQt5Core.so.5
