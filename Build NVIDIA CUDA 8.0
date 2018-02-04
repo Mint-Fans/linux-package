@@ -1,8 +1,9 @@
 =============================================
 Build NVIDIA CUDA 8.0
 =============================================
-Download
-https://developer.nvidia.com/cuda-toolkit-archive
+# Download
+# https://developer.nvidia.com/cuda-toolkit-archive
+wget https://developer.nvidia.com/compute/cuda/8.0/prod/local_installers/cuda_8.0.44_linux-run
 
 PKGDIR='..'
 CUDA_SOVERSION='8.0.44'
