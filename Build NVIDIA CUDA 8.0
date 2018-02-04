@@ -104,7 +104,7 @@ sudo apt-get install default-jre libgtk2.0-0 perl
 sduo tar Jxvf cuda-"$CUDA_SOVERSION".tar.xz -C /
 
 #############################################
-### 編譯使用參數
+### 編譯使用環境變數
 #############################################
 CUDA_SOVERSION='8.0.44'
 CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
