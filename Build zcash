@@ -1,0 +1,55 @@
+########################
+### Build zcash
+########################
+* 安裝必要依賴
+sudo apt-get install build-essential pkg-config libgtest-dev libc6-dev m4 g++-multilib autoconf libtool ncurses-dev unzip git python zlib1g-dev wget bsdmainutils curl cargo
+
+* 編譯
+git clone https://github.com/zcash/zcash.git
+cd zcash
+sed -i 's/-lboost_system-mt/-lboost_system/g' configure.ac
+sed -i '/$(package)_dependencies=rust/d' depends/packages/librustzcash.mk
+
+git checkout v1.0.14
+zcutil/fetch-params.sh
+zcutil/build.sh --disable-rust -j$(nproc)
+
+PKGDIR=$HOME/zcash-miner
+make install DESTDIR=$PKGDIR
+mkdir -p $PKGDIR/usr
+mv $PKGDIR/$HOME/zcash/depends/x86_64-unknown-linux-gnu/* $PKGDIR/usr/
+rm -r $PKGDIR/home
+sed -i 's/^prefix=.*/prefix=\/usr/g' $PKGDIR/usr/lib/pkgconfig/libzcashconsensus.pc
+
+for ext in '-cli' '-tx' 'd'; do
+    install -Dm644 contrib/zcash${ext}.bash-completion $PKGDIR/usr/share/bash-completion/completions/zcash${ext}
+done
+
+* 製作套件
+mkdir $PKGDIR/DEBIAN
+
+cat << EOF > $PKGDIR/DEBIAN/control
+Package: zcash
+Version: 1.0.14
+Architecture: amd64
+Maintainer: Zcash Company <team@z.cash>
+Installed-Size: 182579
+Depends: libgomp1, libstdc++6, libboost-system1.62.0
+Section: utils
+Priority: optional
+Homepage: https://github.com/zcash/zcash.git
+Description: HTTPS for money.
+ Based on Bitcoin's code, it intends to offer a far higher standard
+ of privacy and anonymity through a sophisticiated zero-knowledge
+ proving scheme which preserves confidentiality of transaction metadata.
+ This package provides the daemon, zcashd, and the CLI tool,
+ zcash-cli, to interact with the daemon.
+EOF
+
+cd $HOME
+sudo chown -R 0:0 zcash-miner
+sudo dpkg -b zcash-miner zcash_1.0.14_amd64.deb
+
+* 安裝
+sudo dpkg -i zcash_*.deb
+sudo apt-get install -f
