@@ -1,6 +1,6 @@
-=============================================
-Build NVIDIA CUDA 7.5
-=============================================
+#############################################
+### Build NVIDIA CUDA 7.5
+#############################################
 # Download
 # https://developer.nvidia.com/cuda-toolkit-archive
 wget http://developer.download.nvidia.com/compute/cuda/7.5/Prod/local_installers/cuda_7.5.18_linux.run
@@ -83,34 +83,32 @@ chmod 755 $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
 
 sed -i '/unsupported GNU version/d' $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/include/host_config.h
 
-=============================================
-打包 CUDA
-=============================================
+#############################################
+### 打包 CUDA
+#############################################
 cd ..
 tar Jcvf cuda-"$CUDA_SOVERSION".tar.xz opt
 
-=============================================
-安裝必要依賴
-=============================================
-CUDA:
+#############################################
+### 安裝必要依賴
+#############################################
+# CUDA:
 sudo apt-get install libthrust-dev gcc g++ clang libthrust-dev libstdc++6 opencl-headers
 
-cuda-gdb:
+# cuda-gdb:
 sudo apt-get install libexpat1 libncurses5
 
-nvvp、nsight:
+# nvvp、nsight:
 sudo apt-get install default-jre libgtk2.0-0 perl
 
-=============================================
-安裝 CUDA
-=============================================
-sduo -s
-cd /
-tar Jxvf cuda-*.tar.xz
+#############################################
+### 安裝 CUDA
+#############################################
+sudo tar Jxvf cuda-"$CUDA_SOVERSION".tar.xz -C /
 
-=============================================
-編譯使用參數
-=============================================
+#############################################
+### 編譯使用參數
+#############################################
 CUDA_SOVERSION='7.5.18'
 CUDA_BIN='/opt/cuda/$CUDA_SOVERSION/bin'
 CUDA_LIB='/opt/cuda/$CUDA_SOVERSION/lib'
