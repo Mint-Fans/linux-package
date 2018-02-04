@@ -13,7 +13,7 @@ sudo apt-get install nvidia-cuda-dev nvidia-cuda-toolkit
 * NVIDIA 官方版本 Patch:
 sed -i '/unsupported GNU version/d' /opt/cuda/*/include/host_config.h
 
-* NVIDIA CUDA 官方版參數:
+* NVIDIA CUDA 官方版變數:
 CUDA_SOVERSION='8.0.44'
 CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
 CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib
