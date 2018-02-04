@@ -1,6 +1,6 @@
-=============================================
-Build NVIDIA CUDA 8.0
-=============================================
+#############################################
+### Build NVIDIA CUDA 8.0
+#############################################
 # Download
 # https://developer.nvidia.com/cuda-toolkit-archive
 wget https://developer.nvidia.com/compute/cuda/8.0/prod/local_installers/cuda_8.0.44_linux-run
@@ -43,9 +43,9 @@ mv doc/man $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/share/
 mv libnsight $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/
 mv libnvvp $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/
 
-=============================================
-Patch
-=============================================
+#############################################
+### Patch
+#############################################
 ### nsight:
 echo '#!/bin/sh' > $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
 echo '' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
@@ -80,34 +80,32 @@ chmod 755 $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
 
 sed -i '/unsupported GNU version/d' $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/include/host_config.h
 
-=============================================
-打包 CUDA
-=============================================
+#############################################
+### 打包 CUDA
+#############################################
 cd ..
 tar Jcvf cuda-"$CUDA_SOVERSION".tar.xz opt
 
-=============================================
-安裝必要依賴
-=============================================
-CUDA:
+#############################################
+### 安裝必要依賴
+#############################################
+# CUDA:
 sudo apt-get install libthrust-dev gcc g++ clang libthrust-dev libstdc++6 opencl-headers
 
-cuda-gdb:
+# cuda-gdb:
 sudo apt-get install libexpat1 libncurses5
 
-nvvp、nsight:
+# nvvp、nsight:
 sudo apt-get install default-jre libgtk2.0-0 perl
 
-=============================================
-安裝 CUDA
-=============================================
-sduo -s
-cd /
-tar Jxvf cuda-*.tar.xz
+#############################################
+### 安裝 CUDA
+#############################################
+sduo tar Jxvf cuda-"$CUDA_SOVERSION".tar.xz -C /
 
-=============================================
-編譯使用參數
-=============================================
+#############################################
+### 編譯使用參數
+#############################################
 CUDA_SOVERSION='8.0.44'
 CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
 CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib
