@@ -1,0 +1,44 @@
+==============================
+Build ethminer
+==============================
+# Ubuntu / Debian
+* 安裝必要依賴
+sudo apt install cmake build-essential ocl-icd-opencl-dev
+sudo apt install gcc-5 g++-5
+
+* 安裝CUDA
+NVIDIA 官方版本:
+https://developer.nvidia.com/cuda-toolkit-archive
+套件庫版本安裝:
+sudo apt-get install nvidia-cuda-dev nvidia-cuda-toolkit
+
+NVIDIA 官方版本 Patch:
+sed -i '/unsupported GNU version/d' /opt/cuda/*/include/host_config.h
+
+切換GCC版本
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 40
+sudo update-alternatives --config gcc
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 40
+sudo update-alternatives --config g++
+gcc -v
+
+* 編譯
+# git clone https://github.com/ethereum-mining/ethminer.git
+git clone https://github.com/Genoil/cpp-ethereum.git
+
+cd cpp-ethereum
+# sed -i 's/70/20/g'libethash-cuda/CMakeLists.txt
+
+mkdir build
+cd build
+
+## NVIDIA CUDA 官方版參數:
+CUDA_SOVERSION='8.0.44'
+CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
+CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib
+export PATH=$PATH:$CUDA_BIN
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_LIB
+
+cmake .. -DETHASHCL=ON -DETHASHCUDA=ON -DETHDBUS=ON -DCMAKE_INSTALL_PREFIX=$HOME/ethminer-CG
+
+make install
