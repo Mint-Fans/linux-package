@@ -90,7 +90,7 @@ USED=$(df | grep /dev/$TARGET | awk '{print $3 }')
 * 區塊大小增加1GB容量，因為Live系統啟動時會用掉約400MB的空間，所以啟動後Live系統還有約600MB的可用空間
 BS=$(expr $USED + 1048576)
 
-* 製作 空白的 image
+* 製作空白的 image
 dd if=/dev/zero of=$SAVEDIR/squashfs-root/LiveOS/rootfs.img bs=$BS count=1024 status=progress
 
 * 格式化為 ext4
@@ -110,7 +110,7 @@ cd $SAVEDIR
 mksquashfs squashfs-root squashfs.img
 
 * 完成後重建 fstab
-UUID=$(blkid -s UUID -o value /dev/sdb1)
+UUID=$(blkid -s UUID -o value /dev/sda4)
 cat << EOF > /mnt/etc/fstab
 UUID=$UUID /                       ext4    defaults        1 1
 EOF
