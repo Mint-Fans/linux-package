@@ -86,7 +86,7 @@ menuentry 'GRUB4 (loader) With Legacy BIOS' {
 	chainloader +1
 }
 
-# menuentry 'Mac OS X (loader) With BIOS' {
+# menuentry 'Mac OS X (loader) Legacy With BIOS' {
 #	insmod ntfs
 #	insmod part_gpt
 #	set root='hd0,gpt11'
