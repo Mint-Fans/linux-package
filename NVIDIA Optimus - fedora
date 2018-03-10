@@ -1,0 +1,89 @@
+=========================
+安裝與設定
+=========================
+# 安裝 bumblebee 套件倉庫
+sudo dnf -y --nogpgcheck install http://install.linux.ncsu.edu/pub/yum/itecs/public/bumblebee-nonfree/fedora$(rpm -E %fedora)/noarch/bumblebee-nonfree-release-1.2-1.noarch.rpm
+sudo dnf -y --nogpgcheck install http://install.linux.ncsu.edu/pub/yum/itecs/public/bumblebee/fedora$(rpm -E %fedora)/noarch/bumblebee-release-1.2-1.noarch.rpm
+
+# 安裝 NVIDIA Optimus 驅動
+sudo dnf install gcc make patch m4 kernel-devel
+sudo dnf install bumblebee-nvidia bbswitch-dkms VirtualGL.x86_64 VirtualGL.i686 primus.x86_64 primus.i686
+
+# 設定
+## ServerLayout 插入 "Screen0"
+sudo -s
+sed -i '/Layout0/a     Screen      0  "Screen0" 0 0' /etc/bumblebee/xorg.conf.nvidia
+sed -i 's/Screen  /    Screen  /g' /etc/bumblebee/xorg.conf.nvidia
+
+## 在最下面添加 (依照你的螢幕解析度修改例如 1366x768)
+cat >> /etc/bumblebee/xorg.conf.nvidia << EOF
+
+Section "Screen"
+    Identifier     "Screen0"
+    Device         "DiscreteNvidia"
+    DefaultDepth    24
+    Option         "UseDisplayDevice" "none"
+    SubSection     "Display"
+        Virtual     1366 768
+        Depth       24
+    EndSubSection
+EndSection
+EOF
+
+
+=========================
+測試
+=========================
+測試 NVIDIA Optimus 狀態:
+$ lspci |grep NVIDIA
+03:00.0 3D controller: NVIDIA Corporation GF117M [GeForce 610M/710M/820M / GT 620M/625M/630M/720M] (rev ff)
+
+$ optirun lspci |grep NVIDIA
+03:00.0 3D controller: NVIDIA Corporation GF117M [GeForce 610M/710M/820M / GT 620M/625M/630M/720M] (rev a1)
+
+测试 Bumblebee 是否支援你的 Optimus 系统: 
+
+$ optirun glxgears -info
+
+64位系统:
+$ optirun glxspheres64
+32位系统:
+$ optirun glxspheres32
+
+==============================================
+用法
+==============================================
+用 Optimus 打開 NVIDIA Optimus 控制面板:
+$ optirun -b none nvidia-settings -c :8
+
+用 Optimus 啟動應用程式:
+$ optirun /usr/bin/xxxx
+
+用 Optimus 啟動 Windows 程式:
+$ optirun wine application.exe
+
+查看 GPU 溫度
+$ optirun nvidia-smi -a | grep 'GPU Current Temp'
+
+要使用Nvidia開的程式或遊戲前面加個 vblank_mode=0 primusrun 即可
+example:
+vblank_mode=0 primusrun screenfetch
+
+其他應用
+Steam 的使用:
+steam x64 版無法直接使用
+先添加 LD_LIBRARY_PATH 到 /etc/ld.so.conf.d/steam.conf
+$ sudo sh -c "echo '/usr/lib32' >> /etc/ld.so.conf.d/steam.conf"
+$ sudo sh -c "echo '/usr/lib/i386-linux-gnu/mesa' >> /etc/ld.so.conf.d/steam.conf"
+$ sudo ldconfig
+
+然後使用以下指令執行:
+$ vblank_mode=0 primusrun steam
+
+如果是 playonlinux 產生的 .desktop 可以右鍵編輯執行指令
+例如:
+/usr/share/playonlinux/playonlinux --run "古劍奇譚2" %F
+改為
+sh -c "vblank_mode=0 primusrun /usr/share/playonlinux/playonlinux --run \"古劍奇譚2\" %F"
+
+
