@@ -3,7 +3,7 @@ exec tail -n +3 $0
 # This file provides an easy way to add custom menu entries.  Simply type the
 # menu entries you want to add after this comment.  Be careful not to change
 # the 'exec tail' line above.
-menuentry 'Windows With UEFI' {
+menuentry 'Windows with UEFI' {
 	insmod part_gpt
 	insmod ntfs
 	set root='hd0,gpt7'
@@ -11,7 +11,7 @@ menuentry 'Windows With UEFI' {
 	chainloader /EFI/Microsoft/Boot/bootmgfw.efi
 }
 
-submenu 'Live Boot With UEFI' {
+submenu 'Live Boot with UEFI' {
 	menuentry 'LMDE Live' {
 		# insmod ext2
 		insmod ntfs
@@ -68,7 +68,7 @@ submenu 'Live Boot With UEFI' {
 		linux	(loop)/live/vmlinuz boot=live findiso=${isofile}
 		initrd	(loop)/live/initrd.gz
 	}
-#	menuentry 'OS X With UEFI' {
+#	menuentry 'OS X with UEFI' {
 #		insmod hfsplus
 #		insmod part_gpt
 #		set root='hd0,gpt11'
@@ -78,7 +78,7 @@ submenu 'Live Boot With UEFI' {
 
 }
 
-menuentry 'GRUB4 (loader) With Legacy BIOS' {
+menuentry 'GRUB4 (loader) with Legacy BIOS' {
 	insmod part_gpt
 	insmod ntfs
 	set root='hd0,gpt11'
@@ -86,7 +86,7 @@ menuentry 'GRUB4 (loader) With Legacy BIOS' {
 	chainloader +1
 }
 
-# menuentry 'Mac OS X (loader) Legacy With BIOS' {
+# menuentry 'Mac OS X (loader) with Legacy BIOS' {
 #	insmod ntfs
 #	insmod part_gpt
 #	set root='hd0,gpt11'
