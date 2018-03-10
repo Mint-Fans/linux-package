@@ -1,0 +1,106 @@
+#!/bin/sh
+exec tail -n +3 $0
+# This file provides an easy way to add custom menu entries.  Simply type the
+# menu entries you want to add after this comment.  Be careful not to change
+# the 'exec tail' line above.
+menuentry 'Windows With UEFI' {
+	insmod part_gpt
+	insmod ntfs
+	set root='hd0,gpt7'
+
+	chainloader /EFI/Microsoft/Boot/bootmgfw.efi
+}
+
+submenu 'Live Boot With UEFI' {
+	menuentry 'LMDE Live' {
+		# insmod ext2
+		insmod ntfs
+		insmod part_gpt
+		set root='hd0,gpt11'
+
+		linux	/live/vmlinuz boot=live
+		initrd	/live/initrd.gz
+	}
+	menuentry 'Fedora Live' {
+		# insmod ext2
+		insmod ntfs
+		insmod part_gpt
+		set root='hd0,gpt11'
+
+		linux	/LiveOS/vmlinuz root=live:LABEL=LIVE rd.live.image
+		initrd	/LiveOS/initrd.img
+	}
+	menuentry 'Kali Linux Official' {
+		# insmod ext2
+		insmod ntfs
+		insmod part_gpt
+		set root='hd0,gpt11'
+
+		linux	/live/vmlinuz boot=live username=root hostname=kali video=vesa:ywrap,mtrr vga=788 speakup.synth=soft -- quiet
+		initrd	/live/initrd.img
+	}
+	menuentry 'Linux Mint Official' {
+		# insmod ext2
+		insmod ntfs
+		insmod part_gpt
+		set root='hd0,gpt11'
+
+		linux	/casper/vmlinuz boot=casper locale=zh_TW
+		initrd	/casper/initrd.lz
+	}
+	menuentry 'Linux Mint Arch Edition' {
+		# insmod ext2
+		insmod ntfs
+		insmod part_gpt
+		set root='hd0,gpt11'
+
+		linux	/arch/boot/x86_64/vmlinuz archisolabel=LIVE
+		initrd	/arch/boot/x86_64/archiso.img
+	}
+	menuentry 'LMDE ISO' {
+		# insmod ext2
+		insmod ntfs
+		insmod part_gpt
+		set isofile=/LMDE-XFCE-64.iso
+		search --file --set=root --no-floppy $isofile
+		loopback loop $isofile
+
+		linux	(loop)/live/vmlinuz boot=live findiso=${isofile}
+		initrd	(loop)/live/initrd.gz
+	}
+#	menuentry 'OS X With UEFI' {
+#		insmod hfsplus
+#		insmod part_gpt
+#		set root='hd0,gpt11'
+#
+#		chainloader /System/Library/CoreServices/boot.efi
+#	}
+
+}
+
+menuentry 'GRUB4 (loader) With BIOS' {
+	insmod part_gpt
+	insmod ntfs
+	set root='hd0,gpt11'
+	drivemap -s (hd0) ${root}
+	chainloader +1
+}
+
+# menuentry 'Mac OS X (loader) With BIOS' {
+#	insmod ntfs
+#	insmod part_gpt
+#	set root='hd0,gpt11'
+#	multiboot /boot
+# }
+
+submenu 'Other' {
+	menuentry 'System Shutdown' {
+		echo 'System shut down initiated ...'
+		halt
+	}
+
+	menuentry 'System Restart' {
+		echo 'System rebooting initiated ...'
+		reboot
+	}
+}
