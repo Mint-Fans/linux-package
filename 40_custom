@@ -78,7 +78,7 @@ submenu 'Live Boot With UEFI' {
 
 }
 
-menuentry 'GRUB4 (loader) With BIOS' {
+menuentry 'GRUB4 (loader) With Legacy BIOS' {
 	insmod part_gpt
 	insmod ntfs
 	set root='hd0,gpt11'
