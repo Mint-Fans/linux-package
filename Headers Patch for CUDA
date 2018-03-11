@@ -1,0 +1,2 @@
+Headers Patch for CUDA
+sudo sed -i 's/GNUC_PREREQ (4, 4))).*/GNUC_PREREQ (4, 4))) \&\& !defined(__CUDACC__)/g' /usr/include/bits/floatn.h
