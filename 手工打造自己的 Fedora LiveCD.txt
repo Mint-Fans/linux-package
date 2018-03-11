@@ -78,7 +78,7 @@ echo localhosts > /mnt/etc/hostname
 # 開始製作 LiveOS Image
 例如: 存放路徑在 /media/fedora/DATA/ 目錄，要備份的分割區為sda4
 
-SAVEDIR=$/media/fedora/DATA/
+SAVEDIR=/run/media/fedora/DATA/
 TARGET=sda4
 
 * 建立目錄
