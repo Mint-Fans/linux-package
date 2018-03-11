@@ -1,0 +1,128 @@
+手動安裝 Fedora Live 系統到電腦
+範例:要安裝的目標分割區為 sda3
+
+TARGET=sda3
+
+格式化分割區
+sudo -s
+mkfs.ext4 -F /dev/$TARGET
+貼上標籤
+e2label /dev/$TARGET FSYS
+
+掛載目標分割區
+mount /dev/$TARGET /mnt
+
+掛載 rootfs.img
+
+或
+mount -t squashfs /run/initramfs/live/LiveOS/squashfs.img /run/initramfs/squashfs
+mkdir -p /tmp/rootfs
+ROOTFS_LOOPDEV=$(losetup -f)
+losetup -r $ROOTFS_LOOPDEV /run/initramfs/squashfs/LiveOS/rootfs.img
+mount -o norecovery $ROOTFS_LOOPDEV /tmp/rootfs
+
+
+複製rootfs.img內容到目標分割區
+SRC=/tmp/rootfs
+DEST=/mnt
+cd $SRC; (tar cf - *) | (cd $DEST ; tar xf -) > /dev/null 2>&1
+
+卸載 rootfs.img
+cd /
+umount /tmp/rootfs
+umount /run/initramfs/squashfs
+
+若有掛載獨立的分割區
+範例: 設定sda2為/boot、設定sda4為/home
+
+# /boot
+BOOT=sda2
+mv /mnt/boot /mnt/tmp/
+mkdir -p /mnt/boot
+mount /dev/$BOOT /mnt/boot
+
+# /home
+HOME=sda4
+rm -rf /mnt/home/*
+mount /dev/$HOME /mnt/home
+
+掛載虛擬檔案系統
+mount --bind /dev /mnt/dev
+mount --bind /run /mnt/run
+mount --bind /proc /mnt/proc
+mount --bind /sys /mnt/sys
+
+更新 Initramfs
+chroot /mnt /bin/bash <<'ENDCHROOT'
+KERNELVRA=$(rpm -q kernel --qf %{V}-%{R}.%{ARCH})
+dracut --kver $KERNELVRA --force -v
+ENDCHROOT
+
+安裝 Grub Boot loader
+DISK=$(echo $TARGET | sed 's/[0-9]//g')
+
+# BIOS
+RUN_IN_CHROOT="chroot /mnt /bin/bash -c"
+$RUN_IN_CHROOT "grub2-install --target=i386-pc /dev/$DISK"
+
+# UEFI
+rm -rf /mnt/boot/efi
+mkdir -p /mnt/boot/efi
+mount /dev/"$DISK"1 /mnt/boot/efi
+$RUN_IN_CHROOT "grub2-install --target=x86_64-efi /dev/$DISK"
+mkdir -p /mnt/boot/efi/EFI/boot
+cp /mnt/boot/efi/EFI/*/grubx64.efi /mnt/boot/efi/EFI/boot/bootx64.efi
+
+建立開機選單
+$RUN_IN_CHROOT "grub2-mkconfig -o /boot/grub2/grub.cfg"
+
+如沒有安裝 genfstab
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/master/genfstab
+chmod 755 genfstab
+mv genfstab /usr/local/bin/
+
+重建 fstab
+genfstab -U /mnt > /mnt/etc/fstab
+
+設定主機名稱
+範例: localhosts
+echo localhosts > /mnt/etc/hostname
+
+設定時區
+TIMEZONE=Asia/Taipei
+$RUN_IN_CHROOT "ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime"
+
+設定時間為硬體時鐘
+$RUN_IN_CHROOT "hwclock --systohc --localtime"
+
+設定語言
+SET_LANG=zh_TW
+echo 'LANG="SET_LANG.UTF-8"' > /mnt/etc/locale.conf
+sed -i s/SET_LANG/$SET_LANG/g /mnt/etc/locale.conf
+
+設置鍵盤
+$RUN_IN_CHROOT "localectl set-locale LANG=$SET_LANG"
+$RUN_IN_CHROOT "localectl set-x11-keymap us"
+
+刪除Live使用者
+例如 live user 為 fedora
+LIVENAME=fedora
+$RUN_IN_CHROOT "userdel -r $LIVENAME"
+
+建立新使用者
+例如要建立的新 user 為 torachiyo
+USERNAME=torachiyo
+$RUN_IN_CHROOT "adduser $USERNAME"
+
+建立root與user密碼
+例如設定密碼為0000
+PASSWD=0000
+echo $USERNAME:$PASSWD > /mnt/pw.txt
+echo root:$PASSWD >> /mnt/pw.txt
+$RUN_IN_CHROOT "chpasswd < /pw.txt"
+rm /mnt/pw.txt
+
+卸載
+umount -l /mnt
+
+重新啟動
