@@ -1,0 +1,45 @@
+製作 RPM 套件
+
+建立目錄
+mkdir -pv $HOME/rpmbuild/{BUILDROOT,RPMS,SPECS}
+
+建立 spec 文件
+$HOME/rpmbuild/SPECS/xxx.spec
+範例:
+
+Name        : gnome-theme-mint
+Version     : 2018
+Release     : 2.fc27
+Group       : Unspecified
+License     : GPLv2+
+Source RPM  : %{name}-%{version}.src.rpm
+Packager    : RPM Fusion
+Vendor      : RPM Fusion
+URL         : https://github.com/Mint-Fans/linux-package
+Summary     : Mint themes for GTK3
+# Requires    :
+%description
+A collection of mint themes for GTK3.
+
+# %prep
+# %post
+# %preun
+# %postun
+
+# 要打包的文件
+%files
+/usr/share/icons/Mint-X
+/usr/share/themes/Mint-X
+
+將要打包的文件放入 $HOME/rpmbuild/BUILDROOT
+
+--target 設定套件平台
+64-bit 設定 x86_64
+32-bit 設定 i386
+all 設定 noarch
+
+PLATFORM='noarch'
+rpmbuild --target=$PLATFORM --buildroot=$HOME/rpmbuild/BUILDROOT -bb $HOME/rpmbuild/SPECS/xxx.spec
+
+打包好的套件會存放在 $HOME/rpmbuild/RPMS/
+
