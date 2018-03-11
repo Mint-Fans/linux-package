@@ -1,0 +1,16 @@
+export CC=/usr/bin/gcc-5
+export CXX=/usr/bin/g++-5
+export CPP=/usr/bin/cpp-5
+export AR=/usr/bin/gcc-ar-5
+export NM=/usr/bin/gcc-nm-5
+export RANLIB=/usr/bin/gcc-ranlib-5
+
+alias g++=/usr/bin/g++-5
+alias gcc=/usr/bin/gcc-5
+alias cpp=/usr/bin/cpp-5
+alias cc=/usr/bin/gcc-5
+alias ar=/usr/bin/gcc-ar-5
+alias nm=/usr/bin/gcc-nm-5
+alias gcc-ar=/usr/bin/gcc-ar-5
+alias gcc-nm=/usr/bin/gcc-nm-5
+alias gcc-ranlib=/usr/bin/gcc-ranlib-5
