@@ -1,1 +1,2 @@
-# 範例
+# openSUSE RPM Packages
+
