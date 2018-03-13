@@ -13,8 +13,9 @@ e2label /dev/$TARGET FSYS
 mount /dev/$TARGET /mnt
 
 掛載 rootfs.img
-
-或
+mkdir -p /tmp/rootfs
+mount /dev/mapper/live-base /tmp/rootfs
+或者
 mount -t squashfs /run/initramfs/live/LiveOS/squashfs.img /run/initramfs/squashfs
 mkdir -p /tmp/rootfs
 ROOTFS_LOOPDEV=$(losetup -f)
