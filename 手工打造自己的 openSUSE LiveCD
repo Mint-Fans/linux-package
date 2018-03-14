@@ -1,0 +1,170 @@
+# 前置作業
+系統裝好後先執行下面指令清除
+zypper clean
+
+然後重開機進入其他Linux系統或live系統
+掛載要備份的分割區，例如要備份 sda4
+將 sda4 掛載到 /mnt
+sudo -s
+mount /dev/sda4 /mnt
+
+清除垃圾
+# boot clean
+rm -rf /mnt/boot/grub2/grub.cfg
+# etc clean
+rm -rf /mnt/etc/fstab
+# home clean
+rm -rf /mnt/home/*/*
+rm -rf /mnt/home/*/.*
+rm -rf /mnt/root/*
+rm -rf /mnt/root/.*
+# misc clean
+rm -rf /mnt/tmp/*
+rm -rf /mnt/tmp/.*
+rm -rf /mnt/lost+found
+# var clean
+rm -rf /mnt/var/cache/zypp/*
+rm -rf /mnt/var/cache/zypper/*
+rm -rf /mnt/var/lib/blueman/*
+rm -rf /mnt/var/lib/bluetooth/*
+rm -rf /mnt/var/lib/dbus/*
+rm -rf /mnt/var/lib/dhcp/*
+rm -rf /mnt/var/lib/dhcp6/*
+rm -rf /mnt/var/lib/dkms/*
+rm -rf /mnt/var/lib/NetworkManager/*
+rm -rf /mnt/var/lib/smartmontools/*
+rm -rf /mnt/var/lib/systemd/backlight/*
+rm -rf /mnt/var/lib/systemd/catalog/*
+rm -rf /mnt/var/lib/systemd/coredump/*
+rm -rf /mnt/var/lib/systemd/rfkill/*
+rm -rf /mnt/var/lib/upower/*
+rm -rf /mnt/var/log/*
+mkdir -p /mnt/var/log/audit
+chmod 700 /mnt/var/log/audit
+mkdir -p /mnt/var/log/cups
+chown lp:lp /mnt/var/log/cups
+mkdir -p /mnt/var/log/exim
+chown mail:mail /mnt/var/log/exim
+chmod 750 /mnt/var/log/exim
+mkdir -p /mnt/var/log/krb5
+chmod 700 /mnt/var/log/krb5
+mkdir -p /mnt/var/log/lightdm
+chown lightdm:lightdm /mnt/var/log/lightdm
+chmod 750 /mnt/var/log/lightdm
+mkdir -p /mnt/var/log/samba
+chmod 750 /mnt/var/log/samba
+mkdir -p /mnt/var/log/tor
+chown tor:tor /mnt/var/log/tor
+chmod 750 /mnt/var/log/tor
+
+修改主機名稱
+名稱可隨意修改，範例: localhosts
+echo localhosts > /mnt/etc/hostname
+
+# 開始製作 LiveOS Image
+例如: 存放路徑在 /media/suse/DATA/ 目錄，要備份的分割區為sda4
+
+SAVEDIR=/media/suse/DATA/
+TARGET=sda4
+
+# 建立目錄
+mkdir -p $SAVEDIR/squashfs-root/LiveOS
+
+# 計算sda4已使用區塊大小(Live檔案系統的容量)
+USED=$(df | grep /dev/$TARGET | awk '{print $3 }')
+
+# 區塊大小增加1GB容量，因為Live系統啟動時會用掉約400MB的空間，所以啟動後Live系統還有約600MB的可用空間
+BS=$(expr $USED + 1048576)
+
+# 製作空白的 image
+dd if=/dev/zero of=$SAVEDIR/squashfs-root/LiveOS/rootfs.img bs=$BS count=1024 status=progress
+
+# 格式化為 ext4
+mkfs.ext4 -j -L Fedora $SAVEDIR/squashfs-root/LiveOS/rootfs.img
+
+# 掛載 rootfs.img
+mkdir -p /tmp/rootfs
+mount -o loop $SAVEDIR/squashfs-root/LiveOS/rootfs.img /tmp/rootfs
+
+# 將 sda4 內容複製到 rootfs.img
+SRC=/mnt
+DEST=/tmp/rootfs
+cd $SRC; (tar cf - *) | (cd $DEST ; tar xf -) > /dev/null 2>&1
+
+# 打包 rootfs.img 為 squashfs.img
+cd $SAVEDIR
+mksquashfs squashfs-root squashfs.img
+
+# 完成後重建 fstab
+UUID=$(blkid -s UUID -o value /dev/sda4)
+cat << EOF > /mnt/etc/fstab
+UUID=$UUID /                       ext4    defaults        1 1
+EOF
+
+或使用 genfstab 重建 fstab
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/master/genfstab
+chmod +x genfstab
+./genfstab -U /mnt > /mnt/etc/fstab
+
+# 卸載sda4與rootfs
+umount /mnt
+umount /tmp/rootfs
+
+到此基本上 live 檔案系統製作完成，接下來製作可引導的 Live 系統的 initramfs。
+
+# 製作 Live initramfs
+
+# 安裝 dracut-kiwi-live
+sudo zypper install dracut-kiwi-live
+
+dracut-kiwi-live 套件不支援 NTFS 分割區的引導，可以安裝 NTFS Loop 補釘
+wget https://github.com/Mint-Fans/linux-package/raw/SUSE/dracut-live-ntfs-patch.tar.gz
+tar zxvf dracut-live-ntfs-patch.tar.gz
+sudo cp -r dracut-live-ntfs-patch/90ntfsloop /usr/lib/dracut/modules.d/
+sudo rm /usr/lib/dracut/modules.d/90kiwi-live/kiwi-live-lib.sh
+sudo cp dracut-live-ntfs-patch/kiwi-live-lib.sh /usr/lib/dracut/modules.d/90kiwi-live/
+
+# 建立可引導 Live 系統的 initramfs
+sudo dracut --no-hostonly --xz \
+--no-early-microcode --force \
+--add 'kiwi-live qemu pollcdrom ntfsloop' \
+~/initrd.img
+
+# 複製 vmlinuz
+cp /boot/vmlinuz-$(uname -r) ~/vmlinuz
+
+# 製作ISO映像檔
+下載iso文件 (修改自 openSUSE Leap 15)
+wget https://github.com/Mint-Fans/linux-package/raw/SUSE/openSUSE-mkiso.tar.xz
+tar Jxvf openSUSE-mkiso.tar.xz
+
+解壓縮後，將 squashfs.img、initrd.img、vmlinuz 放到 openSUSE/openSUSE-Live/LiveOS/ 目錄內
+
+然後開始執行腳本打包iso
+cd openSUSE
+./openSUSE-mkiso
+
+
+# USB或HD Grub4dos引導參數
+範例: 分割區標籤為 INST
+title openSUSE Live
+find --set-root --ignore-floppies --ignore-cd /LiveOS/vmlinuz
+kernel /LiveOS/vmlinuz root=live:CDLABEL=INST rd.live.image
+initrd /LiveOS/initrd.img
+boot
+
+# 將ISO映像檔寫到USB的方法
+lsblk
+
+NAME    MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+sda       8:0    0 465.8G  0 disk 
+├─sda1    8:1    0   201M  0 part 
+├─sda2    8:2    0   201M  0 part /boot
+├─sda3    8:3    0    15G  0 part /
+└─sda4    8:4    0    15G  0 part /mnt
+sdb       8:16   1 979.8M  0 disk 
+└─sdb1    8:17   1   978M  0 part /run/media/suse/USB
+sr0      11:0    1  1024M  0 rom
+
+例如USB裝置為sdb
+dd if=openSUSE.iso of=/dev/sdb
