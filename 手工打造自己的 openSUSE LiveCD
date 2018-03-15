@@ -98,7 +98,6 @@ mount -o loop $SAVEDIR/squashfs-root/LiveOS/rootfs.img /tmp/rootfs
 SRC=/mnt
 DEST=/tmp/rootfs
 cd $SRC; (tar cf - *) | (cd $DEST ; tar xf -) > /dev/null 2>&1
-chmod -R 755 /tmp/rootfs/home/*
 
 # 打包 rootfs.img 為 squashfs.img
 cd $SAVEDIR
