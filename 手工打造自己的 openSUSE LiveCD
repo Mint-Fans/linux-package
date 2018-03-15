@@ -39,23 +39,31 @@ rm -rf /mnt/var/lib/systemd/coredump/*
 rm -rf /mnt/var/lib/systemd/rfkill/*
 rm -rf /mnt/var/lib/upower/*
 rm -rf /mnt/var/log/*
-mkdir -p /mnt/var/log/audit
-chmod 700 /mnt/var/log/audit
-mkdir -p /mnt/var/log/cups
-chown lp:lp /mnt/var/log/cups
-mkdir -p /mnt/var/log/exim
-chown mail:mail /mnt/var/log/exim
-chmod 750 /mnt/var/log/exim
-mkdir -p /mnt/var/log/krb5
-chmod 700 /mnt/var/log/krb5
-mkdir -p /mnt/var/log/lightdm
-chown lightdm:lightdm /mnt/var/log/lightdm
-chmod 750 /mnt/var/log/lightdm
-mkdir -p /mnt/var/log/samba
-chmod 750 /mnt/var/log/samba
-mkdir -p /mnt/var/log/tor
-chown tor:tor /mnt/var/log/tor
-chmod 750 /mnt/var/log/tor
+
+chroot /mnt /bin/bash << 'ENDCHROOT'
+mkdir -p /var/log/apparmor
+mkdir -p /var/log/audit
+chmod 700 /var/log/audit
+mkdir -p /var/log/chrony
+chown chrony:chrony /var/log/chrony
+chmod 750 /var/log/chrony
+mkdir -p /var/log/cluster
+mkdir -p /var/log/cups
+chown lp:lp /var/log/cups
+mkdir -p /var/log/exim
+chown mail:mail /var/log/exim
+chmod 750 /var/log/exim
+mkdir -p /var/log/krb5
+chmod 700 /var/log/krb5
+mkdir -p /var/log/lightdm
+chown lightdm:lightdm /var/log/lightdm
+chmod 750 /var/log/lightdm
+mkdir -p /var/log/samba
+chmod 750 /var/log/samba
+mkdir -p /var/log/tor
+chown tor:tor /var/log/tor
+chmod 750 /var/log/tor
+ENDCHROOT
 
 修改主機名稱
 名稱可隨意修改，範例: localhosts
@@ -65,7 +73,7 @@ echo localhosts > /mnt/etc/hostname
 例如: 存放路徑在 /media/suse/DATA/ 目錄，要備份的分割區為sda4
 
 SAVEDIR=/media/suse/DATA/
-TARGET=sda4
+TARGET=sda5
 
 # 建立目錄
 mkdir -p $SAVEDIR/squashfs-root/LiveOS
@@ -80,7 +88,7 @@ BS=$(expr $USED + 1048576)
 dd if=/dev/zero of=$SAVEDIR/squashfs-root/LiveOS/rootfs.img bs=$BS count=1024 status=progress
 
 # 格式化為 ext4
-mkfs.ext4 -j -L Fedora $SAVEDIR/squashfs-root/LiveOS/rootfs.img
+mkfs.ext4 -j -L openSUSE $SAVEDIR/squashfs-root/LiveOS/rootfs.img
 
 # 掛載 rootfs.img
 mkdir -p /tmp/rootfs
@@ -90,6 +98,7 @@ mount -o loop $SAVEDIR/squashfs-root/LiveOS/rootfs.img /tmp/rootfs
 SRC=/mnt
 DEST=/tmp/rootfs
 cd $SRC; (tar cf - *) | (cd $DEST ; tar xf -) > /dev/null 2>&1
+chmod -R 755 /tmp/rootfs/home/*
 
 # 打包 rootfs.img 為 squashfs.img
 cd $SAVEDIR
