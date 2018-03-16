@@ -35,7 +35,8 @@ rm -rf /mnt/tmp/.*
 rm -rf /mnt/lost+found
 * var clean
 rm -rf /mnt/var/cache/dnf/*
-rm -rf /mnt/var/log/*
+rm -f /mnt/var/log/*
+rm -rf /mnt/var/log/*/*
 rm -rf /mnt/var/cache/apt/archives/*
 rm -rf /mnt/var/lib/blueman/*
 rm -rf /mnt/var/lib/bluetooth/*
@@ -52,23 +53,6 @@ rm -rf /mnt/var/lib/systemd/catalog/*
 rm -rf /mnt/var/lib/systemd/coredump/*
 rm -rf /mnt/var/lib/upower/*
 rm -rf /mnt/var/tmp/*
-mkdir -p /mnt/var/log/audit
-chmod -R 700 /mnt/var/log/audit
-mkdir -p /mnt/var/log/journal
-chown -R root:systemd-journal /mnt/var/log/journal
-chmod -R 2755 /mnt/var/log/journal
-mkdir -p /mnt/var/log/lightdm
-chown -R lightdm:lightdm /mnt/var/log/lightdm
-mkdir -p /mnt/var/log/pluto
-chmod -R 700 /mnt/var/log/pluto
-mkdir -p /mnt/var/log/ppp
-chmod -R 700 /mnt/var/log/ppp
-mkdir -p /mnt/var/log/samba
-chmod -R 700 /mnt/var/log/samba
-mkdir -p /mnt/var/log/sssd
-chmod -R 750 /mnt/var/log/sssd
-mkdir -p /mnt/var/log/tor
-chmod -R 750 /mnt/var/log/tor
 
 修改主機名稱
 名稱可隨意修改，範例: localhosts
