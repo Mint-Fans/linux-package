@@ -1,6 +1,12 @@
 =========================
 安裝與設定
 =========================
+# 安裝前設定
+echo 'rdblacklist=nouveau' > /etc/modprobe.d/blacklist.conf
+grub2 引導參數加入: rd.driver.blacklist=nouveau
+
+重新啟動
+
 # 安裝 bumblebee 套件倉庫
 sudo dnf -y --nogpgcheck install http://install.linux.ncsu.edu/pub/yum/itecs/public/bumblebee-nonfree/fedora$(rpm -E %fedora)/noarch/bumblebee-nonfree-release-1.2-1.noarch.rpm
 sudo dnf -y --nogpgcheck install http://install.linux.ncsu.edu/pub/yum/itecs/public/bumblebee/fedora$(rpm -E %fedora)/noarch/bumblebee-release-1.2-1.noarch.rpm
