@@ -64,7 +64,7 @@ BS=$(expr $USED + 2097152)
 dd if=/dev/zero of=$SAVEDIR/squashfs-root/LiveOS/rootfs.img bs=$BS count=1024 status=progress
 
 # 格式化為 ext4
-mkfs.ext4 -j -L openSUSE $SAVEDIR/squashfs-root/LiveOS/rootfs.img
+mkfs.ext4 -j -L ROOTFS $SAVEDIR/squashfs-root/LiveOS/rootfs.img
 
 # 掛載 rootfs.img
 mkdir -p /tmp/rootfs
