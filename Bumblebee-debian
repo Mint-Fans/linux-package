@@ -26,8 +26,7 @@ sudo sh -c 'echo "options bbswitch load_state=0 unload_state=1" >> /etc/modprobe
 ### primus
 ##################################
 # Build Requires:
-sudo apt-get install gcc-multilib g++-multilib mesa-common-dev libc6-dev libstdc++-7-dev libx11-dev
-sudo apt-get install libc6-dev-i386 linux-libc-dev:i386 libstdc++-7-dev:i386 libx11-dev:i386
+sudo apt-get install gcc-multilib g++-multilib mesa-common-dev libx11-dev libx11-dev:i386
 
 # PKG Depends:
 sudo apt-get install socat xserver-xorg-core libgl1-mesa-dri libc6 libgcc1 libgl1-mesa-glx libstdc++6 libx11-6
