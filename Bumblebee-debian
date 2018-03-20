@@ -26,7 +26,7 @@ sudo sh -c 'echo "options bbswitch load_state=0 unload_state=1" >> /etc/modprobe
 ### primus
 ##################################
 # Build Requires:
-sudo apt-get install gcc g++ mesa-common-dev libc6-dev libstdc++-7-dev libx11-dev
+sudo apt-get install gcc-multilib g++-multilib mesa-common-dev libc6-dev libstdc++-7-dev libx11-dev
 sudo apt-get install libc6-dev-i386 linux-libc-dev:i386 libstdc++-7-dev:i386 libx11-dev:i386
 
 # PKG Depends:
@@ -53,30 +53,9 @@ sudo install -D -m755 "primusrun" "/usr/bin/primusrun"
 sudo install -D -m755 "lib64/libGL.so.1" "/usr/lib/x86_64-linux-gnu/primus/libGL.so.1"
 
 # Build 32-bit Library
-mkdir -p backup
-sudo rm /usr/lib/gcc/x86_64-linux-gnu/7/libstdc++.so
-sudo mv /usr/lib/gcc/x86_64-linux-gnu/7/libstdc++.a backup/
-sudo mv /usr/lib/gcc/x86_64-linux-gnu/7/libgcc.a backup/
-sudo mv /usr/lib/gcc/x86_64-linux-gnu/7/crtbeginS.o backup/
-sudo mv /usr/lib/gcc/x86_64-linux-gnu/7/crtendS.o backup/
-sudo ln -s /usr/lib/gcc/i686-linux-gnu/7/libgcc.a  /usr/lib/gcc/x86_64-linux-gnu/7/libgcc.a
-sudo ln -s /usr/lib/gcc/i686-linux-gnu/7/libstdc++.a /usr/lib/gcc/x86_64-linux-gnu/7/libstdc++.a
-sudo ln -s /usr/lib/i386-linux-gnu/libstdc++.so.6 /usr/lib/gcc/x86_64-linux-gnu/7/libstdc++.so
-sudo ln -s /usr/lib/gcc/i686-linux-gnu/7/crtbeginS.o /usr/lib/gcc/x86_64-linux-gnu/7/crtbeginS.o
-sudo ln -s /usr/lib/gcc/i686-linux-gnu/7/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/7/crtendS.o
-
 export CC="gcc -m32"
 export CXX="g++ -m32"
 LIBDIR=lib32 make
-
-sudo rm /usr/lib/gcc/x86_64-linux-gnu/7/libstdc++.so
-sudo rm /usr/lib/gcc/x86_64-linux-gnu/7/libstdc++.a
-sudo rm /usr/lib/gcc/x86_64-linux-gnu/7/libgcc.a
-sudo rm /usr/lib/gcc/x86_64-linux-gnu/7/crtbeginS.o
-sudo rm /usr/lib/gcc/x86_64-linux-gnu/7/crtendS.o
-sudo mv backup/* /usr/lib/gcc/x86_64-linux-gnu/7/
-sudo ln -s ../../../x86_64-linux-gnu/libstdc++.so.6 /usr/lib/gcc/x86_64-linux-gnu/7/libstdc++.so
-
 sudo install -D -m755 "lib32/libGL.so.1" "/usr/lib/i386-linux-gnu/primus/libGL.so.1"
 
 ##################################
