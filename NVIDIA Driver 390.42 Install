@@ -125,10 +125,9 @@ sudo ln -sf libnvidia-opencl.so.$NV_VER "/usr/$LIB64/libnvidia-opencl.so"
 sudo install -D -m644  nvidia.icd "/etc/OpenCL/vendors/nvidia.icd"
 
 # nvidia-wfb
-sudo install -D -m755 libnvidia-wfb.so.$NV_VER /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so.$NV_VER
-sudo ln -sf libnvidia-wfb.so.$NV_VER /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so
+sudo install -D -m755 libnvidia-wfb.so.$NV_VER /usr/$LIB/libnvidia-wfb.so.$NV_VER
 # Link to libwfb.so
-# sudo ln -sf /usr/$LIB/xorg/modules/libwfb.so /usr/$LIB/nvidia/xorg/modules/libwfb.so
+sudo ln -sf /usr/$LIB/xorg/modules/libwfb.so /usr/$LIB/nvidia/xorg/modules/libwfb.so
 
 # NVIDIA OpenGL/GLX/EGL/GLES libraries
 sudo install -D -m755 libEGL_nvidia.so.$NV_VER /usr/$LIB64/nvidia/libEGL_nvidia.so.$NV_VER
