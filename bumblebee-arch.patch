@@ -1,0 +1,90 @@
+diff -uNr Bumblebee.orig/src/bblogger.c Bumblebee/src/bblogger.c
+--- Bumblebee.orig/src/bblogger.c	2018-03-23 23:21:28.000000000 +0800
++++ Bumblebee/src/bblogger.c	2018-03-23 23:22:25.155042538 +0800
+@@ -144,7 +144,11 @@
+   /* Error lines are errors. */
+   if (strncmp(string, "(EE)", 4) == 0){
+     if (strstr(string, "Failed to load module \"kbd\"") ||
+-            strstr(string, "No input driver matching")) {
++            strstr(string, "Failed to load module \"mouse\"") ||
++            strstr(string, "failed to set DRM interface version 1.4:") ||
++            strstr(string, "No input driver matching") ||
++            strstr(string, "systemd-logind: failed to get session:") ||
++            strstr(string, "Server terminated successfully")) {
+       /* non-fatal errors */
+       prio = LOG_DEBUG;
+     } else {
+diff -uNr Bumblebee.orig/src/bbsecondary.c Bumblebee/src/bbsecondary.c
+--- Bumblebee.orig/src/bbsecondary.c	2018-03-23 23:21:28.000000000 +0800
++++ Bumblebee/src/bbsecondary.c	2018-03-23 23:22:22.178368593 +0800
+@@ -138,7 +138,7 @@
+   if (!bb_is_running(bb_status.x_pid)) {
+     char pci_id[12];
+     static char *x_conf_file;
+-    snprintf(pci_id, 12, "PCI:%02x:%02x:%o", pci_bus_id_discrete->bus,
++    snprintf(pci_id, 12, "PCI:%02d:%02d:%o", pci_bus_id_discrete->bus,
+             pci_bus_id_discrete->slot, pci_bus_id_discrete->func);
+     if (!x_conf_file) {
+       x_conf_file = xorg_path_w_driver(bb_config.x_conf_file, bb_config.driver);
+diff -uNr Bumblebee.orig/src/module.c Bumblebee/src/module.c
+--- Bumblebee.orig/src/module.c	2018-03-23 23:21:28.000000000 +0800
++++ Bumblebee/src/module.c	2018-03-23 23:22:19.091694379 +0800
+@@ -92,12 +92,24 @@
+  * @return 1 if the driver is succesfully unloaded, 0 otherwise
+  */
+ int module_unload(char *driver) {
+-  if (module_is_loaded(driver) == 1) {
++
++	char uvm[] = "nvidia_uvm";
++	char drm[] = "nvidia_drm";
++	char modeset[] = "nvidia_modeset";
++	int uvm_is_loaded = module_is_loaded(uvm);
++	int drm_is_loaded = module_is_loaded(drm);
++	int modeset_is_loaded = module_is_loaded(modeset);
++
++  if (uvm_is_loaded || drm_is_loaded || modeset_is_loaded || *driver == 1) {
+     int retries = 30;
+-    bb_log(LOG_INFO, "Unloading %s driver\n", driver);
++    bb_log(LOG_INFO, "Unloading UVM/DRM/MODESET driver\n");
+     char *mod_argv[] = {
+-      "rmmod",
+-      driver,
++      "modprobe",
++      "-r",
++      "nvidia_uvm",
++      "nvidia_drm",
++      "nvidia_modeset",
++			driver,
+       NULL
+     };
+     bb_run_fork_wait(mod_argv, 10);
+@@ -109,7 +121,7 @@
+       return 0;
+     }
+   }
+-  return 1;
++ 	return 1;
+ }
+ 
+ /**
+@@ -134,3 +146,4 @@
+   };
+   return bb_run_fork(mod_argv, 1) == EXIT_SUCCESS;
+ }
++
+diff -uNr Bumblebee.orig/src/optirun.c Bumblebee/src/optirun.c
+--- Bumblebee.orig/src/optirun.c	2018-03-23 23:21:28.000000000 +0800
++++ Bumblebee/src/optirun.c	2018-03-23 23:22:28.481717488 +0800
+@@ -203,7 +203,11 @@
+ 
+   /* primus starts the X server when needed, fixes long-standing fork issue */
+   setenv("BUMBLEBEE_SOCKET", bb_config.socket_path, 1);
+-
++  
++/* primus needs this variable workaround for libglvnd enabled mesa */
++ 
++   setenv("__GLVND_DISALLOW_PATCHING", "1", 0);
++  
+   /* set LD_LIBRARY_PATH to primus_ld_path plus ld_path plus current LD_LIBRARY_PATH */
+   setenv("PRIMUS_DISPLAY", bb_config.x_display, 0);
+   char *ldpath_cur = getenv("LD_LIBRARY_PATH");
