@@ -6,8 +6,10 @@ sudo zypper install gcc make patch m4 binutils dkms kernel-default-devel libelf-
 
 git clone https://github.com/Bumblebee-Project/bbswitch
 
-Patch for dkms:
-sed -i 's/#MODULE_VERSION#/0.8/g' bbswitch/dkms/dkms.conf
+# Patch for Linux 4.13:
+# sed -i 's/asm/linux/g' bbswitch/bbswitch.c
+# Patch for dkms:
+# sed -i 's/#MODULE_VERSION#/0.8/g' bbswitch/dkms/dkms.conf
 
 sudo mkdir -p /usr/src/bbswitch-0.8
 sudo cp bbswitch/bbswitch.c /usr/src/bbswitch-0.8/
