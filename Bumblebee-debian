@@ -6,8 +6,9 @@ sudo apt-get install gcc make patch linux-headers-amd64
 
 git clone https://github.com/Bumblebee-Project/bbswitch
 
-Patch for Debian:
+Patch for Linux 4.14-:
 sed -i 's/asm/linux/g' bbswitch/bbswitch.c
+Patch for dkms:
 sed -i 's/#MODULE_VERSION#/0.8/g' bbswitch/dkms/dkms.conf
 
 sudo mkdir -p /usr/src/bbswitch-0.8
