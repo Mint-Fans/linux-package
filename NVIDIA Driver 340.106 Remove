@@ -1,0 +1,156 @@
+###########################################
+### NVIDIA Driver 340.106 Remove
+###########################################
+# Debian
+LIB=lib
+LIB64=lib/x86_64-linux-gnu
+LIB32=lib/i386-linux-gnu
+
+# Fedora /openSUSE
+LIB=lib64
+LIB64=lib64
+LIB32=lib
+
+NV_VER='340.106'
+
+## Remove all 64-bit library
+sudo rm -f /usr/$LIB/xorg/modules/drivers/nvidia_drv.so
+sudo rm -f /usr/$LIB/nvidia/xorg/modules/extensions/libglx.so.$NV_VER
+sudo rm -f /usr/$LIB/nvidia/xorg/modules/extensions/libglx.so.1
+sudo rm -f /usr/$LIB/nvidia/xorg/modules/extensions/libglx.so
+sudo rm -f /usr/$LIB64/nvidia/libGL.so.$NV_VER
+sudo rm -f /usr/$LIB64/nvidia/libGL.so.1
+sudo rm -f /usr/$LIB64/nvidia/libGL.so
+sudo rm -f /usr/$LIB64/libnvidia-glcore.so.$NV_VER
+sudo rm -f /usr/$LIB64/libEGL.so.$NV_VER
+sudo rm -f /usr/$LIB64/libEGL.so.1
+sudo rm -f /usr/$LIB64/libEGL.so
+sudo rm -f /usr/$LIB64/libGLESv1_CM.so.$NV_VER
+sudo rm -f /usr/$LIB64/libGLESv1_CM.so.1
+sudo rm -f /usr/$LIB64/libGLESv1_CM.so
+sudo rm -f /usr/$LIB64/libGLESv2.so.$NV_VER
+sudo rm -f /usr/$LIB64/libGLESv2.so.2
+sudo rm -f /usr/$LIB64/libGLESv2.so
+sudo rm -f /usr/$LIB64/libnvidia-eglcore.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvidia-encode.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvidia-encode.so.1
+sudo rm -f /usr/$LIB64/libnvidia-encode.so
+sudo rm -f /usr/$LIB64/libnvidia-fbc.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvidia-ifr.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvidia-ifr.so.so.1
+sudo rm -f /usr/$LIB64/libnvidia-ifr.so.so
+sudo rm -f /usr/$LIB64/libnvidia-glsi.so.$NV_VER
+sudo rm -f /usr/$LIB64/vdpau/libvdpau_nvidia.so.$NV_VER
+sudo rm -f /usr/$LIB64/vdpau/libvdpau_nvidia.so.1
+sudo rm -f /usr/$LIB64/vdpau/libvdpau_nvidia.so
+sudo rm -f /usr/$LIB64/vdpau/libvdpau.so.$NV_VER
+sudo rm -f /usr/$LIB64/vdpau/libvdpau_trace.so.$NV_VER
+sudo rm -f /usr/$LIB64/libcuda.so.$NV_VER
+sudo rm -f /usr/$LIB64/libcuda.so
+sudo rm -f /usr/$LIB64/libnvcuvid.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvcuvid.so.1
+sudo rm -f /usr/$LIB64/libnvcuvid.so
+sudo rm -f /usr/$LIB64/libnvidia-tls.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvidia-ml.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvidia-ml.so
+sudo rm -f /usr/$LIB64/libnvidia-cfg.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvidia-cfg.so.1
+sudo rm -f /usr/$LIB64/libnvidia-cfg.so
+sudo rm -f /usr/$LIB64/nvidia/libOpenCL.so.1.0.0
+sudo rm -f /usr/$LIB64/nvidia/libOpenCL.so
+sudo rm -f /usr/$LIB64/libnvidia-compiler.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvidia-compiler.so.1
+sudo rm -f /usr/$LIB64/libnvidia-compiler.so
+sudo rm -f /usr/$LIB64/libnvidia-opencl.so.$NV_VER
+sudo rm -f /usr/$LIB64/libnvidia-opencl.so
+sudo rm -f /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so.$NV_VER
+sudo rm -f /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so
+sudo rm -f /usr/$LIB/nvidia/xorg/modules/libwfb.so
+sudo rm -f /etc/OpenCL/vendors/nvidia.icd
+sudo rm -f /usr/bin/nvidia-settings
+sudo rm -f /usr/share/man/man1/nvidia-settings.1.gz
+sudo rm -f /usr/share/applications/nvidia-settings.desktop
+sudo rm -f /usr/share/pixmaps/nvidia-settings.png
+sudo rm -f /usr/share/nvidia/nvidia-application-profiles-"$NV_VER"-key-documentation
+sudo rm -f /usr/share/nvidia/nvidia-application-profiles-"$NV_VER"-rc
+sudo rm -f /usr/bin/nvidia-xconfig
+sudo rm -f /usr/share/man/man1/nvidia-xconfig.1.gz
+sudo rm -f /usr/bin/nvidia-smi
+sudo rm -f /usr/share/man/man1/nvidia-smi.1.gz
+sudo rm -f /usr/bin/nvidia-bug-report.sh
+sudo rm -f /usr/bin/nvidia-cuda-mps-server
+sudo rm -f /usr/bin/nvidia-cuda-mps-control
+sudo rm -f /usr/share/man/man1/nvidia-cuda-mps-control.1.gz
+sudo rm -f /usr/bin/nvidia-modprobe
+sudo rm -f /usr/share/man/man1/nvidia-modprobe.1.gz
+sudo rm -f /usr/bin/nvidia-persistenced
+sudo rm -f /usr/share/man/man1/nvidia-persistenced.1.gz
+sudo rm -f /usr/share/nvidia/nvidia-persistenced-init.tar.bz2
+sudo rm -f /usr/share/licenses/nvidia/LICENSE
+sudo rm -f /usr/share/doc/nvidia/README
+sudo rm -f /usr/share/doc/nvidia/NVIDIA_Changelog
+
+## Remove all 32-bit library
+sudo rm -f /usr/$LIB32/nvidia/libGL.so.$NV_VER
+sudo rm -f /usr/$LIB32/nvidia/libGL.so.1
+sudo rm -f /usr/$LIB32/nvidia/libGL.so
+sudo rm -f /usr/$LIB32/libnvidia-glcore.so.$NV_VER
+sudo rm -f /usr/$LIB32/libEGL.so.$NV_VER
+sudo rm -f /usr/$LIB32/libEGL.so.1
+sudo rm -f /usr/$LIB32/libEGL.so
+sudo rm -f /usr/$LIB32/libGLESv1_CM.so.$NV_VER
+sudo rm -f /usr/$LIB32/libGLESv1_CM.so.1
+sudo rm -f /usr/$LIB32/libGLESv1_CM.so
+sudo rm -f /usr/$LIB32/libGLESv2.so.$NV_VER
+sudo rm -f /usr/$LIB32/libGLESv2.so.2
+sudo rm -f /usr/$LIB32/libGLESv2.so
+sudo rm -f /usr/$LIB32/libnvidia-eglcore.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvidia-encode.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvidia-encode.so.1
+sudo rm -f /usr/$LIB32/libnvidia-encode.so
+sudo rm -f /usr/$LIB32/libnvidia-fbc.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvidia-ifr.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvidia-ifr.so.so.1
+sudo rm -f /usr/$LIB32/libnvidia-ifr.so.so
+sudo rm -f /usr/$LIB32/libnvidia-glsi.so.$NV_VER
+sudo rm -f /usr/$LIB32/nvidia/libOpenCL.so.1.0.0
+sudo rm -f /usr/$LIB32/nvidia/libOpenCL.so
+sudo rm -f /usr/$LIB32/libnvidia-compiler.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvidia-compiler.so.1
+sudo rm -f /usr/$LIB32/libnvidia-compiler.so
+sudo rm -f /usr/$LIB32/libnvidia-opencl.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvidia-opencl.so
+sudo rm -f /usr/$LIB32/libcuda.so.$NV_VER
+sudo rm -f /usr/$LIB32/libcuda.so
+sudo rm -f /usr/$LIB32/libnvcuvid.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvcuvid.so.1
+sudo rm -f /usr/$LIB32/libnvcuvid.so
+sudo rm -f /usr/$LIB32/vdpau/libvdpau_nvidia.so.$NV_VER
+sudo rm -f /usr/$LIB32/vdpau/libvdpau_nvidia.so.1
+sudo rm -f /usr/$LIB32/vdpau/libvdpau_nvidia.so
+sudo rm -f /usr/$LIB32/vdpau/libvdpau.so.$NV_VER
+sudo rm -f /usr/$LIB32/vdpau/libvdpau_trace.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvidia-tls.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvidia-ml.so.$NV_VER
+sudo rm -f /usr/$LIB32/libnvidia-ml.so
+
+sudo rm -r /usr/$LIB/nvidia
+sudo rm -r /usr/$LIB64/nvidia
+sudo rm -r /usr/$LIB32/nvidia
+sudo rm -r /usr/share/licenses/nvidia
+sudo rm -r /usr/share/doc/nvidia
+
+sudo /sbin/ldconfig
+
+## Remove kms
+sudo /usr/sbin/dkms remove -m nvidia -v "$NV_VER" --all
+sudo rm -r /usr/src/nvidia-"$NV_VER"
+
+sudo rm -f /etc/modprobe.d/50-blacklist.conf
+
+# Debian
+sudo update-initramfs -u
+
+# Fedora /openSUSE
+sudo dracut -f -v
+
