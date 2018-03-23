@@ -63,8 +63,7 @@ sudo rm -f /usr/$LIB64/libnvidia-compiler.so.1
 sudo rm -f /usr/$LIB64/libnvidia-compiler.so
 sudo rm -f /usr/$LIB64/libnvidia-opencl.so.$NV_VER
 sudo rm -f /usr/$LIB64/libnvidia-opencl.so
-sudo rm -f /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so.$NV_VER
-sudo rm -f /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so
+sudo rm -f /usr/$LIB/libnvidia-wfb.so.$NV_VER
 sudo rm -f /usr/$LIB/nvidia/xorg/modules/libwfb.so
 sudo rm -f /etc/OpenCL/vendors/nvidia.icd
 sudo rm -f /usr/bin/nvidia-settings
