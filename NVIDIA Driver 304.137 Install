@@ -93,8 +93,9 @@ sudo ln -sf libXvMCNVIDIA.so.$NV_VER /usr/$LIB/nvidia/libXvMCNVIDIA.so.1
 sudo ln -sf libXvMCNVIDIA.so.1 /usr/$LIB/nvidia/libXvMCNVIDIA.so
 
 # nvidia-wfb
-sudo install -D -m755 libnvidia-wfb.so.$NV_VER /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so.$NV_VER
-sudo ln -sf libnvidia-wfb.so.$NV_VER /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so
+sudo install -D -m755 libnvidia-wfb.so.$NV_VER /usr/$LIB/libnvidia-wfb.so.$NV_VER
+# Link to libwfb.so
+sudo ln -sf /usr/$LIB/xorg/modules/libwfb.so /usr/$LIB/nvidia/xorg/modules/libwfb.so
 
 # nvidia-settings
 sudo install -D -m755 nvidia-settings /usr/bin/nvidia-settings
@@ -123,9 +124,6 @@ sudo install -D -m644 nvidia-cuda-proxy-control.1.gz /usr/share/man/man1/nvidia-
 sudo install -D -m644 LICENSE /usr/share/licenses/nvidia/LICENSE
 sudo install -D -m644 README.txt /usr/share/doc/nvidia/README
 sudo install -D -m644 NVIDIA_Changelog /usr/share/doc/nvidia/NVIDIA_Changelog
-
-# Link to libwfb.so
-# sudo ln -sf /usr/$LIB/xorg/modules/libwfb.so /usr/$LIB/nvidia/xorg/modules/libwfb.so
 
 ###########################################
 ### NVIDIA Driver 32-bit Library Install
