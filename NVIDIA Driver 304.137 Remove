@@ -43,8 +43,7 @@ sudo rm -f /usr/$LIB64/nvidia/libOpenCL.so
 sudo rm -f /usr/$LIB/nvidia/libXvMCNVIDIA.so.$NV_VER
 sudo rm -f /usr/$LIB/nvidia/libXvMCNVIDIA.so.1
 sudo rm -f /usr/$LIB/nvidia/libXvMCNVIDIA.so
-sudo rm -f /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so.$NV_VER
-sudo rm -f /usr/$LIB/nvidia/xorg/modules/libnvidia-wfb.so
+sudo rm -f /usr/$LIB/libnvidia-wfb.so.$NV_VER
 sudo rm -f /usr/$LIB/nvidia/xorg/modules/libwfb.so
 sudo rm -f /usr/bin/nvidia-settings
 sudo rm -f /usr/share/man/man1/nvidia-settings.1.gz
