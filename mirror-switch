@@ -15,7 +15,7 @@ case $LANG in
 	zh_TW* | zh_HK*)
 	text0="LMAE 套件庫切換"
 	text1="1).切換 Arch linux 官方最新套件庫"
-	text2="2).切換 LMAE 套件庫 (即 Arch Linux Archive 20160320)"
+	text2="2).切換 LMAE 套件庫 (即 Arch Linux Archive 20170208)"
 	text3="3).自訂 Arch Linux Archive 套件庫"
 	text4="0).按「0」退出"
 	text5="輸入選項:"
@@ -51,7 +51,7 @@ if [ "$switch" == "1" ]; then
 	exit
 ## LMAE Repository (ArchLinux mirrorlist 20160320)
 elif [ "$switch" == "2" ]; then
-	sh -c 'echo Server = https://archive.archlinux.org/repos/2016/03/20/$repo/os/$arch > /etc/pacman.d/mirrorlist'
+	sh -c 'echo Server = https://archive.archlinux.org/repos/2017/02/08/$repo/os/$arch > /etc/pacman.d/mirrorlist'
 	sed -i 's/\/os\//$repo\/os\/$arch/g' /etc/pacman.d/mirrorlist
 	rm -rf /var/lib/pacman/sync/*
 	pacman -Sy
