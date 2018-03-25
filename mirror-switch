@@ -1,0 +1,138 @@
+#!/bin/bash
+
+###### Translations ###### 
+	text0="LMAE Repository Switch"
+	text1="1).Switching Latest Archlinux Official Repository"
+	text2="2).add blackarch Repository"
+	text3="3).Custom Arch Linux Archive Repository"
+	text4="0).Press 0 to exit"
+	text5="Options:"
+
+	text6="Custom Arch Linux Archive Repository"
+	text7="Enter dates, for example: 2018/03/25"
+
+case $LANG in
+	zh_TW* | zh_HK*)
+	text0="LMAE 套件庫切換"
+	text1="1).切換 Arch linux 官方最新套件庫"
+	text2="2).添加 blackarch"
+	text3="3).自訂 Arch Linux Archive 套件庫"
+	text4="0).按「0」退出"
+	text5="輸入選項:"
+
+	text6="自訂 Arch Linux Archive 套件庫"
+	text7="輸入日期, 範例: 2018/03/25"
+
+esac
+
+############################################################
+balckarch_key_fun(){
+KEY_CHECK=$(pacman -Q | grep blackarch-keyring)
+if [ "$KEY_CHECK" == "" ]; then
+    pacman -U --noconfirm https://www.blackarch.org/keyring/blackarch-keyring.pkg.tar.xz
+fi
+}
+
+############################################################
+edit_balckarch_fun(){
+sed -i '/blackarch/{N;d}' /etc/pacman.conf
+
+MIRROR='https://www.mirrorservice.org/sites/blackarch.org/blackarch'
+
+cat >> "/etc/pacman.conf" << EOF
+[blackarch]
+Server = $MIRROR/blackarch/os/\$arch
+EOF
+pacman -Sy
+}
+############################################################
+edit_ala_fun(){
+clear
+cat << ENTER
+
+  $text6
+  $text7
+
+ENTER
+
+read ALA
+[[ "$ALA" ]]
+if [ "$ALA" == "" ]; then
+	edit_ala_fun
+fi
+
+if [ ! -f "/etc/pacman.d/mirrorlist.gz" ]; then
+    gzip /etc/pacman.d/mirrorlist
+fi
+
+cat > "/etc/pacman.d/mirrorlist" << EOF
+Server = https://archive.archlinux.org/repos/$ALA/\$repo/os/\$arch
+EOF
+
+rm -rf /var/lib/pacman/sync/*
+pacman -Sy
+}
+############################################################
+official_fun(){
+sed -i '/blackarch/{N;d}' /etc/pacman.conf
+
+CHECK_REPO=$(cat /etc/pacman.d/mirrorlist | grep 'Arch Linux repository')
+
+if [ "$CHECK_REPO" == "" ]; then
+    if [ -f "/etc/pacman.d/mirrorlist.gz" ]; then
+        rm -rf /etc/pacman.d/mirrorlist
+        gzip -d /etc/pacman.d/mirrorlist.gz
+    else
+        REPO_DATE=$(date +%d)
+        DAY=$(expr $REPO_DATE - 1)
+        DATE=$(date "+%Y/%m/$DAY")
+
+        cat > "/etc/pacman.d/mirrorlist" << EOF
+Server = https://archive.archlinux.org/repos/$DATE/\$repo/os/\$arch
+EOF
+
+    fi
+fi
+
+rm -rf /var/lib/pacman/sync/*
+pacman -Sy
+}
+############################################################
+main_fun(){
+clear
+cat << ENTER
+
+  $text0
+
+  $text1
+  $text2
+  $text3
+  $text4
+  $text5
+
+ENTER
+
+read SWITCH
+[[ "$SWITCH" ]]
+
+## Latest Archlinux Official Repository
+if [ "$SWITCH" == "1" ]; then
+    official_fun
+    exit
+## blackarch Repository
+elif [ "$SWITCH" == "2" ]; then
+    balckarch_key_fun
+    edit_balckarch_fun
+    exit
+elif [ "$SWITCH" == "3" ]; then
+    edit_ala_fun
+    exit
+elif [ "$SWITCH" == "0" ]; then
+    exit
+else
+    main_fun
+fi
+}
+
+main_fun
+
