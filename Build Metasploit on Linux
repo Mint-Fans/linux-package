@@ -4,7 +4,7 @@ Build Metasploit on Linux (debian/kali)
 Install Metasploit
 =======================================
 sudo apt-get install libxslt1-dev libxml2-dev postgresql ruby
-sudo apt-get install libsqlite3-dev ruby-pkg-config libpq-dev ruby2.3-dev libpcap0.8-dev
+sudo apt-get install g++ libsqlite3-dev ruby-pkg-config libpq-dev ruby-dev libpcap0.8-dev
 
 sudo -s
 cd /opt
