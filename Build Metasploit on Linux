@@ -31,9 +31,10 @@ ln -s /opt/metasploit/Rakefile /usr/local/bin/Rakefile
 
 MSFROOT=/opt/metasploit
 GEMFILE=$MSFROOT/Gemfile
+RUBY_VER=$(ls /usr/lib/ruby | grep [0-9])
 echo "export BUNDLE_GEMFILE=$GEMFILE" >> /etc/profile
 echo "export MSF_DATABASE_CONFIG=$MSFROOT/config/database.yml" >> /etc/profile
-echo "export GEM_PATH=$MSFROOT/vendor/ruby/2.5.0" >> /etc/profile
+echo "export GEM_PATH=$MSFROOT/vendor/ruby/$RUBY_VER" >> /etc/profile
 
 =======================================
 Initialization
