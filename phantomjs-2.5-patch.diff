@@ -1,0 +1,282 @@
+diff -uNr phantomjs.orig/build.py phantomjs/build.py
+--- phantomjs.orig/build.py	2018-07-14 10:02:52.990906938 +0800
++++ phantomjs/build.py	2018-07-14 11:58:15.597166267 +0800
+@@ -81,7 +81,7 @@
+     exe = "qmake"
+     if platform.system() == "Windows":
+         exe += ".exe"
+-    return os.path.abspath("src/qt/qtbase/bin/" + exe)
++    return os.path.abspath("/usr/bin/" + exe)
+ 
+ # returns paths for 3rd party libraries (Windows only)
+ def findThirdPartyDeps():
+diff -uNr phantomjs.orig/.gitignore phantomjs/.gitignore
+--- phantomjs.orig/.gitignore	2018-07-14 10:02:52.990906938 +0800
++++ phantomjs/.gitignore	2018-07-14 11:59:07.471013323 +0800
+@@ -11,11 +11,6 @@
+ *.swp
+ *.pyc
+ *.a
+-/debian/*.debhelper
+-/debian/files
+-/debian/*.log
+-/debian/*.substvars
+-/debian/*/
+ /deploy/qt-*.tar.gz
+ /deploy/Qt-*
+ /symbols
+diff -uNr phantomjs.orig/src/config.cpp phantomjs/src/config.cpp
+--- phantomjs.orig/src/config.cpp	2018-07-14 10:02:52.994906485 +0800
++++ phantomjs/src/config.cpp	2018-07-14 11:46:22.581277716 +0800
+@@ -177,7 +177,7 @@
+     // Add this object to the global scope
+     webPage.mainFrame()->addToJavaScriptWindowObject("config", this);
+     // Apply the JSON config settings to this very object
+-    webPage.mainFrame()->evaluateJavaScript(configurator.arg(jsonConfig), QString());
++    webPage.mainFrame()->evaluateJavaScript(configurator.arg(jsonConfig));
+ }
+ 
+ QString Config::helpText() const
+diff -uNr phantomjs.orig/src/consts.h phantomjs/src/consts.h
+--- phantomjs.orig/src/consts.h	2018-07-14 10:02:52.994906485 +0800
++++ phantomjs/src/consts.h	2018-07-14 11:53:30.415394374 +0800
+@@ -64,7 +64,6 @@
+ #define PAGE_SETTINGS_PASSWORD              "password"
+ #define PAGE_SETTINGS_MAX_AUTH_ATTEMPTS     "maxAuthAttempts"
+ #define PAGE_SETTINGS_RESOURCE_TIMEOUT      "resourceTimeout"
+-#define PAGE_SETTINGS_WEB_SECURITY_ENABLED  "webSecurityEnabled"
+ #define PAGE_SETTINGS_JS_CAN_OPEN_WINDOWS   "javascriptCanOpenWindows"
+ #define PAGE_SETTINGS_JS_CAN_CLOSE_WINDOWS  "javascriptCanCloseWindows"
+ #define PAGE_SETTINGS_DPI                   "dpi"
+diff -uNr phantomjs.orig/src/ghostdriver/ghostdriver.qrc phantomjs/src/ghostdriver/ghostdriver.qrc
+--- phantomjs.orig/src/ghostdriver/ghostdriver.qrc	2018-07-14 10:02:52.998906031 +0800
++++ phantomjs/src/ghostdriver/ghostdriver.qrc	2018-07-14 11:52:01.545701417 +0800
+@@ -18,53 +18,6 @@
+         <file>third_party/har.js</file>
+         <file>third_party/parseuri.js</file>
+         <file>third_party/uuid.js</file>
+-        <file>third_party/webdriver-atoms/active_element.js</file>
+-        <file>third_party/webdriver-atoms/clear.js</file>
+-        <file>third_party/webdriver-atoms/clear_local_storage.js</file>
+-        <file>third_party/webdriver-atoms/clear_session_storage.js</file>
+-        <file>third_party/webdriver-atoms/click.js</file>
+-        <file>third_party/webdriver-atoms/double_click.js</file>
+-        <file>third_party/webdriver-atoms/drag.js</file>
+-        <file>third_party/webdriver-atoms/execute_async_script.js</file>
+-        <file>third_party/webdriver-atoms/execute_script.js</file>
+-        <file>third_party/webdriver-atoms/execute_sql.js</file>
+-        <file>third_party/webdriver-atoms/find_element.js</file>
+-        <file>third_party/webdriver-atoms/find_elements.js</file>
+-        <file>third_party/webdriver-atoms/focus_on_element.js</file>
+-        <file>third_party/webdriver-atoms/get_appcache_status.js</file>
+-        <file>third_party/webdriver-atoms/get_attribute.js</file>
+-        <file>third_party/webdriver-atoms/get_attribute_value.js</file>
+-        <file>third_party/webdriver-atoms/get_current_position.js</file>
+-        <file>third_party/webdriver-atoms/get_local_storage_item.js</file>
+-        <file>third_party/webdriver-atoms/get_local_storage_keys.js</file>
+-        <file>third_party/webdriver-atoms/get_local_storage_size.js</file>
+-        <file>third_party/webdriver-atoms/get_location.js</file>
+-        <file>third_party/webdriver-atoms/get_location_in_view.js</file>
+-        <file>third_party/webdriver-atoms/get_session_storage_item.js</file>
+-        <file>third_party/webdriver-atoms/get_session_storage_keys.js</file>
+-        <file>third_party/webdriver-atoms/get_session_storage_size.js</file>
+-        <file>third_party/webdriver-atoms/get_size.js</file>
+-        <file>third_party/webdriver-atoms/get_text.js</file>
+-        <file>third_party/webdriver-atoms/get_value_of_css_property.js</file>
+-        <file>third_party/webdriver-atoms/is_displayed.js</file>
+-        <file>third_party/webdriver-atoms/is_enabled.js</file>
+-        <file>third_party/webdriver-atoms/is_online.js</file>
+-        <file>third_party/webdriver-atoms/is_selected.js</file>
+-        <file>third_party/webdriver-atoms/lastupdate</file>
+-        <file>third_party/webdriver-atoms/move_mouse.js</file>
+-        <file>third_party/webdriver-atoms/pinch.js</file>
+-        <file>third_party/webdriver-atoms/remove_local_storage_item.js</file>
+-        <file>third_party/webdriver-atoms/remove_session_storage_item.js</file>
+-        <file>third_party/webdriver-atoms/right_click.js</file>
+-        <file>third_party/webdriver-atoms/rotate.js</file>
+-        <file>third_party/webdriver-atoms/scroll_into_view.js</file>
+-        <file>third_party/webdriver-atoms/scroll_mouse.js</file>
+-        <file>third_party/webdriver-atoms/set_local_storage_item.js</file>
+-        <file>third_party/webdriver-atoms/set_session_storage_item.js</file>
+-        <file>third_party/webdriver-atoms/submit.js</file>
+-        <file>third_party/webdriver-atoms/swipe.js</file>
+-        <file>third_party/webdriver-atoms/tap.js</file>
+-        <file>third_party/webdriver-atoms/type.js</file>
+         <file>webdriver_atoms.js</file>
+         <file>webelementlocator.js</file>
+     </qresource>
+diff -uNr phantomjs.orig/src/phantom.cpp phantomjs/src/phantom.cpp
+--- phantomjs.orig/src/phantom.cpp	2018-07-14 10:02:53.022903310 +0800
++++ phantomjs/src/phantom.cpp	2018-07-14 11:54:11.172857820 +0800
+@@ -140,7 +140,6 @@
+     m_defaultPageSettings[PAGE_SETTINGS_XSS_AUDITING] = QVariant::fromValue(false);
+     m_defaultPageSettings[PAGE_SETTINGS_USER_AGENT] = QVariant::fromValue(m_page->userAgent());
+     m_defaultPageSettings[PAGE_SETTINGS_LOCAL_ACCESS_REMOTE] = QVariant::fromValue(m_config.localToRemoteUrlAccessEnabled());
+-    m_defaultPageSettings[PAGE_SETTINGS_WEB_SECURITY_ENABLED] = QVariant::fromValue(m_config.webSecurityEnabled());
+     m_defaultPageSettings[PAGE_SETTINGS_JS_CAN_OPEN_WINDOWS] = QVariant::fromValue(m_config.javascriptCanOpenWindows());
+     m_defaultPageSettings[PAGE_SETTINGS_JS_CAN_CLOSE_WINDOWS] = QVariant::fromValue(m_config.javascriptCanCloseWindows());
+     m_defaultPageSettings[PAGE_SETTINGS_DPI] = QVariant::fromValue(m_defaultDpi);
+@@ -386,7 +385,7 @@
+         "require.cache['" + filename + "'].exports," +
+         "require.cache['" + filename + "']" +
+         "));";
+-    m_page->mainFrame()->evaluateJavaScript(scriptSource, QString(JAVASCRIPT_SOURCE_PLATFORM_URL).arg(QFileInfo(filename).fileName()));
++    m_page->mainFrame()->evaluateJavaScript(scriptSource);
+ }
+ 
+ bool Phantom::injectJs(const QString& jsFilePath)
+@@ -483,8 +482,7 @@
+ 
+     // Bootstrap the PhantomJS scope
+     m_page->mainFrame()->evaluateJavaScript(
+-        Utils::readResourceFileUtf8(":/bootstrap.js"),
+-        QString(JAVASCRIPT_SOURCE_PLATFORM_URL).arg("bootstrap.js")
++        Utils::readResourceFileUtf8(":/bootstrap.js")
+     );
+ }
+ 
+diff -uNr phantomjs.orig/src/phantomjs.pro phantomjs/src/phantomjs.pro
+--- phantomjs.orig/src/phantomjs.pro	2018-07-14 10:02:53.022903310 +0800
++++ phantomjs/src/phantomjs.pro	2018-07-14 11:59:52.592118941 +0800
+@@ -1,11 +1,11 @@
+-
+-if(!equals(QT_MAJOR_VERSION, 5)|!equals(QT_MINOR_VERSION, 5)) {
+-    error("This program can only be compiled with Qt 5.5.x.")
+-}
++## https://wiki.debian.org/Hardening#Notes_for_packages_using_QMake
++QMAKE_CFLAGS   *= $$(CFLAGS) $$(CPPFLAGS)
++QMAKE_CXXFLAGS *= $$(CXXFLAGS) $$(CPPFLAGS)
++QMAKE_LFLAGS   *= $$(LDFLAGS)
+ 
+ TEMPLATE = app
+ TARGET = phantomjs
+-QT += network webkitwidgets
++QT += network webkitwidgets printsupport
+ CONFIG += console
+ 
+ DESTDIR = ../bin
+diff -uNr phantomjs.orig/src/repl.cpp phantomjs/src/repl.cpp
+--- phantomjs.orig/src/repl.cpp	2018-07-14 10:02:53.022903310 +0800
++++ phantomjs/src/repl.cpp	2018-07-14 11:43:44.032849139 +0800
+@@ -147,7 +147,7 @@
+     linenoiseSetCompletionCallback(REPL::offerCompletion);
+ 
+     // Inject REPL utility functions
+-    m_webframe->evaluateJavaScript(Utils::readResourceFileUtf8(":/repl.js"), QString(JAVASCRIPT_SOURCE_PLATFORM_URL).arg("repl.js"));
++    m_webframe->evaluateJavaScript(Utils::readResourceFileUtf8(":/repl.js"));
+ 
+     // Add self to JavaScript world
+     m_webframe->addToJavaScriptWindowObject("_repl", this);
+@@ -184,8 +184,7 @@
+     QStringList completions = REPL::getInstance()->m_webframe->evaluateJavaScript(
+                                   QString(JS_RETURN_POSSIBLE_COMPLETIONS).arg(
+                                       toInspect,
+-                                      toComplete),
+-                                  QString()
++                                      toComplete)
+                               ).toStringList();
+ 
+     foreach(QString c, completions) {
+@@ -210,7 +209,7 @@
+             // Send the user input to the main Phantom frame for evaluation
+             m_webframe->evaluateJavaScript(
+                 QString(JS_EVAL_USER_INPUT).arg(
+-                    QString(userInput).replace('"', "\\\"")), QString("phantomjs://repl-input"));
++                    QString(userInput).replace('"', "\\\"")));
+ 
+             // Save command in the REPL history
+             linenoiseHistoryAdd(userInput);
+diff -uNr phantomjs.orig/src/utils.cpp phantomjs/src/utils.cpp
+--- phantomjs.orig/src/utils.cpp	2018-07-14 10:02:53.022903310 +0800
++++ phantomjs/src/utils.cpp	2018-07-14 11:40:45.717151486 +0800
+@@ -132,7 +132,7 @@
+         return false;
+     }
+     // Execute JS code in the context of the document
+-    targetFrame->evaluateJavaScript(scriptBody, QString(JAVASCRIPT_SOURCE_CODE_URL).arg(QFileInfo(scriptPath).fileName()));
++    targetFrame->evaluateJavaScript(scriptBody);
+     return true;
+ }
+ 
+@@ -147,10 +147,10 @@
+     QString scriptBody = jsFromScriptFile(scriptPath, jsFileLanguage, jsFileEnc);
+ 
+     scriptBody = QString("function __run() {\n%1\n}").arg(scriptBody);
+-    targetFrame->evaluateJavaScript(scriptBody, QString(JAVASCRIPT_SOURCE_CODE_URL).arg(QFileInfo(scriptPath).fileName()));
++    targetFrame->evaluateJavaScript(scriptBody);
+ 
+     if (autorun) {
+-        targetFrame->evaluateJavaScript("__run()", QString());
++        targetFrame->evaluateJavaScript("__run()");
+     }
+ 
+     return true;
+diff -uNr phantomjs.orig/src/webpage.cpp phantomjs/src/webpage.cpp
+--- phantomjs.orig/src/webpage.cpp	2018-07-14 10:02:53.022903310 +0800
++++ phantomjs/src/webpage.cpp	2018-07-14 11:55:11.233526600 +0800
+@@ -367,7 +367,6 @@
+     // security context for Document instance. Setting up it later will not cause any effect
+     // see <qt\src\3rdparty\webkit\Source\WebCore\dom\Document.cpp:4468>
+     QWebSettings* settings = m_customWebPage->settings();
+-    settings->setAttribute(QWebSettings::WebSecurityEnabled, phantomCfg->webSecurityEnabled());
+ 
+     m_mainFrame = m_customWebPage->mainFrame();
+     m_currentFrame = m_mainFrame;
+@@ -634,7 +633,6 @@
+     opt->setAttribute(QWebSettings::JavascriptEnabled, def[PAGE_SETTINGS_JS_ENABLED].toBool());
+     opt->setAttribute(QWebSettings::XSSAuditingEnabled, def[PAGE_SETTINGS_XSS_AUDITING].toBool());
+     opt->setAttribute(QWebSettings::LocalContentCanAccessRemoteUrls, def[PAGE_SETTINGS_LOCAL_ACCESS_REMOTE].toBool());
+-    opt->setAttribute(QWebSettings::WebSecurityEnabled, def[PAGE_SETTINGS_WEB_SECURITY_ENABLED].toBool());
+     opt->setAttribute(QWebSettings::JavascriptCanOpenWindows, def[PAGE_SETTINGS_JS_CAN_OPEN_WINDOWS].toBool());
+     opt->setAttribute(QWebSettings::JavascriptCanCloseWindows, def[PAGE_SETTINGS_JS_CAN_CLOSE_WINDOWS].toBool());
+ 
+@@ -769,8 +767,8 @@
+     qDebug() << "WebPage - evaluateJavaScript" << function;
+ 
+     evalResult = m_currentFrame->evaluateJavaScript(
+-                     function,                                   //< function evaluated
+-                     QString("phantomjs://webpage.evaluate()")); //< reference source file
++                     function                                   //< function evaluated
++                     );
+ 
+     qDebug() << "WebPage - evaluateJavaScript result" << evalResult;
+ 
+@@ -942,7 +940,7 @@
+     }
+ 
+     if (networkOp == QNetworkAccessManager::UnknownOperation) {
+-        m_mainFrame->evaluateJavaScript("console.error('Unknown network operation: " + operation + "');", QString());
++        m_mainFrame->evaluateJavaScript("console.error('Unknown network operation: " + operation + "');");
+         return;
+     }
+ 
+@@ -1350,7 +1348,7 @@
+             }
+         }
+     }
+-    frame->evaluateJavaScript("console.error('Bad header callback given, use phantom.callback);", QString());
++    frame->evaluateJavaScript("console.error('Bad header callback given, use phantom.callback);");
+     return QString();
+ }
+ 
+@@ -1389,7 +1387,7 @@
+ 
+ void WebPage::_appendScriptElement(const QString& scriptUrl)
+ {
+-    m_currentFrame->evaluateJavaScript(QString(JS_APPEND_SCRIPT_ELEMENT).arg(scriptUrl), scriptUrl);
++    m_currentFrame->evaluateJavaScript(QString(JS_APPEND_SCRIPT_ELEMENT).arg(scriptUrl));
+ }
+ 
+ QObject* WebPage::_getGenericCallback()
+diff -uNr phantomjs.orig/src/webpage.h phantomjs/src/webpage.h
+--- phantomjs.orig/src/webpage.h	2018-07-14 10:02:53.022903310 +0800
++++ phantomjs/src/webpage.h	2018-07-14 11:57:35.328661341 +0800
+@@ -46,7 +46,7 @@
+ class QWebInspector;
+ class Phantom;
+ 
+-class WebPage : public QObject, public QWebFrame::PrintCallback
++class WebPage : public QObject
+ {
+     Q_OBJECT
+     Q_PROPERTY(QString title READ title)
