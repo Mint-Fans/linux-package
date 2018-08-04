@@ -1,0 +1,19 @@
+####################################################
+### Build leafpad on Solaris 11 / Openindiana
+####################################################
+sudo pkg install developer/gcc-3 gnu-binutils intltool gettext pkg-config
+
+wget http://http.debian.net/debian/pool/main/l/leafpad/leafpad_0.8.18.1.orig.tar.gz
+tar zxvf leafpad_0.8.18.1.orig.tar.gz
+cd leafpad-0.8.18.1
+
+# patch for solaris 11
+/usr/gnu/bin/sed -i '4117,4119d' configure
+/usr/gnu/bin/sed -i '4111,4113d' configure
+
+export PATH=$PATH:/usr/gcc/3.4/bin
+./configure --prefix=/usr
+make
+sudo make install
+
+
