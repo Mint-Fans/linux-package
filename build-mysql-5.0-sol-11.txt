@@ -48,9 +48,9 @@ export LDFLAGS="-L/usr/lib/ -L/usr/local/lib -L/usr/local/BerkeleyDB.3.3/lib/"
 export CPPFLAGS="$CFLAGS -O3 -fomit-frame-pointer-felide-constructors"
 export CXXFLAGS=$CFLAGS
 
-# mysql 5.0.51 'delete mutex_exit' patch for solaris 11
-/usr/gnu/bin/sed -i '119,127d' innobase/include/sync0sync.h
-/usr/gnu/bin/sed -i '186,224d' innobase/include/sync0sync.ic
+# delete 'mutex_exit' patch for solaris 11
+sudo cp /usr/include/synch.h /usr/include/synch.bak
+sudo sed -i '/mutex_exit/d' /usr/include/synch.h
 
 ./configure --prefix=/usr/local/mysql \
 --sysconfdir=/etc \
@@ -60,4 +60,7 @@ export CXXFLAGS=$CFLAGS
 
 make
 sudo make install
+
+sudo rm /usr/include/synch.h
+sudo mv /usr/include/synch.bak /usr/include/synch.h
 
