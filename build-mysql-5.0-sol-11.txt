@@ -1,0 +1,63 @@
+####################################################
+### Build Mysql 5.0.x on Solaris 11 / Openindiana
+####################################################
+Install Build Depends:
+sudo pkg install developer/gcc-3 gnu-binutils ncurses gd openssl
+
+# Openindiana
+export PATH=$PATH:/usr/gcc/3.4/bin
+# Solaris 11
+export PATH=$PATH:/usr/gcc/3.4/bin:/usr/gnu/bin
+
+export CFLAGS="-I/usr/include/"
+export LDFLAGS="-L/usr/lib/"
+export CPPFLAGS=$CFLAGS
+export CXXFLAGS=$CFLAGS
+
+# Build libiconv
+wget https://ftp.gnu.org/gnu/libiconv/libiconv-1.15.tar.gz
+tar zxvf libiconv-1.15.tar.gz
+cd libiconv-1.15
+./configure
+make
+sudo make install
+cd ..
+
+# Build BerkeleyDB
+wget http://ftp.icm.edu.pl/pub/unix/database/db/db-3.3.11.tar.gz
+tar zxvf db-3.3.11.tar.gz
+cd db-3.3.11/build_unix
+../dist/configure
+make
+sudo make library_install
+sudo ln -s /usr/local/BerkeleyDB.3.3/lib/libdb-3.3.so /usr/lib/libdb-3.3.so
+cd ../..
+
+# Build MySQL
+wget http://files.directadmin.com/services/all/mysql/mysql-5.0.51.tar.gz
+tar zxvf mysql-5.0.51.tar.gz
+cd mysql-5.0.51
+
+# Openindiana PATH
+export PATH=$PATH:/usr/gcc/3.4/bin
+# Solaris 11 PATH
+export PATH=$PATH:/usr/gcc/3.4/bin:/usr/gnu/bin
+
+export CFLAGS="-I/usr/include/ -I/usr/local/include/ -I/usr/local/BerkeleyDB.3.3/include/ -O3 -fomit-frame-pointer-DHAVE_CURSES_H"
+export LDFLAGS="-L/usr/lib/ -L/usr/local/lib -L/usr/local/BerkeleyDB.3.3/lib/"
+export CPPFLAGS="$CFLAGS -O3 -fomit-frame-pointer-felide-constructors"
+export CXXFLAGS=$CFLAGS
+
+# mysql 5.0.51 'delete mutex_exit' patch for solaris 11
+/usr/gnu/bin/sed -i '119,127d' innobase/include/sync0sync.h
+/usr/gnu/bin/sed -i '186,224d' innobase/include/sync0sync.ic
+
+./configure --prefix=/usr/local/mysql \
+--sysconfdir=/etc \
+--localstatedir=/usr/local/mysql/data \
+--enable-assembler --with-mysqld-ldflags=-all-static \
+--with-charset=utf8 --with-extra-charsets=all
+
+make
+sudo make install
+
