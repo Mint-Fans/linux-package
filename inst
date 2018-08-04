@@ -2,5 +2,4 @@
 
 
 PKGNAME=$@
-
-pkg-get install $PKGNAME
+sudo pkg install $PKGNAME
