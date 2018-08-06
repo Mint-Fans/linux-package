@@ -107,6 +107,9 @@ pkginfo_fun
 
 pkgmk -o -r "$PKGDIR"
 
+/usr/gnu/bin/sed -i '/prototype/d' /var/spool/pkg/*/pkgmap
+rm /var/spool/pkg/*/reloc/prototype
+
 # Make Depend
 depend_fun
 # Make Install Script
