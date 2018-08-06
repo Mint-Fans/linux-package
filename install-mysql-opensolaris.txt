@@ -1,0 +1,18 @@
+#################################
+### Install MySQL on OpenSolaris
+#################################
+# Install Depends:
+wget http://download.nust.na/pub3/solaris/intel/5.8/db-3.3.11-sol8-intel-local.gz
+wget http://download.nust.na/pub3/solaris/intel/5.10/gcc-3.4.6-sol10-x86-local.gz
+gunzip *.gz
+sudo pkgadd -d db-3.3.11-sol8-intel-local all
+sudo pkgadd -d gcc-3.4.6-sol10-x86-local all
+sudo ln -s /usr/local/BerkeleyDB.3.3/lib/libdb-3.3.so /lib/libdb-3.3.so
+sudo ln -s /usr/local/lib/libgcc_s.so.1 /lib/libgcc_s.so.1
+sudo ln -s /usr/local/lib/libstdc++.so.6.0.3 /lib/libstdc++.so.6
+
+# Download MySQL 5.0.51
+https://mega.nz/#!uVsTSTjZ!FXlAyWhA6174qBd-Wtplx_JFHXNs8OCwFmehSBXP9UQ
+
+# Install MySQL
+sudo pkgadd -d mysql-5.0.51-sol10-x86-local all
