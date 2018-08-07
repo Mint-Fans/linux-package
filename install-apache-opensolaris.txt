@@ -1,0 +1,24 @@
+###################################
+### Install Apache on OpenSolaris
+###################################
+# 安裝 Apache 2.2
+sudo pkg install SUNWapch22
+
+# 設定 Apache ServerName
+指定網域或者IP，預設 127.0.0.1
+HOST="指定網域或IP"
+sudo sed -i 's/^ServerName.*/ServerName '"$HOST"'/g' /etc/apache2/2.2/httpd.conf
+
+# 啟動 Apache
+svcadm enable apache22
+
+# 停止 Apache
+svcadm disable apache22
+
+# 重啟 Apache
+svcadm restart apache22
+
+# 檢視 Apache 狀態
+svcs | grep -i apache
+
+網站根目錄: /var/apache2/2.2/htdocs/

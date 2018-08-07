@@ -1,0 +1,22 @@
+###################################
+### Install PHP on OpenSolaris
+###################################
+# Install PHP 5.2
+sudo pkg install SUNWphp52
+
+# Install PHP Module for Apache v2.2
+sudo pkg install SUNWapch22m-php52
+
+# restart apache
+svcadm restart apache22
+
+# test php
+cat > info.php << EOF
+<?php
+phpinfo();
+?>
+EOF
+
+sudo mv info.php /var/apache2/2.2/htdocs/
+
+xdg-open http://localhost/info.php
