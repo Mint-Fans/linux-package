@@ -1,0 +1,24 @@
+######################################
+### Install phpMyAdmin on OpenSolaris
+######################################
+# Install Depends:
+sudo pkg install SUNWphp52-mysql
+
+# Download
+wget --no-check-certificate https://files.phpmyadmin.net/phpMyAdmin/4.0.10.20/phpMyAdmin-4.0.10.20-all-languages.tar.gz
+
+# Install
+tar zxvf phpMyAdmin-4.0.10.20-all-languages.tar.gz
+sudo mv phpMyAdmin-4.0.10.20-all-languages /var/apache2/2.2/htdocs/phpmyadmin
+
+# Start Mysql
+sudo /etc/init.d/mysql.server start
+
+# Start Apache
+svcadm enable apache22
+
+# Setup phpMyAdmin
+xdg-open http://localhost/phpmyadmin/setup
+
+# Start phpMyAdmin
+xdg-open http://localhost/phpmyadmin
