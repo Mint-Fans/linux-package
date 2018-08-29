@@ -1,0 +1,294 @@
+###############################################
+### Build xfce 4.12 on OpenIndiana
+###############################################
+# for github source
+# sudo pkg install automake git autoconf
+# Build utils
+sudo pkg install gcc-5 gnu-make libtool
+# xfce4 depends
+sudo pkg install developer/build/pkg-config library/glib2 library/desktop/atk library/graphics/pixman library/desktop/pango library/desktop/gtk2 library/desktop/gtk3 text/gnu-gettext library/desktop/startup-notification system/library/dbus system/library/libdbus-glib text/intltool developer/documentation-tool/gtk-doc system/header/header-drm
+# xfce4 apps depends
+sudo pkg install library/desktop/vte-291 library/audio/taglib
+
+sudo mv /usr/bin/xgettext /usr/bin/xgettext-bsd
+sudo mv /usr/bin/msgfmt /usr/bin/msgfmt-bsd
+sudo ln -s /usr/gnu/bin/xgettext /usr/bin/xgettext
+sudo ln -s /usr/gnu/bin/msgfmt /usr/bin/msgfmt
+
+mkdir $HOME/xfce
+cd $HOME/xfce
+
+# xfce4-dev-tools
+wget http://archive.xfce.org/xfce/4.12/src/xfce4-dev-tools-4.12.0.tar.bz2
+tar jxvf xfce4-dev-tools-4.12.0.tar.bz2
+cd xfce4-dev-tools-4.12.0
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# libxfce4util
+wget http://archive.xfce.org/xfce/4.12/src/libxfce4util-4.12.1.tar.bz2
+tar jxvf libxfce4util-4.12.1.tar.bz2
+cd libxfce4util-4.12.1
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfconf
+wget http://archive.xfce.org/xfce/4.12/src/xfconf-4.12.0.tar.bz2
+tar jxvf xfconf-4.12.0.tar.bz2
+cd xfconf-4.12.0
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# libxfce4ui
+wget http://archive.xfce.org/xfce/4.12/src/libxfce4ui-4.12.0.tar.bz2
+tar jxvf libxfce4ui-4.12.0.tar.bz2
+cd libxfce4ui-4.12.0
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# exo-0.10.3.tar.bz2
+wget http://archive.xfce.org/xfce/4.12/src/exo-0.10.3.tar.bz2
+tar jxvf exo-0.10.3.tar.bz2
+cd exo-0.10.3
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# garcon
+wget http://archive.xfce.org/xfce/4.12/src/garcon-0.4.0.tar.bz2
+tar jxvf garcon-0.4.0.tar.bz2
+cd garcon-0.4.0
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-panel
+wget http://archive.xfce.org/xfce/4.12/src/xfce4-panel-4.12.0.tar.bz2
+tar jxvf xfce4-panel-4.12.0.tar.bz2
+cd xfce4-panel-4.12.0
+./configure --prefix=/usr --sysconfdir=/etc --enable-gtk3
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# Thunar
+wget http://archive.xfce.org/xfce/4.12/src/Thunar-1.6.6.tar.bz2
+tar jxvf Thunar-1.6.6.tar.bz2
+cd Thunar-1.6.6
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-settings
+wget http://archive.xfce.org/xfce/4.12/src/xfce4-settings-4.12.0.tar.bz2
+tar jxvf xfce4-settings-4.12.0.tar.bz2
+cd xfce4-settings-4.12.0
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-session
+wget http://archive.xfce.org/xfce/4.12/src/xfce4-session-4.12.0.tar.bz2
+tar jxvf xfce4-session-4.12.0.tar.bz2
+cd xfce4-session-4.12.0
+
+Solaris Patch:
+xfce4-session-4.12.0/scripts/xinitrc.in.in
+sed -i 's/xrdb -nocpp/xrdb/g' scripts/xinitrc.in.in
+sed -i 's/xrdb -nocpp/xrdb/g' scripts/xinitrc.in
+
+xfce4-session-4.12.0/scripts/xflock4
+add for lock_cmd in:
+    "light-locker-command --lock" \
+    "mate-screensaver-command --lock" \
+
+xfce4-session-4.12.0/xfsm-shutdown-helper/main.c
+add:
+#if defined(sun) || defined(__sun)
+//#define UP_BACKEND_SUSPEND_COMMAND	"/usr/bin/sys-suspend"
+//#define UP_BACKEND_HIBERNATE_COMMAND	"/usr/bin/sys-suspend"
+#define UP_BACKEND_SUSPEND_COMMAND	"/usr/lib/ConsoleKit/scripts/ck-system-suspend"
+#define UP_BACKEND_HIBERNATE_COMMAND	"/usr/lib/ConsoleKit/scripts/ck-system-hibernate"
+#endif
+
+./configure --prefix=/usr --sysconfdir=/etc --disable-legacy-sm
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfdesktop
+wget http://archive.xfce.org/xfce/4.12/src/xfdesktop-4.12.0.tar.bz2
+tar jxvf xfdesktop-4.12.0.tar.bz2
+cd xfdesktop-4.12.0
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfwm4
+wget http://archive.xfce.org/xfce/4.12/src/xfwm4-4.12.0.tar.bz2
+tar jxvf xfwm4-4.12.0.tar.bz2
+cd xfwm4-4.12.0
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# gtk-xfce-engine
+wget http://http.debian.net/debian/pool/main/g/gtk2-engines-xfce/gtk2-engines-xfce_3.2.0.orig.tar.bz2
+tar jxvf gtk2-engines-xfce_3.2.0.orig.tar.bz2
+cd gtk-xfce-engine-3.2.0
+
+Patch:
+sed -i '736,747d' gtk-3.0/Makefile.in
+sed -i '47,58d' gtk-3.0/Makefile.am
+
+./configure --prefix=/usr --sysconfdir=/etc --enable-gtk3
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-terminal
+wget https://archive.xfce.org/src/apps/xfce4-terminal/0.8/xfce4-terminal-0.8.3.tar.bz2
+tar jxvf xfce4-terminal-0.8.3.tar.bz2
+cd xfce4-terminal-0.8.3
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/gnutls-3
+export LDFLAGS="$LDFLAGS -L/usr/lib/gnutls-3"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/gnutls-3
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# tumbler
+wget http://archive.xfce.org/xfce/4.12/src/tumbler-0.1.31.tar.bz2
+tar jxvf tumbler-0.1.31.tar.bz2
+cd tumbler-0.1.31
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-appfinder
+wget http://archive.xfce.org/xfce/4.12/src/xfce4-appfinder-4.12.0.tar.bz2
+tar jxvf xfce4-appfinder-4.12.0.tar.bz2
+cd xfce4-appfinder-4.12.0
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-power-manager
+wget http://archive.xfce.org/xfce/4.12/src/xfce4-power-manager-1.4.3.tar.bz2
+tar jxvf xfce4-power-manager-1.4.3.tar.bz2
+cd xfce4-power-manager-1.4.3
+
+Solaris suspend/hibernate Patch:
+xfce4-power-manager-1.4.3/src/xfpm-pm-helper.c
+add:
+#if defined(sun) || defined(__sun)
+//#define UP_BACKEND_SUSPEND_COMMAND	"/usr/bin/sys-suspend"
+//#define UP_BACKEND_HIBERNATE_COMMAND	"/usr/bin/sys-suspend"
+#define UP_BACKEND_SUSPEND_COMMAND	"/usr/lib/ConsoleKit/scripts/ck-system-suspend"
+#define UP_BACKEND_HIBERNATE_COMMAND	"/usr/lib/ConsoleKit/scripts/ck-system-hibernate"
+#endif
+
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-taskmanager
+wget https://archive.xfce.org/src/apps/xfce4-taskmanager/1.2/xfce4-taskmanager-1.2.1.tar.bz2
+tar jxvf xfce4-taskmanager-1.2.1.tar.bz2
+cd xfce4-taskmanager-1.2.1
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-screenshooter
+wget https://archive.xfce.org/src/apps/xfce4-screenshooter/1.8/xfce4-screenshooter-1.8.2.tar.bz2
+tar jxvf xfce4-screenshooter-1.8.2.tar.bz2
+cd xfce4-screenshooter-1.8.2
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-notifyd
+wget https://archive.xfce.org/src/apps/xfce4-notifyd/0.2/xfce4-notifyd-0.2.4.tar.bz2
+tar jxvf xfce4-notifyd-0.2.4.tar.bz2
+cd xfce4-notifyd-0.2.4
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# thunar-archive-plugin
+wget https://archive.xfce.org/src/thunar-plugins/thunar-archive-plugin/0.3/thunar-archive-plugin-0.3.1.tar.bz2
+tar jxvf thunar-archive-plugin-0.3.1.tar.bz2
+cd thunar-archive-plugin-0.3.1
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# thunar-media-tags-plugin-0.2.1
+wget https://archive.xfce.org/src/thunar-plugins/thunar-media-tags-plugin/0.2/thunar-media-tags-plugin-0.2.1.tar.bz2
+tar jxvf thunar-media-tags-plugin-0.2.1.tar.bz2
+cd thunar-media-tags-plugin-0.2.1
+./configure --prefix=/usr --sysconfdir=/etc
+gmake
+gmake install DESTDIR=$HOME/Build/$(basename $(pwd))
+sudo gmake install
+cd ..
+
+# xfce4-whiskermenu-plugin
+wget https://archive.xfce.org/src/panel-plugins/xfce4-whiskermenu-plugin/1.7/xfce4-whiskermenu-plugin-1.7.5.tar.bz2
+tar jxvf xfce4-whiskermenu-plugin-1.7.5.tar.bz2
+cd xfce4-whiskermenu-plugin-1.7.5
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DENABLE_AS_NEEDED=OFF -DENABLE_LINKER_OPTIMIZED_HASH_TABLES=OFF
+gmake
+gmake install DESTDIR=$HOME/Build/xfce4-whiskermenu-plugin-1.7.5
+sudo gmake install
+cd ..
+
+sudo rm /usr/bin/xgettext
+sudo rm /usr/bin/msgfmt
+sudo mv /usr/bin/xgettext-bsd /usr/bin/xgettext
+sudo mv /usr/bin/msgfmt-bsd /usr/bin/msgfmt
