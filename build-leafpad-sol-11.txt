@@ -1,6 +1,9 @@
 ####################################################
-### Build leafpad on Solaris 11 / Openindiana
+### Build leafpad on Solaris
 ####################################################
+# OpenSolaris 2010 svn 134
+sudo pkg install developer/gcc-3 gnu-binutils developer/gnome/gettext
+# Solaris 11 / Openindiana
 sudo pkg install developer/gcc-3 gnu-binutils intltool gettext pkg-config
 
 wget http://http.debian.net/debian/pool/main/l/leafpad/leafpad_0.8.18.1.orig.tar.gz
