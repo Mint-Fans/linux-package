@@ -2,9 +2,9 @@
 ### Build leafpad on Solaris
 ####################################################
 # OpenSolaris 0906 svn 111
-sudo pkg install SUNWgcc SUNWgnome-common-devel SUNWgnu-gettext
+sudo pkg install SUNWgcc SUNWgtk2 SUNWgnome-common-devel SUNWgnu-gettext
 # OpenSolaris 2010 svn 134
-sudo pkg install developer/gcc-3 gnu-binutils developer/gnome/gettext text/gnu-gettext
+sudo pkg install developer/gcc-3 library/desktop/gtk2 gnu-binutils developer/gnome/gettext text/gnu-gettext
 # Solaris 11 / Openindiana
 sudo pkg install developer/gcc-3 gnu-binutils intltool gettext pkg-config
 
