@@ -1,5 +1,4 @@
 #!/bin/bash
 
 
-PKGNAME=$@
-sudo pkg install $PKGNAME
+sudo pkg install $@
