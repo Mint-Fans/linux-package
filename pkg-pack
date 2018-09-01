@@ -112,7 +112,16 @@ chown -R root:sys var
 chown -R root:bin usr/bin
 chown -R root:bin usr/sbin
 chown -R root:bin usr/lib
+chown -R root:root usr/local
 chown -R root:sys usr/share
+chown -R root:bin opt/bin
+chown -R root:bin opt/lib
+chown -R root:bin opt/sbin
+chown -R root:sys opt/share
+chown -R root:bin usr/local/bin
+chown -R root:bin usr/local/sbin
+chown -R root:bin usr/local/lib
+chown -R root:sys usr/local/share
 
 # create prototype
 find . -print | pkgproto > prototype
