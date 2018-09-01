@@ -1,0 +1,31 @@
+#!/bin/bash
+
+
+#####################################
+pkgupk_fun(){
+clear
+echo -e ""
+echo -e "    Solaris PKG Unpack"
+echo -e ""
+echo -e "    Drag and Drop the PKG Here"
+echo -e ""
+read PKGFILE
+[[ "$PKGFILE" ]]
+
+PKG_PATH=$(echo $PKGFILE | sed s/"'"//g)
+
+if [ "$PKG_PATH" == "" ]; then
+    echo -e "   The PKGFILE is not entered"
+    exit
+else
+    mkdir -p $HOME/Documents/unpack
+    pkgtrans "$PKG_PATH" $HOME/Documents/unpack/ all
+    # echo -e "    PKG decompression is successful."
+fi
+
+}
+
+#####################################
+pkgupk_fun
+
+

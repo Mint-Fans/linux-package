@@ -1,0 +1,41 @@
+#!/bin/bash
+
+### Get Depends Packages List for Solaris
+if [ -f "/usr/bin/leafpad" ]; then
+    TXTEDITOR=/usr/bin/leafpad
+elif [ -f "/usr/bin/pluma" ]; then
+    TXTEDITOR=/usr/bin/pluma
+else
+    TXTEDITOR=/usr/bin/gedit
+fi
+
+BIN_PATH="$1"
+
+KERNEL_VER=$(uname -v)
+
+DEP_LIST=$(ldd $BIN_PATH | awk '{print $3}')
+
+for i in $DEP_LIST; do
+    if [ "$KERNEL_VER" == "snv_111b" ]; then
+        pkg search -l "$i" | sed '/INDEX/d' | awk '{print $4}' | sed 's/@.*//g' | sed 's/pkg:\///g' >> /tmp/list
+    else
+        pkg search -l -o pkg.name "$i" | sed '/PKG.NAME/d' >> /tmp/list
+    fi
+done
+
+BIN_NAME=$(basename $BIN_PATH)
+
+sort /tmp/list | uniq > $HOME/"$BIN_NAME"-depends-list.txt
+rm /tmp/list
+
+
+DEPENDS=$(cat $HOME/"$BIN_NAME"-depends-list.txt)
+
+for i in $DEPENDS; do
+    DEST=$(pkg info $i | grep Summary: | sed 's/.*Summary: //g')
+    NAME=$i
+    echo "R $NAME $DEST" >> $HOME/"$BIN_NAME"-depend
+done
+
+$TXTEDITOR $HOME/"$BIN_NAME"-depend
+

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ "$1" == "-l" ]; then
+    pkg list $2
+elif [ "$1" == "-s" ]; then
+    pkg search $2
+elif [ "$1" == "-i" ]; then
+    pkg info $2
+elif [ "$1" == "-c" ]; then
+    pkg contents $2
+fi
