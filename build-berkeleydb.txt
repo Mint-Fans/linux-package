@@ -1,0 +1,27 @@
+#####################################
+### Build BerkeleyDB
+#####################################
+# OpenSolaris 0906 svn 111
+sudo pkg install SUNWgcc SUNWgmake
+# OpenSolaris 2010 svn 134
+sudo pkg install developer/gcc-3 developer/build/gnu-make
+# Solaris 11 / Openindiana
+sudo pkg install developer/gcc-3 developer/build/gnu-make
+
+# Link GCC libs for OpenSolaris
+sudo ln -s /usr/sfw/lib/libgcc_s.so.1 /usr/lib/libgcc_s.so.1
+sudo ln -s /usr/sfw/lib/libstdc++.so.6.0.3 /usr/lib/libstdc++.so.6
+
+wget http://ftp.icm.edu.pl/pub/unix/database/db/db-3.3.11.tar.gz
+tar zxvf db-3.3.11.tar.gz
+cd db-3.3.11/build_unix
+
+# Openindiana
+export PATH=$PATH:/usr/gcc/3.4/bin
+# Solaris 11
+export PATH=$PATH:/usr/sfw/bin
+
+../dist/configure
+gmake
+sudo gmake library_install
+sudo ln -s /usr/local/BerkeleyDB.3.3/lib/libdb-3.3.so /lib/libdb-3.3.so

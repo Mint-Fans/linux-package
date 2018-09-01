@@ -1,0 +1,79 @@
+####################################################
+### Build Mysql 5.0 on Openindiana / Solaris 11
+####################################################
+Install Build Depends:
+sudo pkg install developer/gcc-3 developer/build/gnu-make
+
+wget https://cdn.mysql.com/archives/mysql-5.0/mysql-5.0.86.tar.gz
+tar zxvf mysql-5.0.86.tar.gz
+cd mysql-5.0.86
+
+# Openindiana
+export PATH=$PATH:/usr/gcc/3.4/bin
+# Solaris 11
+export PATH=$PATH:/usr/sfw/bin
+
+export CPPFLAGS="$CFLAGS -O3 -fomit-frame-pointer-felide-constructors"
+export CXXFLAGS=$CFLAGS
+
+# delete 'mutex_exit' patch for Openindiana 2018.04
+sudo /usr/gnu/bin/sed -i 's/void mutex_exit/\/\/void mutex_exit/g' /usr/include/synch.h
+
+./configure --prefix=/usr/mysql/5.0 \
+--sysconfdir=/etc/mysql/5.0 \
+--localstatedir=/var/mysql/5.0/data \
+--enable-assembler --with-mysqld-ldflags=-all-static \
+--with-extra-charsets=all --with-gnu-ld
+
+gmake
+sudo gmake install
+
+# restore 'mutex_exit' patch for Openindiana 2018.04
+sudo /usr/gnu/bin/sed -i 's/\/\/void mutex_exit/void mutex_exit/g' /usr/include/synch.h
+
+#####################################
+### MySQL Settings
+#####################################
+# 配置
+sudo mkdir -p /etc/mysql/5.0
+sudo cp /usr/mysql/5.0/share/mysql/my-medium.cnf /etc/mysql/5.0/my.cnf
+sudo cp /usr/mysql/5.0/share/mysql/mysql.server /etc/init.d/
+
+# 設置權限
+sudo groupadd mysql
+sudo useradd -g mysql mysql
+sudo mkdir -p /var/mysql/5.0/data
+sudo chown -R mysql:mysql /var/mysql/5.0/data
+sudo chmod -R 700 /var/mysql/5.0/data
+
+# 設置編碼方式為UTF-8
+sudo /usr/gnu/bin/sed -i '/mysqld]/a skip-character-set-client-handshake' /etc/mysql/5.0/my.cnf
+sudo /usr/gnu/bin/sed -i '/mysqld]/a default-character-set=utf8' /etc/mysql/5.0/my.cnf
+
+# 初始化資料庫
+sudo /usr/mysql/5.0/bin/mysql_install_db --user=mysql
+
+# 啟動 MySQL
+sudo /etc/init.d/mysql.server start
+
+# 設置mysql的root密碼
+PASSWD='您的密碼'
+sudo /usr/mysql/5.0/bin/mysqladmin -u root -h $(hostname) password $PASSWD
+
+# 測試 MySQL Server
+sudo /usr/mysql/5.0/bin/mysqlshow -p
+Enter password: 輸入MySQL密碼
+
+# 連接 MySQL
+sudo /usr/mysql/5.0/bin/mysql -h $(hostname) -u root -p
+Enter password: 輸入MySQL密碼
+
+# 查看編碼方式
+show variables like 'character%'; 
+
+# 顯示資料庫
+show databases;
+
+# 退出
+quit;
+
