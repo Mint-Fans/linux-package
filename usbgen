@@ -1,0 +1,369 @@
+#!/usr/bin/ksh93
+
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+
+#
+# Generate USB image from iso
+#
+
+# Solaris needs /usr/xpg4/bin/ because the tools in /usr/bin are not
+# POSIX-conformant
+export PATH=/usr/xpg4/bin:/bin:/usr/bin:/usr/sbin
+
+# Make sure all math stuff runs in the "C" locale to avoid problems
+# with alternative # radix point representations (e.g. ',' instead of
+# '.' in de_DE.*-locales). This needs to be set _before_ any
+# floating-point constants are defined in this script).
+if [[ "${LC_ALL}" != "" ]] ; then
+    export \
+        LC_MONETARY="${LC_ALL}" \
+        LC_MESSAGES="${LC_ALL}" \
+        LC_COLLATE="${LC_ALL}" \
+        LC_CTYPE="${LC_ALL}"
+        unset LC_ALL
+fi
+export LC_NUMERIC=C
+
+#######################################################################
+# usage
+#	Print the usage message.
+# Input: none
+# Returns: none
+#
+#######################################################################
+function usage
+{
+	print -u2 "\nUsage: "
+	print -u2 "${progname} iso_file usb_image tmpdir"
+	print -u2 "iso_file  : The path to an existing iso file."
+	print -u2 "usb_image : The path to usb image to be created."
+	print -u2 "tmpdir    : Temporary directy used during usb image " \
+	    "creation.\n"
+
+	print -u2 "If tmpdir does not exist it will be created. If " \
+	    "it or subdirectories under tmpdir can not be created " \
+	    " an error is generated and this script exits."
+	
+}
+
+#######################################################################
+# get_filesize
+#	Get filesize for the file argv[2] and return it to the
+#	variable defined by argv[1].
+# Input:
+#	$1 - variable to return filesize in
+#	$2 - file to query
+#
+# Returns:
+#	$1 - variable to return filesize in
+#
+#	-1 if file does not exist
+#
+#	A non-zero exit code only for internal errors and success
+#	in all other cases
+#
+#######################################################################
+function get_filesize
+{
+	set -o errexit
+	nameref filesize_ret="$1"	# return filesize into this varable
+	typeset filename="$2"		# file to query
+	integer filesize=-1		# temporary integer for "read" below
+	typeset dummy # dummy string
+
+	if [[ -f "${filename}" ]] ; then
+		ls -lb "${filename}" | \
+		    grep "${filename}" | \
+		    read dummy dummy dummy dummy filesize dummy 
+	fi
+
+	(( filesize_ret=filesize ))
+	return 0
+}
+
+#
+#
+#######################################################################
+# cleanup
+#	This function attempst to clean up any resources this script
+#	could generate. Depending on where in the script this function
+#	is involked some resouces may not be there to cleanup, but
+#	that will not adversely effect anything.
+#
+#	This function is not defined using the function keyword
+#	to avoid an exit loop.
+#
+# Input: none
+# Returns: none
+#
+#######################################################################
+cleanup ()
+{
+
+	{
+		trap "" ERR INT
+		set +o errexit
+
+		# unmounting, and uninstalling the lofi'ed devices and
+		# cleanup temporary files.
+		IFS=''
+
+		typeset mount_output="$(mount)"
+
+		[[ "${mount_output}" == ~(E).*"${usb_path}".* ]] && \
+		    umount "${usb_path}"
+
+		[[ "${mount_output}" == ~(E).*"${iso_path}".* ]] && \
+		    umount "${iso_path}"
+
+		lofiadm "${usb_file}" && \
+		    lofiadm -d "${usb_file}"
+
+		lofiadm "${iso_file}"  && \
+		    lofiadm -d "${iso_file}"
+
+		if [[ -d "${iso_path}" ]] ; then
+			rm -rf "${iso_path}"
+		fi
+
+		if [[ -d "${usb_path}" ]] ; then
+			rm -rf "${usb_path}"
+		fi
+
+		#
+		# If the tmpdir did not exist this script could
+		# have created it, so remove it here.
+		#
+		if ! ${tmpdir_existed} ; then
+			rm -rf "${tmpdir}"
+		fi
+	 } > /dev/null 2>&1
+
+}
+
+#######################################################################
+# error_handler
+#	The error_handler for this script. Will cleanup the usb image
+#	that could have been partially created. Then invoke cleanup
+#	to clean up any temporary resouces.
+#
+#	This function is not defined using the function keyword
+#	to avoid an exit loop.
+#
+# Input: none
+# Returns: none
+#
+#######################################################################
+error_handler ()
+{
+	trap "" ERR INT
+	set +o errexit
+
+	print -u2 "\nError:\n"
+	print -u2 -r -- "${progname}: $*"
+	cleanup
+
+	#
+	# If an error was encountered while attempting to create
+	# the new usb image file don't leave a possibley partially
+	# constructed one around.
+	#
+	if [[ -f "${usb_file}" ]] ; then
+		rm -rf "${usb_file}" > /dev/null 2>&1
+	fi
+
+	exit 1
+}
+
+# main
+#######################################################################
+# main
+#
+# Input:
+#	iso_file  : The path to an existing iso file.
+#	usb_image : The path to usb image to be created.
+#	tmpdir    : Temporary directroy used during usb image creation.
+#
+#	If tmpdir does not exist it will be created. If it can not be
+#	created an error is generated and this script exits.
+#
+#	This script must be run as root"
+#
+# Logic Flow:
+#	Set up error handling.
+#	Confirm input arguments.
+#	Create temporary directories.
+#	Mount up the existing ISO image file.
+#	Compute the size for the new USB image.
+#	Create and mount an empty new USB image.
+#	Copy the contents of the ISO file to the new USB image.
+#	Remove GRUB entries from the USB image which apply only to ISO.
+#	Set the file protections for the new USB image.
+#
+# Returns:
+#	1 on failure
+#	0 on success
+#
+#######################################################################
+builtin chmod
+builtin cp
+builtin mkdir
+builtin mv
+builtin rm
+
+typeset -r progname="$0"
+typeset -r iso_file="$1"
+typeset -r tmpdir="$3"
+typeset    tmpdir_existed=true
+typeset -r iso_path="${tmpdir}/iso"
+
+typeset -r usb_file="$2"
+typeset -r usb_path="${tmpdir}/usb"
+float      usb_size # need floating-point for the calculations below
+
+typeset isodev
+typeset devs
+typeset rdevs
+
+#
+# Confirm input arguments.
+#
+if [[ $(id) != ~(E).*uid=0\(root\).* ]]; then
+	print -u2 "Error:\nYou must run this script as root"
+	usage
+	exit 1
+fi
+
+if (( $# != 3 )) ; then
+	print -u2 "Error:\nImproper arguments"
+	usage
+	exit 1
+fi
+
+#
+# Set up error handling.
+# Use set -o errexit to trap errors. However, where possible,
+# explicitly check command return status for errors.
+#
+trap "error_handler Error or interrupt encountered. Exiting" ERR INT
+set -o errexit
+
+#
+# Create temporary directories.
+#
+[[ ! -d $tmpdir ]] && tmpdir_existed=false
+mkdir -p "${iso_path}"
+if [[ ! -d "${iso_path}" ]] ; then
+	error_handler "Unable to create or access tmpdir ${iso_path}"
+fi
+
+mkdir -p "${usb_path}"
+if [[ ! -d "${usb_path}" ]] ; then
+	error_handler "Unable to create or access tmpdir ${usb_path}"
+fi
+
+#
+# Mount up the existing ISO image file.
+#
+isodev="$(lofiadm -a "${iso_file}")" || \
+    error_handler "Failed to lofiadm ${iso_file}"
+
+mount -F hsfs "${isodev}" "${iso_path}" || \
+    error_handler "Failed to mount ${isodev} on ${iso_path}"
+
+
+#
+# Compute the size for the new USB image.
+# Use ISO file size + 20% to account for smaller block size on UFS
+# and the log. Round to nearest kbyte plus 512
+#
+get_filesize "usb_size" "${iso_file}"
+if (( usb_size == -1 )) ; then
+	error_handler "Failed to get size of file ${iso_file}"
+fi
+(( usb_size=(int( (usb_size * 1.2) / 1024.) * 1024.) + 512 )) 
+
+#
+# Create and mount an empty new USB image.
+#
+mkfile -n ${usb_size} "${usb_file}" || \
+    error_handler "Failed to create file ${usb_file}"
+
+devs="$(lofiadm -a "${usb_file}")" || \
+	error_handler "Failed to lofiadm file ${usb_file}"
+
+#
+# Set rdevs by replacing lofi with rlofi in devs
+#
+rdevs="${devs/lofi/rlofi}"
+
+# newfs doesn't ask questions if stdin isn't a tty.
+newfs "${rdevs}" </dev/null || \
+	error_handler "Failed to construct the UFS file system ${rdevs}"
+
+mount -o nologging "${devs}" "${usb_path}" || \
+	error_handler "Failed to mount construct the UFS file system ${rdevs}"
+
+#
+# Copy the contents of the ISO file to the new USB image.
+#
+print "Copying ISO contents to USB image..."
+(cd "${iso_path}"; find . -print | cpio -pmudV "${usb_path}")
+
+# If we get an error hereforth in menu.lst modifications, proceed with a warning
+trap "" ERR INT
+set +o errexit
+
+#
+# Remove "Hard Disk" GRUB entries from the USB image as they apply only to ISO.
+#
+nawk '
+	BEGIN { inhard=0 }
+	/^title.*Hard Disk$/ { inhard=1 }
+	/^title/ { if (index($0,"Hard Disk") == 0) inhard=0 }
+	inhard == 0 {print}
+' ${usb_path}/boot/grub/menu.lst > ${usb_path}/boot/grub/menu2.lst
+if [[ $? == 0 ]] ; then
+	mv ${usb_path}/boot/grub/menu2.lst ${usb_path}/boot/grub/menu.lst
+else
+	print -u2 "Warning: Could not remove \"Hard Disk\" entry from boot menu"
+fi
+
+#
+# Set the file protections for the new USB image.
+#
+chmod 444 "${usb_file}"
+
+#
+# unmounting, and uninstalling the lofi'ed devices
+#
+cleanup
+
+printf "=== %s completed at %s\n\n" "$0" "$(date)"
+
+exit 0
+

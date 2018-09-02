@@ -1,0 +1,233 @@
+#!/usr/bin/bash
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+
+# Make sure we get the right versions of the commands
+PATH=/usr/sbin:/usr/bin
+
+if [ `/usr/bin/id -u` != "0" ] ; then
+	echo "Must be root to run."
+	exit 1
+fi
+
+if [ $# != 1 ]; then
+	echo "Usage: $0 <USB image path>"
+	exit 1
+fi
+
+img=$1
+if [ ! -r $img ] && [ ! -c $img ]; then
+	echo "Error: $img does not exist."
+	exit 1
+fi
+# Image size (in MB)
+ibytes=$(stat -Lc %s $img)
+isz=$((ibytes >> 20))
+
+#nawk script to output the details of plugged in USB drives
+i=0
+while read p l s m d; do
+	phys[$i]=$p
+	log[$i]=$l
+	size[$i]=$s
+	mult[$i]=$m
+	desc[$i]=$d
+	((i++))
+done < <(rmformat 2>/dev/null | nawk 'BEGIN {
+      FS = ":";
+      bustype = "USB";
+}
+/Logical Node/ {
+	lnode = 1;
+	node = $2;
+}
+/Physical Node/ {
+	physdev = $2
+}
+/Connected Device/ {
+	devname = $2
+}
+/Bus/ {
+	bus = $2;
+}
+/Size/ && lnode && bus ~ bustype {
+	size = $2;
+	printf("%s\t%s\t%s\t%s\n", physdev, node, size, devname);
+	lnode = 0;
+}')
+
+echo Found the following USB devices:
+j=0
+while [ $j -lt $i ]; do
+	echo "$j:	${log[$j]}	${size[$j]} ${mult[$j]}	${desc[$j]}"
+	((j++))
+done
+while read -p "Enter the number of your choice: " choice; do
+	if [ -z "${choice}" ]; then
+		continue
+	fi
+	if [ $choice -lt 0 ] || [ $choice -ge $i ]; then
+		echo "Invalid choice"
+		continue
+	fi
+	break
+done
+
+dev=${log[$choice]}
+s0cdev=${dev/p0/s0}
+s0bdev=${s0cdev/rdsk/dsk}
+if [ ! -b $s0bdev ] || [ ! -c $s0cdev ]; then
+	echo "Missing device nodes for $dev"
+	exit 1
+fi
+
+if [ ! -n "$dev" ]; then
+       echo INFORMATION: No USB selected/found.. Please plug in and try again
+       exit 1
+fi
+
+sz=${size[$choice]}
+multiplier=${mult[$choice]}
+
+case "$multiplier" in
+    GB) sz=$(( ${sz%%.*} * 1000 + ${sz##*.} * 100 ));;
+    MB) sz=${sz%%.*};;
+    *)  echo "Unknown capacity indicator: '$multiplier'"; exit 1;;
+esac
+
+while true;
+do
+       echo ""
+       echo WARNING: All data on your USB storage will be lost.
+       echo Are you sure you want to install to
+       echo -n ${desc[$choice]}, $sz MB at $dev ?
+       read -p "  (y/n) " yn
+       case $yn in
+       [yY]* )
+	       if [ ! -w $dev ]; then
+		   echo "Device $dev is not writable"
+		   echo "Installation aborted"
+		   exit 1
+	       fi
+	       if [ $sz -lt $isz ]; then
+		   echo "Image ($isz MB) is larger than the device ($sz MB)"
+		   echo "Installation aborted"
+		   exit 1
+	       fi
+               break ;;
+       [nN]* )
+       	       echo "Installation aborted"
+	       exit 0 ;;
+       * )
+       	       echo Invalid choice.. Exiting
+	       exit 0 ;;
+       esac
+done
+
+# Ensure we have things unmounted
+umount -f $s0bdev > /dev/null 2>&1
+
+# Install fdisk table with Solaris using entire disk, default VTOC
+fdisk -B $dev
+
+# Now create root partition.  We want to find number of cylinders in backup
+# partition from label created by fdisk -B and then generate root partition
+# using whole disk minus cylinder 1
+acyls=$(prtvtoc $dev | awk '/accessible/{print $2}')
+cyls=$((acyls - 1))
+format -e $dev >/dev/null <<EOF
+partition
+0
+root
+wm
+1
+${cyls}c
+label
+0
+y
+EOF
+
+# Copy image to USB.
+echo "Copying and verifying image to USB device"
+SECONDS=0
+# For now, copy in 16k chunks, 4MB at a time
+# NOTE: To avoid problems, cmb should be >= 1 and bs should evenly
+#       divide into csz.
+bs=$((16 << 10))
+cmb=4
+
+csz=$((cmb << 20))
+bcnt=$((csz / bs))
+icnt=$((isz / cmb))
+
+maxt=3
+i=0
+retries=0
+
+while [[ $i -le $icnt ]]; do
+    tries=0
+    pcnt="($((i * 100 / icnt))%)"
+    s=$((i * bcnt))
+
+    echo -ne "R $i / $icnt  $pcnt \\r"
+    imgsum=$(dd bs=$bs count=$bcnt conv=sync \
+	iseek=$s if=$img 2>/dev/null | md5sum)
+    [[ $? -ne 0 ]] && { echo Read from image failed. ; exit 1; }
+
+    while [[ $((tries++)) -lt $maxt ]]; do
+	echo -ne "W $i / $icnt  $pcnt \\r"
+	recs=$(dd bs=$bs count=$bcnt conv=sync iseek=$s oseek=$s \
+	    if=$img of=$s0cdev 2>&1 | awk -F+ '/records out/{print $1}')
+	[[ $? -ne 0 ]] && { echo Write to device failed. ; exit 1; }
+
+	echo -ne "V $i / $icnt  $pcnt \\r"
+	devsum=$(dd bs=$bs count=$recs iseek=$s if=$s0cdev 2>/dev/null | md5sum)
+	[[ $? -ne 0 ]] && { echo Read from device failed. ; exit 1; }
+
+	[[ "$imgsum" = "$devsum" ]] && break;
+    done
+    [[ $tries -gt 1 ]] && ((retries++))
+
+    if [[ $tries -gt $maxt ]]; then
+	echo "Verification failed after $maxt attempts on block $i"
+	exit 1
+    fi
+
+    ((i++))
+done
+
+speed="$((isz / SECONDS)).$((isz * 10 / SECONDS % 10))MB/s"
+echo "Finished $isz MB in $SECONDS seconds ($speed)"
+echo "$retries block(s) re-written due to verification failure"
+
+# Mount image
+mnt=/tmp/usb.$$
+mkdir $mnt
+mount -o ro $s0bdev $mnt
+# Install grub stages to usb
+echo Installing grub to USB device $s0cdev
+installgrub -mf $mnt/boot/grub/stage1 $mnt/boot/grub/stage2 $s0cdev > /dev/null
+umount $mnt
+rmdir $mnt
+echo "Completed copy to USB"
