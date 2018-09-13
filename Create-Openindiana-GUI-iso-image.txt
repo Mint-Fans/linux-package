@@ -415,7 +415,7 @@ cd $BA_BUILD
 find . | cpio -pmud $BA_BUILD64
 
 cd $BA_BUILD64
-find kernel platform -type f -print | grep -v conf$ | grep -v /amd64/ | xargs rm -f
+find kernel platform -type f -print | /usr/xpg4/bin/grep -v conf$ | /usr/xpg4/bin/grep -v /amd64/ | xargs rm -f
 
 ## Creating ufs filesystem
 BA_SIZE=$(gdu -sb $BA_BUILD64 | awk '{print $1}')
