@@ -1,7 +1,7 @@
 ################################################################
 ### Installing the Packages
 ################################################################
-PKG_IMG_PATH=/media/mint/DATA/rootfs
+PKG_IMG_PATH=/media/mint/DATA/build/pkg_image
 BA_BUILD=/media/mint/DATA/build/boot_archive
 BA_BUILD64=/media/mint/DATA/build/boot_archive-amd64
 BA_BUILD32=/media/mint/DATA/build/boot_archive-x86
