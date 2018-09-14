@@ -1,0 +1,532 @@
+################################################################
+### Installing the Packages
+################################################################
+PKG_IMG_PATH=/media/mint/DATA/build/pkg_image
+BA_BUILD=/media/mint/DATA/build/boot_archive
+BA_BUILD64=/media/mint/DATA/build/boot_archive-amd64
+BA_BUILD32=/media/mint/DATA/build/boot_archive-x86
+TMP_DIR=/media/mint/DATA/build/tmp
+MEDIA_DIR=/media/mint/DATA/build/media
+
+mkdir -p $PKG_IMG_PATH
+mkdir -p $BA_BUILD
+mkdir -p $BA_BUILD64
+mkdir -p $BA_BUILD32
+mkdir -p $TMP_DIR
+mkdir -p $MEDIA_DIR
+
+PKG_REPO=http://pkg.openindiana.org/legacy
+
+# Image Area Creation
+pkg image-create -F -p opensolaris.org=$PKG_REPO $PKG_IMG_PATH
+
+# Settings Repository
+pkg -R $PKG_IMG_PATH set-property flush-content-cache-on-success True
+
+# Verifying the contents of the IPS repository
+pkg -R $PKG_IMG_PATH list -a entire SUNWcsd SUNWcs slim_install SUNWslim-utils
+
+# Installing the Designated Packages
+pkg -R $PKG_IMG_PATH install --no-index entire
+pkg -R $PKG_IMG_PATH install --no-index SUNWcsd
+pkg -R $PKG_IMG_PATH install --no-index SUNWcs
+pkg -R $PKG_IMG_PATH install --no-index slim_install
+pkg -R $PKG_IMG_PATH install --no-index SUNWslim-utils
+
+# Uninstalling the Designated Packages
+pkg -R $PKG_IMG_PATH uninstall --no-index slim_install
+
+# Setting post-install preferred publisher
+pkg -R $PKG_IMG_PATH set-publisher -P -O $PKG_REPO --no-refresh opensolaris.org
+pkg -R $PKG_IMG_PATH purge-history
+
+# Create image_info
+cd $PKG_IMG_PATH
+python > /dev/null << EOF
+from osol_install.install_utils import dir_size
+image_size = int(round((dir_size(".") / 1024), 0))
+image_file = open(".image_info", "w+")
+image_file.write("IMAGE_SIZE=" + str(image_size) + "\n")
+image_file.close()
+EOF
+
+################################################################
+### Settings Root Password
+################################################################
+# root_passwd_text = opensolaris
+cd $PKG_IMG_PATH
+python > /dev/null << EOF
+from osol_install.install_utils import encrypt_password
+from pkg.cfgfiles import PasswordFile
+root_passwd_text = "opensolaris"
+pkg_img_path = "."
+encrypted_root_passwd = encrypt_password(root_passwd_text, alt_root=pkg_img_path)
+pfile = PasswordFile(pkg_img_path)
+root_entry = pfile.getuser("root")
+root_entry["password"] = encrypted_root_passwd
+pfile.setvalue(root_entry)
+pfile.writefile()
+EOF
+
+################################################################
+### Slim CD Image area Modifications
+################################################################
+cd $PKG_IMG_PATH
+mkdir -p $PKG_IMG_PATH/save/usr/share/dbus-1/services
+mkdir -p $PKG_IMG_PATH/save/usr/share/gnome/autostart
+mkdir -p $PKG_IMG_PATH/save/etc/xdg/autostart
+cp -p $PKG_IMG_PATH/etc/xdg/autostart/updatemanagernotifier.desktop $PKG_IMG_PATH/save/etc/xdg/autostart/
+rm $PKG_IMG_PATH/etc/xdg/autostart/updatemanagernotifier.desktop
+cp -p $PKG_IMG_PATH/usr/share/dbus-1/services/gnome-power-manager.service $PKG_IMG_PATH/save/usr/share/dbus-1/services/
+rm $PKG_IMG_PATH/usr/share/dbus-1/services/gnome-power-manager.service
+cp -p $PKG_IMG_PATH/usr/share/gnome/autostart/gnome-power-manager.desktop $PKG_IMG_PATH/save/usr/share/gnome/autostart/
+rm $PKG_IMG_PATH/usr/share/gnome/autostart/gnome-power-manager.desktop
+cp -p $PKG_IMG_PATH/usr/share/gnome/autostart/vp-sysmon.desktop $PKG_IMG_PATH/save/usr/share/gnome/autostart/
+rm $PKG_IMG_PATH/usr/share/gnome/autostart/vp-sysmon.desktop
+
+mkdir -p $PKG_IMG_PATH/save/etc/gconf/schemas
+cp -p $PKG_IMG_PATH/etc/gconf/schemas/panel-default-setup.entries $PKG_IMG_PATH/save/etc/gconf/schemas
+sed -e '/.*<string>netstatus_applet<\/string>/{$!N;N;d;}' \
+    -e '/.*<string>image<\/string>/s:image:gtk:' \
+    $PKG_IMG_PATH/etc/gconf/schemas/panel-default-setup.entries > $TMP_DIR/panel-default-setup.entries
+cp $TMP_DIR/panel-default-setup.entries $PKG_IMG_PATH/etc/gconf/schemas/panel-default-setup.entries
+rm $TMP_DIR/panel-default-setup.entries
+
+mkdir -p $PKG_IMG_PATH/save/etc
+cp -p $PKG_IMG_PATH/etc/system $PKG_IMG_PATH/save/etc
+
+cat <<EOF >>$PKG_IMG_PATH/etc/system
+set zfs:zfs_arc_max=0x4002000
+set zfs:zfs_vdev_cache_size=0
+EOF
+
+echo "dev/null" | (cd / ; cpio -Lp $PKG_IMG_PATH)
+
+rm -f $PKG_IMG_PATH/usr/share/applications/mimeinfo.cache \
+	$PKG_IMG_PATH/etc/gtk-2.0/gtk.immodules \
+	$PKG_IMG_PATH/etc/amd64/gtk-2.0/gtk.immodules \
+	$PKG_IMG_PATH/etc/gtk-2.0/gdk-pixbuf.loaders \
+	$PKG_IMG_PATH/etc/amd64/gtk-2.0/gdk-pixbuf.loaders \
+	$PKG_IMG_PATH/usr/share/mime/mimeinfo.cache
+
+chroot $PKG_IMG_PATH /usr/bin/sh /lib/svc/method/desktop-mime-cache start
+chroot $PKG_IMG_PATH /usr/bin/sh /lib/svc/method/gconf-cache start
+chroot $PKG_IMG_PATH /usr/bin/sh /lib/svc/method/input-method-cache start
+chroot $PKG_IMG_PATH /usr/bin/sh /lib/svc/method/mime-types-cache start
+chroot $PKG_IMG_PATH /usr/bin/sh /lib/svc/method/pixbuf-loaders-installer start
+chroot $PKG_IMG_PATH /usr/bin/sh /lib/svc/method/icon-cache start
+
+touch $PKG_IMG_PATH/save/etc/gconf/schemas/panel-default-setup.entries
+
+rm $PKG_IMG_PATH/dev/null
+
+# Creating font cache
+chroot $PKG_IMG_PATH /usr/bin/fc-cache --force
+
+
+################################################################
+### Boot archive initialization
+################################################################
+cd $PKG_IMG_PATH
+find ./kernel | cpio -pdum $BA_BUILD
+find ./boot | cpio -pdum $BA_BUILD
+find ./platform | cpio -pdum $BA_BUILD
+find ./system | cpio -pdum $BA_BUILD
+find ./lib | cpio -pdum $BA_BUILD
+find ./sbin | cpio -pdum $BA_BUILD
+find ./dev | cpio -pdum $BA_BUILD
+find ./devices | cpio -pdum $BA_BUILD
+find ./usr/lib/devfsadm/linkmod | cpio -pdum $BA_BUILD
+find ./root | cpio -pdum $BA_BUILD
+find ./jack | cpio -pdum $BA_BUILD
+find ./var/svc/manifest | cpio -pdum $BA_BUILD
+find ./var/svc/profile | cpio -pdum $BA_BUILD
+find ./etc | grep -v etc/gconf | grep -v etc/brltty | grep -v etc/gtk-2.0 | grep -v etc/notices | cpio -pdum $BA_BUILD
+find ./var ! -type f | /usr/bin/cpio -pdum $BA_BUILD
+find ./etc ! -type f | /usr/bin/cpio -pdum $BA_BUILD
+
+find ./usr/sbin/pmadm | cpio -pdum $BA_BUILD
+find ./usr/sbin/lofiadm | cpio -pdum $BA_BUILD
+find ./usr/sbin/devfsadm | cpio -pdum $BA_BUILD
+find ./usr/sbin/modload | cpio -pdum $BA_BUILD
+find ./usr/sbin/i86/modload | cpio -pdum $BA_BUILD
+find ./usr/sbin/mount | cpio -pdum $BA_BUILD
+find ./usr/sbin/hostconfig | cpio -pdum $BA_BUILD
+find ./usr/sbin/chroot | cpio -pdum $BA_BUILD
+find ./usr/sbin/syslogd | cpio -pdum $BA_BUILD
+find ./usr/bin/coreadm | cpio -pdum $BA_BUILD
+find ./usr/bin/bash | cpio -pdum $BA_BUILD
+find ./usr/bin/ksh | cpio -pdum $BA_BUILD
+find ./usr/bin/cat | cpio -pdum $BA_BUILD
+find ./usr/bin/echo | cpio -pdum $BA_BUILD
+find ./usr/bin/false | cpio -pdum $BA_BUILD
+find ./usr/bin/grep | cpio -pdum $BA_BUILD
+find ./usr/bin/ls | cpio -pdum $BA_BUILD
+find ./usr/bin/rm | cpio -pdum $BA_BUILD
+find ./usr/bin/svcprop | cpio -pdum $BA_BUILD
+find ./usr/bin/true | cpio -pdum $BA_BUILD
+find ./usr/bin/cd | cpio -pdum $BA_BUILD
+find ./usr/bin/test | cpio -pdum $BA_BUILD
+find ./usr/bin/sleep | cpio -pdum $BA_BUILD
+find ./usr/bin/expr | cpio -pdum $BA_BUILD
+find ./usr/lib/fs/hsfs/fstyp | cpio -pdum $BA_BUILD
+find ./usr/lib/fs/hsfs/fstyp.so.1 | cpio -pdum $BA_BUILD
+find ./usr/lib/fs/hsfs/mount | cpio -pdum $BA_BUILD
+find ./usr/lib/fs/ufs/fstyp | cpio -pdum $BA_BUILD
+find ./usr/lib/fs/ufs/fstyp.so.1 | cpio -pdum $BA_BUILD
+find ./usr/lib/fs/ufs/mount | cpio -pdum $BA_BUILD
+find ./usr/lib/libfstyp.so.1 | cpio -pdum $BA_BUILD
+find ./usr/lib/platexec | cpio -pdum $BA_BUILD
+find ./usr/lib/devfsadm/devfsadmd | cpio -pdum $BA_BUILD
+find ./usr/lib/libm.so.2 | cpio -pdum $BA_BUILD
+find ./usr/lib/libm.so | cpio -pdum $BA_BUILD
+find ./usr/lib/libfstyp.so | cpio -pdum $BA_BUILD
+find ./usr/lib/libz.so | cpio -pdum $BA_BUILD
+find ./usr/lib/libz.so.1 | cpio -pdum $BA_BUILD
+find ./usr/bin/i86/ksh93 | cpio -pdum $BA_BUILD
+find ./usr/lib/isaexec | cpio -pdum $BA_BUILD
+find ./usr/lib/libast.so.1 | cpio -pdum $BA_BUILD
+find ./usr/lib/libcmd.so.1 | cpio -pdum $BA_BUILD
+find ./usr/lib/libdll.so.1 | cpio -pdum $BA_BUILD
+find ./usr/lib/libshell.so.1 | cpio -pdum $BA_BUILD
+find ./usr/share/lib/xml/dtd/service_bundle.dtd.1 | cpio -pdum $BA_BUILD
+find ./var/sadm/install/admin/default | cpio -pdum $BA_BUILD
+find ./var/sadm/system/admin/default_java | cpio -pdum $BA_BUILD
+find ./var/sadm/install/contents | cpio -pdum $BA_BUILD
+find ./var/adm/utmpx | cpio -pdum $BA_BUILD
+find ./var/adm/wtmpx | cpio -pdum $BA_BUILD
+find ./var/adm/aculog | cpio -pdum $BA_BUILD
+find ./var/lib/postrun/postrun-runq | cpio -pdum $BA_BUILD
+find ./var/lib/postrun/postrun | cpio -pdum $BA_BUILD
+find ./var/log/postrun.log | cpio -pdum $BA_BUILD
+find ./var/log/authlog | cpio -pdum $BA_BUILD
+find ./var/log/syslog | cpio -pdum $BA_BUILD
+find ./var/saf/zsmon/log | cpio -pdum $BA_BUILD
+find ./var/spool/cron/crontabs/adm | cpio -pdum $BA_BUILD
+find ./var/spool/cron/crontabs/root | cpio -pdum $BA_BUILD
+find ./var/nis/NIS+LDAPmapping.template | cpio -pdum $BA_BUILD
+find ./var/yp/aliases | cpio -pdum $BA_BUILD
+find ./var/yp/nicknames | cpio -pdum $BA_BUILD
+find ./var/pkg/cfg_cache | cpio -pdum $BA_BUILD
+
+cd $BA_BUILD
+mkdir tmp && chmod -R 01777 tmp
+mkdir proc && chmod -R 0555 proc
+mkdir mnt && chmod -R 0755 mnt
+
+################################################################
+### Slim CD boot archive configuration
+################################################################
+mkdir -p $PKG_IMG_PATH/save/etc/gdm
+cp -p $BA_BUILD/etc/gdm/custom.conf $PKG_IMG_PATH/save/etc/gdm
+nawk '/^\[daemon\]/ { print $0;
+    print "AutomaticLoginEnable=true";
+    print "AutomaticLogin=jack";
+    print "GdmXserverTimeout=30";
+    continue }  { print $0 }' $BA_BUILD/etc/gdm/custom.conf \
+    > $TMP_DIR/custom.conf
+cp $TMP_DIR/custom.conf $BA_BUILD/etc/gdm
+rm $TMP_DIR/custom.conf
+
+# Give jack administrator profile and convert root to a role
+sed -e's/^root::::/root::::type=role;/' $BA_BUILD/etc/user_attr > $TMP_DIR/user_attr
+echo "jack::::profiles=Primary Administrator;roles=root" >>$TMP_DIR/user_attr
+cp $TMP_DIR/user_attr $BA_BUILD/etc
+rm $TMP_DIR/user_attr
+
+################################################################
+### Boot archive configuration
+################################################################
+# Configure devices
+$BA_BUILD/usr/sbin/devfsadm -r $BA_BUILD
+touch $BA_BUILD/reconfigure
+
+cat << \COREADM_CONF_EOF > $BA_BUILD/etc/coreadm.conf
+#
+# coreadm.conf
+#
+# Parameters for system core file configuration.
+# Do NOT edit this file by hand -- use coreadm(1) instead.
+#
+COREADM_GLOB_PATTERN=/tmp/core
+COREADM_GLOB_CONTENT=default
+COREADM_INIT_PATTERN=core
+COREADM_INIT_CONTENT=default
+COREADM_GLOB_ENABLED=no
+COREADM_PROC_ENABLED=yes
+COREADM_GLOB_SETID_ENABLED=no
+COREADM_PROC_SETID_ENABLED=no
+COREADM_GLOB_LOG_ENABLED=no
+COREADM_CONF_EOF
+
+cat << \RTC_CONFIG_EOF > $BA_BUILD/etc/rtc_config
+#
+#       This file (/etc/rtc_config) contains information used to manage the
+#       x86 real time clock hardware.  The hardware is kept in
+#       the machine's local time for compatibility with other x86
+#       operating systems.  This file is read by the kernel at
+#       boot time.  It is set and updated by the /usr/sbin/rtc
+#       command.  The 'zone_info' field designates the local
+#       time zone.  The 'zone_lag' field indicates the number
+#       of seconds between local time and Greenwich Mean Time.
+#
+zone_info=GMT
+zone_lag=0
+RTC_CONFIG_EOF
+
+# Set nodename to opensolaris
+echo "opensolaris" > $BA_BUILD/etc/nodename
+
+# Preloading SMF repository
+/usr/share/distro_const/mkrepo $BA_BUILD $PKG_IMG_PATH
+
+export SVCCFG_REPOSITORY=$BA_BUILD/etc/svc/repository.db
+export LD_LIBRARY_PATH=$PKG_IMG_PATH/lib:$PKG_IMG_PATH/usr/lib:$LD_LIBRARY_PATH
+
+export SVCCFG_DTD=$BA_BUILD/usr/share/lib/xml/dtd/service_bundle.dtd.1
+$PKG_IMG_PATH/usr/sbin/svccfg apply $PKG_IMG_PATH//var/svc/profile/generic_limited_net.xml
+
+export SVCCFG_DTD=//usr/share/lib/xml/dtd/service_bundle.dtd.1
+$PKG_IMG_PATH/usr/sbin/svccfg apply /usr/share/distro_const/generic_live.xml
+
+export SVCCFG_DTD=//usr/share/lib/xml/dtd/service_bundle.dtd.1
+$PKG_IMG_PATH/usr/sbin/svccfg apply /usr/share/distro_const/slim_cd/slimcd_live.xml
+
+export SVCCFG_DTD=$BA_BUILD/usr/share/lib/xml/dtd/service_bundle.dtd.1
+$PKG_IMG_PATH/usr/sbin/svccfg apply $$PKG_IMG_PATH//var/svc/profile/ns_files.xml
+
+cd $BA_BUILD
+
+ln -s ./usr/bin
+
+mkdir mnt/misc
+chmod 0755 mnt/misc
+mkdir mnt/pkg
+chmod 0755 mnt/pkg
+
+# create volume id file
+echo OpenSolaris > .volumeid
+chmod 0444 .volumeid
+chown 0:0 .volumeid
+
+touch .livecd
+
+mkdir .cdrom
+chmod 0755 .cdrom
+
+# create a symlink in the boot archive to the opt directory in the misc archive
+create_sym_links() {
+    PKG_IMG_FILELIST=$1
+    BOOT_ARCHIVE_FILELIST=$2
+    MNT_PT=$3
+
+    PROC_FILELIST=${TMP_DIR}/plist
+    rm -f ${PROC_FILELIST}
+    touch ${PROC_FILELIST}
+
+    for pi_file in `cat ${PKG_IMG_FILELIST}`
+    do
+        /usr/xpg4/bin/grep "^${pi_file}$" ${PROC_FILELIST} > /dev/null
+        [ $? -eq 0 ] && continue
+        /usr/xpg4/bin/grep "^${pi_file}$" ${BOOT_ARCHIVE_FILELIST} > /dev/null
+        [ $? -eq 0 ] && continue
+
+        dir=$(dirname $pi_file)
+        if [ ! -d $dir ]; then
+            mkdir -p $dir
+            echo $dir >> ${BOOT_ARCHIVE_FILELIST}
+        fi
+
+        p=$pi_file
+
+        [ -d ${BOOT_ARCHIVE_FILELIST}/${p} ] && p=$p/
+        ln -sf ${MNT_PT}/${pi_file} ${pi_file}
+        echo "$p" >> ${PROC_FILELIST}
+    done
+}
+
+ln -s /mnt/misc/opt opt
+
+find * > $TMP_DIR/boot_archive_filelist
+(cd $PKG_IMG_PATH; find etc var) > $TMP_DIR/mlst
+
+create_sym_links $TMP_DIR/mlst $TMP_DIR/boot_archive_filelist "/mnt/misc"
+
+
+################################################################
+### Boot archive archiving (64-bit)
+################################################################
+cd $BA_BUILD
+find . | cpio -pmud $BA_BUILD64
+
+cd $BA_BUILD64
+find kernel platform -type f -print | /usr/xpg4/bin/grep -v conf$ | /usr/xpg4/bin/grep -v /amd64/ | xargs rm -f
+
+## Creating ufs filesystem
+BA_SIZE=$(/usr/gnu/bin/du -sb $BA_BUILD64 | awk '{print $1}')
+OVERHEAD=$(expr $BA_SIZE / 10 \* 2)
+
+C1=$(expr $BA_SIZE + $OVERHEAD)
+C2=$(expr $C1 / 512 \* 512)
+BA_IMAGE_SIZE=$(expr $C2 + 26424320)
+
+mkfile -n $BA_IMAGE_SIZE $PKG_IMG_PATH/platform/i86pc/amd64/boot_archive
+
+DEVS=$(lofiadm -a $PKG_IMG_PATH/platform/i86pc/amd64/boot_archive)
+RDEVS="${DEVS/lofi/rlofi}"
+
+newfs $RDEVS </dev/null
+
+mkdir -p $TMP_DIR/ba_lofimnt
+mount -o nologging $DEVS $TMP_DIR/ba_lofimnt
+
+cd $BA_BUILD64; find . | /usr/bin/cpio -pdum $TMP_DIR/ba_lofimnt
+
+umount $TMP_DIR/ba_lofimnt
+lofiadm -d $DEVS
+
+7za a -tgzip -mx=9 $PKG_IMG_PATH/platform/i86pc/amd64/boot_archive.gz $PKG_IMG_PATH/platform/i86pc/amd64/boot_archive
+rm $PKG_IMG_PATH/platform/i86pc/amd64/boot_archive
+mv $PKG_IMG_PATH/platform/i86pc/amd64/boot_archive.gz $PKG_IMG_PATH/platform/i86pc/amd64/boot_archive
+
+chmod 0644 $PKG_IMG_PATH/platform/i86pc/amd64/boot_archive
+
+################################################################
+### Boot archive archiving (32-bit)
+################################################################
+cd $BA_BUILD
+find . | cpio -pmud $BA_BUILD32
+
+cd $BA_BUILD32
+find kernel platform lib -name amd64 | xargs rm -rf 
+
+## Creating ufs filesystem
+BA_SIZE=$(/usr/gnu/bin/du -sb $BA_BUILD32 | awk '{print $1}')
+OVERHEAD=$(expr $BA_SIZE / 10 \* 2)
+
+C1=$(expr $BA_SIZE + $OVERHEAD)
+C2=$(expr $C1 / 512 \* 512)
+BA_IMAGE_SIZE=$(expr $C2 + 26424320)
+
+mkfile -n $BA_IMAGE_SIZE $PKG_IMG_PATH/platform/i86pc/boot_archive
+
+DEVS=$(lofiadm -a $PKG_IMG_PATH/platform/i86pc/boot_archive)
+RDEVS="${DEVS/lofi/rlofi}"
+
+newfs $RDEVS </dev/null
+
+mkdir -p $TMP_DIR/ba_lofimnt
+mount -o nologging $DEVS $TMP_DIR/ba_lofimnt
+
+cd $BA_BUILD32; find . | /usr/bin/cpio -pdum $TMP_DIR/ba_lofimnt
+
+umount $TMP_DIR/ba_lofimnt
+lofiadm -d $DEVS
+
+7za a -tgzip -mx=9 $PKG_IMG_PATH/platform/i86pc/boot_archive.gz $PKG_IMG_PATH/platform/i86pc/boot_archive
+rm $PKG_IMG_PATH/platform/i86pc/boot_archive
+mv $PKG_IMG_PATH/platform/i86pc/boot_archive.gz $PKG_IMG_PATH/platform/i86pc/boot_archive
+
+chmod 0644 $PKG_IMG_PATH/platform/i86pc/boot_archive
+
+################################################################
+### Slim CD post boot archive image area modification
+################################################################
+# Remove the icon theme caches
+cd $PKG_IMG_PATH/usr
+find . -name icon-theme.cache -print| xargs rm
+
+# platform only needs to contain the kernel and boot_archive.
+cd $PKG_IMG_PATH/platform
+find . -type f -a ! \( -name unix -o -name boot_archive \) | xargs rm -f
+
+################################################################
+### Create solaris.zlib solarismisc.zlib
+################################################################
+rm $PKG_IMG_PATH/etc/.pwd.lock
+
+# Generating usr filesystem image
+cd $PKG_IMG_PATH
+rm -rf sbin kernel lib
+
+SORT_OPTION='/usr/share/distro_const/slim_cd/slimcd_iso.sort'
+
+mkisofs -o solaris.zlib -sort $SORT_OPTION -quiet -N -l -R \
+    -U -allow-multidot -no-iso-translate -cache-inodes \
+    -d -D -V "compress" usr
+
+LD_LIBRARY_PATH=$PKG_IMG_PATH/usr/lib /usr/bin/time $PKG_IMG_PATH/usr/sbin/lofiadm \
+    -C gzip $PKG_IMG_PATH/solaris.zlib >/dev/null 2>&1
+
+# Generating misc filesystem image
+mkdir -p miscdirs
+mv opt miscdirs
+mv etc miscdirs
+mv var miscdirs
+
+mkisofs -o solarismisc.zlib -N -l -R -U -allow-multidot \
+    -no-iso-translate \
+    -quiet -cache-inodes -d -D -V "compress" miscdirs
+
+LD_LIBRARY_PATH=$PKG_IMG_PATH/usr/lib /usr/bin/time $PKG_IMG_PATH/usr/sbin/lofiadm \
+    -C lzma $PKG_IMG_PATH/solarismisc.zlib >/dev/null 2>&1
+
+rm -rf $PKG_IMG_PATH/usr
+rm -rf $PKG_IMG_PATH/miscdirs
+
+################################################################
+### Grub menu setup
+################################################################
+cd $PKG_IMG_PATH
+
+cat > boot/grub/menu.lst << EOF
+default=0
+timeout=30
+min_mem64=1000
+splashimage=/boot/grub/splash.xpm.gz
+foreground=ffffff
+background=215ECA
+
+title OpenSolaris 2010 snv_134
+$(echo \\t)kernel\$ /platform/i86pc/kernel/\$ISADIR/unix
+$(echo \\t)module\$ /platform/i86pc/\$ISADIR/boot_archive
+
+title OpenSolaris 2010 snv_134 VESA driver
+$(echo \\t)kernel\$ /platform/i86pc/kernel/\$ISADIR/unix -B livemode=vesa
+$(echo \\t)module\$ /platform/i86pc/\$ISADIR/boot_archive
+
+title OpenSolaris 2010 snv_134 text console
+$(echo \\t)kernel\$ /platform/i86pc/kernel/\$ISADIR/unix -B livemode=text
+$(echo \\t)module\$ /platform/i86pc/\$ISADIR/boot_archive
+
+title Boot from Hard Disk
+$(echo \\t)rootnoverify (hd0)
+$(echo \\t)chainloader +1
+
+title OpenSolaris 2010 snv_134 Enable SSH
+$(echo \\t)kernel\$ /platform/i86pc/kernel/\$ISADIR/unix -B livessh=enable
+$(echo \\t)module\$ /platform/i86pc/\$ISADIR/boot_archive
+
+title OpenSolaris 2010 snv_134 with magnifier
+$(echo \\t)kernel\$ /platform/i86pc/kernel/\$ISADIR/unix -B assistive_tech=magnifier
+$(echo \\t)module\$ /platform/i86pc/\$ISADIR/boot_archive
+
+title OpenSolaris 2010 snv_134 with screen reader
+$(echo \\t)kernel\$ /platform/i86pc/kernel/\$ISADIR/unix -B assistive_tech=reader
+$(echo \\t)module\$ /platform/i86pc/\$ISADIR/boot_archive
+
+EOF
+
+################################################################
+### Create ISO image
+################################################################
+cd $PKG_IMG_PATH
+find . ! \( -name '*.zlib' -o -name .image_info -o -name .livecd-cdrom-content -o -name boot_archive \) -print > .livecd-cdrom-content
+
+DIST_ISO="osol-dev-134-x86.iso"
+DISTRO_NAME=OpenSolaris
+
+mkisofs -o $MEDIA_DIR/$DIST_ISO -b boot/grub/stage2_eltorito -c .catalog \
+    -no-emul-boot -boot-load-size 4 -boot-info-table -N -l -R -U \
+    -allow-multidot -no-iso-translate -cache-inodes -d -D \
+    -V $DISTRO_NAME .
