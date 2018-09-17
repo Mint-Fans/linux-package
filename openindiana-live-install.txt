@@ -280,7 +280,7 @@ echo $USERNAME::::roles=root >> /a/etc/user_attr
 echo "$USERNAME\\tALL=(ALL) ALL" > /a/etc/sudoers.d/svc-system-config-user
 
 zfs create -p rpool/export/home/$USERNAME
-chown -R $USERNAME:staff /a/export/home/$USERNAME
+chown -R $USERNAME:$USERNAME /a/export/home/$USERNAME
 chmod -R 755 /a/export/home/$USERNAME
 # zfs set mountpoint=/a/export/home/$USERNAME rpool/export/home/$USERNAME
 
