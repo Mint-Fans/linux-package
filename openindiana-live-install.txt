@@ -39,9 +39,10 @@ zpool list $ROOT_POOL
 rm -rf /a/*
 
 # create_root_pool
+# create GPT EFI System
 zpool create -Bf $ROOT_POOL $DISK_NAME
-or
-zpool create -f $ROOT_POOL $DISK_NAME
+# create MBR Partition
+zpool create -f $ROOT_POOL $DISK_NAME"p0"
 
 zfs create -p $ROOT_POOL/ROOT/$NODENAME
 zfs create -p $ROOT_POOL/ROOT/$NODENAME/var
