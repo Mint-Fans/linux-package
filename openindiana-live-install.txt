@@ -1,0 +1,442 @@
+#############################################
+### Install Openindiana Live System to Local
+#############################################
+# slices
+# Partition number 1 = s0
+# Partition number 2 = s1
+# ...
+
+ROOT_POOL=rpool
+DISK_NAME=c4t0d0
+SLICES=s0
+
+NODENAME=$(uname -n)
+HOSTNAME=$(uname -n)
+LANG=zh_TW.UTF-8
+TIMEZONE=Asia/Taipei
+
+USERNAME=mint
+REALNAME='Mint Fans'
+USERHOME=/export/home/$USERNAME
+USER_GID=1000
+USER_UID=1000
+ROOT_PASS=0000
+USER_PASS=0000
+
+CD_OBJECT=$(find /media -name solaris.zlib)
+CDROM_DIR=$(dirname $CD_OBJECT)
+
+# get disk name
+echo | format
+
+# Create MBR Partition
+format -e
+
+# Create GPT Partition
+gdisk /dev/dsk/$DISK_NAME
+
+############################################
+### Create MBR Solaris2 Partition
+############################################
+format -e
+format>fdisk
+y
+
+format> p
+partition> 0
+Enter partition id tag[unassigned]: root
+Enter partition permission flags[wm]: wu
+Enter new starting cyl[1]: 1
+Enter partition size[0b, 0c, 1e, 0.00mb, 0.00gb]: ?
+Expecting up to 33479460 blocks, 2084 cylinders,  2084 end cylinder,  16347.39 megabytes, or 15.96 gigabytes
+Enter partition size[0b, 0c, 1e, 0.00mb, 0.00gb]: 2084c
+
+partition> p
+Part      Tag    Flag     Cylinders        Size            Blocks
+  0       root    wu       1 - 2084       15.96GB    (2084/0/0) 33479460
+  1 unassigned    wm       0               0         (0/0/0)           0
+  2     backup    wu       0 - 2084       15.97GB    (2085/0/0) 33495525
+  3 unassigned    wm       0               0         (0/0/0)           0
+  4 unassigned    wm       0               0         (0/0/0)           0
+  5 unassigned    wm       0               0         (0/0/0)           0
+  6 unassigned    wm       0               0         (0/0/0)           0
+  7 unassigned    wm       0               0         (0/0/0)           0
+  8       boot    wu       0 -    0        7.84MB    (1/0/0)       16065
+  9 unassigned    wm       0               0         (0/0/0)           0
+
+partition> l
+[0] SMI Label
+[1] EFI Label
+Specify Label type[0]: 0
+Ready to label disk, continue? y
+q
+q
+
+############################################
+### create zfs file system
+############################################
+# cleanup_existing_install_target
+umount -f /var/run/boot_archive
+zpool list $ROOT_POOL
+rm -rf /a/*
+
+# Create ZPOOL for FULL DISK Create EFI & ZFS Partition (EFI)
+zpool create -Bf $ROOT_POOL $DISK_NAME
+# Create ZPOOL for ZFS Partition Only (EFI)
+zpool create -f $ROOT_POOL $DISK_NAME
+
+# Create ZPOOL for Solaris2 Partition (MBR)
+zpool create -f $ROOT_POOL $DISK_NAME"$SLICES"
+
+zfs create -p $ROOT_POOL/ROOT/$NODENAME
+zfs create -p $ROOT_POOL/ROOT/$NODENAME/var
+zfs create -p $ROOT_POOL/export
+zfs create -p $ROOT_POOL/export/home
+
+zfs set mountpoint=legacy $ROOT_POOL/ROOT
+zfs set mountpoint=/a $ROOT_POOL/ROOT/$NODENAME
+zfs set mountpoint=/a/var $ROOT_POOL/ROOT/$NODENAME/var
+zfs set mountpoint=/a/export $ROOT_POOL/export
+zfs set mountpoint=/a/export/home $ROOT_POOL/export/home
+
+zfs umount $ROOT_POOL/export/home
+zfs umount $ROOT_POOL/export
+zfs umount $ROOT_POOL/ROOT/$NODENAME/var
+zfs umount $ROOT_POOL/ROOT/$NODENAME
+
+zfs mount $ROOT_POOL/ROOT/$NODENAME
+zfs mount $ROOT_POOL/ROOT/$NODENAME/var
+zfs mount $ROOT_POOL/export
+zfs mount $ROOT_POOL/export/home
+
+
+# Clear ESP to be sure we do not have pool label there
+zpool labelclear -f $DISK_NAME"s0"
+
+# Create boot/grub directory for holding menu.lst file
+mkdir -p /$ROOT_POOL/boot/grub
+
+# Mark created pool as 'busy' (org.openindiana.caiman:install=busy)
+zfs set org."$NODENAME".caiman:install=busy $ROOT_POOL
+
+# swap size
+# memory        type           required    size
+# --------------------------------------------------
+# <900mb        zvol           yes          0.5G (MIN_SWAP_SIZE)
+# 900mb-1G      zvol            no          0.5G (MIN_SWAP_SIZE)
+# 1G-64G        zvol            no          (0.5G-32G) 1/2 of memory
+# >64G          zvol            no          32G (MAX_SWAP_SIZE)
+
+# dump size
+# memory        type            size
+# --------------------------------------------------
+# <0.5G         zvol            256MB (MIN_DUMP_SIZE)
+# 0.5G-32G      zvol            256M-16G (1/2 of memory)
+# >32G          zvol            16G (MAX_DUMP_SIZE)
+
+MEM_SIZE=$(prtconf | grep Memory | awk '{print $3}')
+
+SWAP_SIZE=1024m
+DUMP_SIZE=1024m
+
+zfs create -b 4096 -V $SWAP_SIZE $ROOT_POOL/swap
+zfs create -b 131072 -V $DUMP_SIZE $ROOT_POOL/dump
+or
+dumpadm -d none
+
+mkdir -p /$ROOT_POOL
+zfs set mountpoint=none $ROOT_POOL
+zfs set mountpoint=/$ROOT_POOL $ROOT_POOL
+mkdir -p /$ROOT_POOL/boot/grub
+
+############################################
+### Install file system
+############################################
+# Install boot_archive
+mkdir -p /tmp/ba_lofimnt
+
+BA64_PATH="$CDROM_DIR/platform/i86pc/amd64/boot_archive"
+BA32_PATH="$CDROM_DIR/platform/i86pc/boot_archive"
+
+## Install boot_archive 32-bit
+BOOT_ARCHIVE=$(echo $BA32_PATH)
+gzcat $BOOT_ARCHIVE > /var/run/boot_archive
+DEVS=$(lofiadm -a /var/run/boot_archive)
+mount -o nologging $DEVS /tmp/ba_lofimnt
+
+cd /tmp/ba_lofimnt; find . | /usr/bin/cpio -pdum /a
+
+cd ..
+umount /tmp/ba_lofimnt
+lofiadm -d $DEVS
+rm /var/run/boot_archive
+
+## Install boot_archive 64-bit
+BOOT_ARCHIVE=$(echo $BA64_PATH)
+gzcat $BOOT_ARCHIVE > /var/run/boot_archive
+DEVS=$(lofiadm -a /var/run/boot_archive)
+mount -o nologging $DEVS /tmp/ba_lofimnt
+
+cd /tmp/ba_lofimnt; find . | /usr/bin/cpio -pdum /a
+cd ..
+umount /tmp/ba_lofimnt
+lofiadm -d $DEVS
+rm /var/run/boot_archive
+
+rm -r /tmp/ba_lofimnt
+
+# install solaris.zlib
+mkdir /tmp/solaris
+DEVS=$(lofiadm -a $CDROM_DIR/solaris.zlib)
+mount -F hsfs $DEVS /tmp/solaris
+cd /tmp/solaris; find . | /usr/bin/cpio -pdum /a/usr
+
+cd ..
+umount /tmp/solaris
+lofiadm -d $DEVS
+rm -r /tmp/solaris
+
+# install solarismisc.zlib
+rm -rf /a/opt
+mkdir /tmp/solarismisc
+DEVS=$(lofiadm -a $CDROM_DIR/solarismisc.zlib)
+mount -F hsfs $DEVS /tmp/solarismisc
+cd /tmp/solarismisc; find . | /usr/bin/cpio -pdum /a
+
+cd ..
+umount /tmp/solarismisc
+lofiadm -d $DEVS
+rm -r /tmp/solarismisc
+
+# Install Original Configure
+cd $CDROM_DIR/save; find . | /usr/bin/cpio -pdum /a
+
+############################################
+### Post Install Settings
+############################################
+# Settings Timezone
+/usr/gnu/bin/sed -i '/TZ=/d' /a/etc/default/init
+echo "TZ=$TIMEZONE" >> /a/etc/default/init
+
+# Settings language
+/usr/gnu/bin/sed -i '/LANG=/d' /a/etc/default/init
+echo "LANG=$LANG" >> /a/etc/default/init
+
+# Settings hostname
+SRCNAME=$(cat /a/etc/inet/hosts | grep ::1 | awk '{print $2}')
+/usr/gnu/bin/sed -i 's/'"$SRCNAME"'/'"$HOSTNAME"'/g' /a/etc/inet/hosts
+
+# Settings nodename
+echo $NODENAME > /a/etc/nodename
+
+# set_boot_device_property
+# OSCONSOLE=graphics or text
+OSCONSOLE=$(prtconf -v /devices | sed -n '/console/{n;p;}' | cut -f 2 -d \' | sed '2d')
+/usr/gnu/bin/sed -i /console/d /a/boot/solaris/bootenv.rc
+echo "setprop console $OSCONSOLE" >> /a/boot/solaris/bootenv.rc
+
+# update_boot_archive
+bootadm update-archive -R /a 2>&1
+
+# Settings bootfs
+zpool set bootfs=$ROOT_POOL/ROOT/$NODENAME $ROOT_POOL
+
+# Settings bootloader
+cp /a/boot/grub/splash.xpm.gz $ROOT_POOL/boot/grub/
+cp /a/boot/grub/capability $ROOT_POOL/boot/grub/
+
+cat > /$ROOT_POOL/boot/grub/menu.lst << EOF
+splashimage /boot/grub/splash.xpm.gz
+foreground 343434
+background F7FbFF
+default 0
+timeout 30
+EOF
+
+# Install bootloader
+bootadm install-bootloader -Mf -R /a -P $ROOT_POOL
+
+# update boot menu
+bootadm update-menu -R /a -Z -o /dev/rdsk/$DISK_NAME"s0"
+
+############################################
+### Install Finish Configure
+############################################
+# create_mnttab
+touch /a/etc/mnttab
+chmod 444 /a/etc/mnttab
+
+# cleanup_unneeded_files_and_dirs
+rm -rf /a/.livecd
+rm -rf /a/.textinstall
+rm -rf /a/.liveusb
+rm -rf /a/.volsetid
+rm -rf /a/etc/sysconfig/language
+
+# delete_misc_trees
+rm -rf /a/var/tmp/*
+rm -rf /a/tmp/*
+rm -rf /a/opt
+mkdir /a/opt
+chown -R root:sys /a/opt
+
+# remove_livecd_coreadm_conf
+rm /a/etc/coreadm.conf
+
+# Settings dumpadm configure
+cat > /a/etc/dumpadm.conf << EOF
+#
+# dumpadm.conf
+#
+# Configuration parameters for system crash dump.
+# Do NOT edit this file by hand -- use dumpadm(1m) instead.
+#
+DUMPADM_DEVICE=/dev/zvol/dsk/$ROOT_POOL/dump
+DUMPADM_SAVDIR=/var/crash/$NODENAME
+DUMPADM_CONTENT=kernel
+DUMPADM_ENABLE=no
+DUMPADM_CSAVE=on
+EOF
+
+# remove_livecd_environment
+rm -rf /a/boot/loader.rc.local
+rm -rf /a/boot/menu.rc.local
+rm -rf /a/save
+
+# configure sudoers
+LASTGID=$(tail -1 /a/etc/group | awk -F: '{print $3}')
+SUDO_GID=$(expr $LASTGID + 1)
+echo sudo::$SUDO_GID: >> /a/etc/group
+/usr/gnu/bin/sed -i 's/^# %sudo/%sudo/' /a/etc/sudoers
+# /usr/gnu/bin/sed -i '/%sudo/s/ALL=.*/ALL=(ALL) NOPASSWD: ALL/' /a/etc/sudoers
+
+# create_new_user
+# groupadd -g 1000 mint
+echo $USERNAME::$USER_GID: >> /a/etc/group
+# useradd -u 1000 -g 1000 -c "Mint Fans" -b /export/home -s /bin/bash mint
+echo $USERNAME:x:$USER_UID:$USER_GID:$REALNAME:$USERHOME:/bin/bash >> /a/etc/passwd
+echo $USERNAME:*LK*::6445::::: >> /a/etc/shadow
+echo $USERNAME::::roles=root >> /a/etc/user_attr
+echo "$USERNAME\\tALL=(ALL) ALL" > /a/etc/sudoers.d/svc-system-config-user
+
+zfs create -p $ROOT_POOL/export/home/$USERNAME
+# zfs set mountpoint=/a/export/home/$USERNAME $ROOT_POOL/export/home/$USERNAME
+echo 'export PS1="\[\\033[1;34m\]\u\[\\033[1;32m\]@\[\\033[1;32m\]\h\[\\033[1;32m\]: \[\\033[1;36m\]\w \[\\033[1;33m\]\$ \[\\033[0m\]"' > /a/export/home/$USERNAME/.bashrc
+echo 'export PS1="\[\\033[1;31m\]\u\[\\033[1;32m\]@\[\\033[1;32m\]\h\[\\033[1;32m\]: \[\\033[1;36m\]\W \[\\033[1;33m\]# \[\\033[0m\]"' > /a/root/.bashrc
+chown -R $USER_UID:$USER_GID /a/export/home/$USERNAME
+chmod -R 755 /a/export/home/$USERNAME
+chmod 644 /a/export/home/$USERNAME/.bashrc
+
+# set_password
+python > /dev/null << EOF
+from osol_install.install_utils import encrypt_password
+from pkg.cfgfiles import PasswordFile
+root_passwd_text = "$ROOT_PASS"
+user_passwd_text = "$USER_PASS"
+pkg_img_path = "/a"
+
+encrypted_root_passwd = encrypt_password(root_passwd_text, alt_root=pkg_img_path)
+pfile = PasswordFile(pkg_img_path)
+root_entry = pfile.getuser("root")
+root_entry["password"] = encrypted_root_passwd
+pfile.setvalue(root_entry)
+pfile.writefile()
+
+encrypted_user_passwd = encrypt_password(user_passwd_text, alt_root=pkg_img_path)
+pfile = PasswordFile(pkg_img_path)
+user_entry = pfile.getuser("$USERNAME")
+user_entry["password"] = encrypted_user_passwd
+pfile.setvalue(user_entry)
+pfile.writefile()
+EOF
+
+# remove jack
+# chroot /a /usr/bin/ksh userdel -r jack
+/usr/gnu/bin/sed -i '/jack/d' /a/etc/passwd
+/usr/gnu/bin/sed -i '/jack/d' /a/etc/shadow
+/usr/gnu/bin/sed -i '/jack/d' /a/etc/user_attr
+rm -r /a/jack
+
+############################################
+### Service Configure
+############################################
+# generate_sc_profile
+DM=gdm
+if [ -d "/a/etc/lightdm" ]; then
+    DM=lightdm
+fi
+
+sed -e s/US-English/US-English/ -e s/gdm/$DM/ /a/usr/share/install/sc_template.xml > /a/etc/svc/profile/sc_profile.xml
+
+# smf_correct_sys_profile
+cd /a/etc/svc/profile
+ln -s generic_limited_net.xml generic.xml
+ln -s inetd_generic.xml inetd_services.xml
+ln -s ns_dns.xml name_service.xml
+ln -s sc_profile.xml site.xml
+
+# create_smf_repository
+cp /a/lib/svc/seed/global.db /a/etc/svc/repository.db
+chmod 700 /a/etc/svc/repository.db
+chown root:sys /a/etc/svc/repository.db
+
+# apply_sysconfig_profile
+/usr/sbin/devfsadm -R /a 2>&1
+SVCCFG_DTD=/a/usr/share/lib/xml/dtd/service_bundle.dtd.1
+SVCCFG_REPOSITORY=/a/etc/svc/repository.db
+/usr/sbin/svccfg apply -n /a/etc/svc/profile/sc_profile.xml
+
+# Enable DHCP:
+SVCCFG_DTD=/a/usr/share/lib/xml/dtd/service_bundle.dtd.1
+SVCCFG_REPOSITORY=/a/etc/svc/repository.db
+
+svccfg apply /a/etc/svc/profile/network_nwam.xml
+or
+svccfg -s network/physical:default setprop general/enabled = false
+svccfg -s network/physical:nwam setprop general/enabled = true
+
+# Create resolv for DHCP
+echo "nameserver  192.168.1.1" > /a/etc/resolv.conf
+
+# IF NOT DHCP:
+# Configure_network (NOT DCHP)
+SVCCFG_DTD=/a/usr/share/lib/xml/dtd/service_bundle.dtd.1
+SVCCFG_REPOSITORY=/a/etc/svc/repository.db
+svccfg -s network/physical:default setprop general/enabled = true
+svccfg -s network/physical:nwam setprop general/enabled = false
+
+# Disable Live Service
+SVCCFG_DTD=/a/usr/share/lib/xml/dtd/service_bundle.dtd.1
+SVCCFG_REPOSITORY=/a/etc/svc/repository.db
+svccfg -s system/filesystem/root:media setprop general/enabled = false
+
+# set_flush_content_cache_false
+pkg -R /a set-property flush-content-cache-on-success False
+
+# reset_image_uuid
+PBULISTER=$(pkg publisher | grep ^open | awk '{print $1}')
+pkg -R /a property -H publisher-search-order
+pkg -R /a set-publisher --reset-uuid --no-refresh $PBULISTER
+pkg -R /a set-property send-uuid True
+
+# rebuild_pkg_index
+pkg -R /a rebuild-index
+
+zfs set org."$NODENAME".caiman:install=ready $ROOT_POOL
+
+zfs unmount $ROOT_POOL/export/home/$USERNAME
+zfs unmount $ROOT_POOL/export/home
+zfs unmount $ROOT_POOL/export
+zfs unmount $ROOT_POOL/ROOT/$NODENAME/var
+zfs unmount $ROOT_POOL/ROOT/$NODENAME
+zfs unmount $ROOT_POOL
+
+zfs set mountpoint=/export/home/$USERNAME $ROOT_POOL/export/home/$USERNAME
+zfs set mountpoint=/export/home $ROOT_POOL/export/home
+zfs set mountpoint=/export $ROOT_POOL/export
+zfs set mountpoint=/var $ROOT_POOL/ROOT/$NODENAME/var
+zfs set mountpoint=/ $ROOT_POOL/ROOT/$NODENAME
+
+zpool export -f $ROOT_POOL
+
+poweroff
