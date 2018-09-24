@@ -10,6 +10,7 @@ ROOT_POOL=rpool
 DISK_NAME=c4t0d0
 SLICES=0
 
+OS_NAME=openindiana
 NODENAME=$(uname -n)
 HOSTNAME=$(uname -n)
 LANG=zh_TW.UTF-8
