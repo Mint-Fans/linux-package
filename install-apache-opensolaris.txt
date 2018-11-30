@@ -3,6 +3,8 @@
 ###################################
 # 安裝 Apache 2.2
 sudo pkg install SUNWapch22
+or
+sudo pkg install web/server/apache-22
 
 # 設定 Apache ServerName
 指定網域或者IP，預設 127.0.0.1
