@@ -3,6 +3,8 @@
 ######################################
 # Install Depends:
 sudo pkg install SUNWphp52-mysql
+or
+sudo pkg install web/php-52/extension/php-mysql
 
 # Download
 wget --no-check-certificate https://files.phpmyadmin.net/phpMyAdmin/4.0.10.20/phpMyAdmin-4.0.10.20-all-languages.tar.gz
