@@ -3,9 +3,13 @@
 ###################################
 # Install PHP 5.2
 sudo pkg install SUNWphp52
+or
+sudo pkg install web/php-52
 
 # Install PHP Module for Apache v2.2
 sudo pkg install SUNWapch22m-php52
+or
+sudo pkg install web/server/apache-22/module/apache-php5
 
 # restart apache
 svcadm restart apache22
