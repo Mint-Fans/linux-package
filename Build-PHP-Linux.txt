@@ -1,0 +1,70 @@
+####################################################
+### Build PHP 5.2 on Debian 2018
+####################################################
+# Install Build Depends:
+sudo apt-get install autoconf automake bison chrpath flex freetds-dev libapr1-dev libbz2-dev libcurl4-openssl-dev libdb-dev libedit-dev libexpat1-dev libfreetype6-dev libgcrypt11-dev libgd-dev libglib2.0-dev libgmp3-dev libjpeg-dev libkrb5-dev libldap2-dev libmcrypt-dev libmhash-dev libpam0g-dev libpcre3-dev libpng-dev libpq-dev libpspell-dev libqdbm-dev librecode-dev libsasl2-dev libsnmp-dev libsqlite3-dev libssl-dev libtidy-dev libtool libwrap0-dev libxmltok1-dev libxml2-dev libxslt1-dev re2c unixodbc-dev zlib1g-dev tzdata libncurses-dev libaprutil1-dev perl
+
+# Build
+wget https://museum.php.net/php5/php-5.2.17.tar.gz
+tar zxvf php-5.2.17.tar.gz
+
+cd php-5.2.17
+
+wget -O php-5.x.x.patch https://mail.gnome.org/archives/xml/2012-August/txtbgxGXAvz4N.txt
+patch -p0 -i php-5.x.x.patch
+
+MYSQL_DIR=/usr/local/mysql/5.0
+./configure --prefix=/usr \
+--sysconfdir=/etc \
+--mandir=/usr/share/man \
+--with-pear=/usr/share/php \
+--with-exec-dir=/usr/lib/php5/libexec \
+--with-config-file-scan-dir=/etc/php5/apache2/conf.d \
+--with-config-file-path=/etc/php5/apache2 \
+--with-apxs2=/usr/sbin/apxs2 \
+--with-mysql=$MYSQL_DIR \
+--with-mysqli=$MYSQL_DIR/bin/mysql_config \
+--with-libxml-dir=/usr \
+--with-jpeg-dir=/usr \
+--with-png-dir=/usr \
+--with-regex=php \
+--enable-dbase --with-zlib --enable-mbstring \
+--disable-debug
+
+make -j$(nproc)
+sudo make install
+
+sudo install -D -m755 libs/libphp5.so /usr/lib/php/libphp5.so
+sudo install -D -m755 /usr/lib/php/libphp5.so /usr/lib/apache2/modules/libphp5.so
+
+sudo mkdir -p /etc/php5/apache2/conf.d
+sudo cp php.ini-dist /etc/php5/apache2/php.ini
+sudo sed -i '/^include_path/d' /etc/php5/apache2/php.ini
+sudo sed -i '/UNIX: /a include_path = ".:/usr/share/php"' /etc/php5/apache2/php.ini
+
+#####################################
+### PHP 5 Settings
+#####################################
+# 設置 apache 支援 php
+sudo sed -i '/php5_module/d' /etc/apache2/apache2.conf
+sudo sed -i '/rewrite_module/a LoadModule php5_module /usr/lib/apache2/modules/libphp5.so' /etc/apache2/apache2.conf
+sudo sed -i 's/ index.php//g' /etc/apache2/apache2.conf
+sudo sed -i 's/DirectoryIndex /DirectoryIndex index.php /g' /etc/apache2/apache2.conf
+sudo sed -i '/x-httpd-php/d' /etc/apache2/apache2.conf
+sudo sed -i '/AddOutputFilter/a #    AddType application/x-httpd-php .php' /etc/apache2/apache2.conf
+sudo sed -i 's/#    AddType/    AddType/g' /etc/apache2/apache2.conf
+
+# 重新啟動 apache2
+sudo /etc/init.d/apache2 stop
+sudo /etc/init.d/apache2 start
+
+# 測試
+cat > info.php << EOF
+<?php
+phpinfo();
+?>
+EOF
+
+sudo mv info.php /var/www/
+
+xdg-open http://localhost/info.php
