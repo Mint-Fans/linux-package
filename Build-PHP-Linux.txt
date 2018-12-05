@@ -285,7 +285,7 @@ install -D -m644 php.ini-cgi "$PKG_DIR"$PHP_DIR/conf/apache2filter/php.ini
 install -D -m644 php.ini-cli "$PKG_DIR"$PHP_DIR/conf/cli/php.ini
 
 #####################################
-### Create DEB settings
+### Create DEB
 #####################################
 mkdir -p $PKG_DIR/DEBIAN
 
