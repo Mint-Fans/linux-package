@@ -1,0 +1,213 @@
+####################################################
+### Build PHP 5.2 on Debian 2018
+####################################################
+# Install Build Depends:
+sudo apt-get install autoconf automake bison chrpath flex freetds-dev libapr1-dev libbz2-dev libcurl4-openssl-dev libdb-dev libedit-dev libexpat1-dev libfreetype6-dev libgcrypt11-dev libgd-dev libglib2.0-dev libgmp-dev libjpeg-dev libkrb5-dev libldap2-dev libmcrypt-dev libmhash-dev libpam0g-dev libpcre3-dev libpng-dev libpq-dev libpspell-dev libqdbm-dev librecode-dev libsasl2-dev libsnmp-dev libsqlite3-dev libssl-dev libtidy-dev libtool libwrap0-dev libxmltok1-dev libxml2-dev libxslt1-dev re2c unixodbc-dev zlib1g-dev tzdata libncurses-dev libaprutil1-dev perl
+
+# Build
+wget https://museum.php.net/php5/php-5.2.17.tar.gz
+tar zxvf php-5.2.17.tar.gz
+
+cd php-5.2.17
+
+wget -O php-5.x.x.patch https://mail.gnome.org/archives/xml/2012-August/txtbgxGXAvz4N.txt
+patch -p0 -i php-5.x.x.patch
+
+MYSQL_DIR=/usr/local/mysql/5.0
+APACHE_DIR=/usr/local/apache2/2.2
+PHP_DIR=/usr/local/php/5.2
+PKG_DIR=$HOME/Build/php-5.2.17
+
+./configure --prefix=$PHP_DIR \
+--sysconfdir=$PHP_DIR/conf \
+--with-pear=$PHP_DIR/share/php \
+--with-exec-dir=$PHP_DIR/lib/libexec \
+--with-config-file-scan-dir=$PHP_DIR/conf/apache2/conf.d \
+--with-config-file-path=$PHP_DIR/conf/apache2 \
+--with-apxs2=$APACHE_DIR/bin/apxs2 \
+--with-mysql=$MYSQL_DIR \
+--with-mysqli=$MYSQL_DIR/bin/mysql_config \
+--with-mcrypt=/usr \
+--with-libxml-dir=/usr \
+--with-jpeg-dir=/usr \
+--with-png-dir=/usr \
+--with-freetype-dir=/usr \
+--with-mhash=/usr \
+--with-regex=php \
+--with-zlib \
+--enable-dbase \
+--enable-mbstring \
+--disable-debug
+
+make -j$(nproc)
+sudo make install
+
+sudo install -D -m755 libs/libphp5.so $PHP_DIR/lib/libphp5.so
+sudo install -D -m755 $PHP_DIR/lib/libphp5.so $APACHE_DIR/modules/libphp5.so
+
+sudo sed -i -e 's/-d output_buffering=1 -d open_basedir="" -d safe_mode=0/-d output_buffering=1 -d open_basedir="" -d safe_mode=0 -d memory_limit="-1"/' $PHP_DIR/bin/pear
+sudo sed -i -e 's/-d output_buffering=1 -d safe_mode=0/-d output_buffering=1 -d open_basedir="" -d safe_mode=0 -d memory_limit="-1"/' $PHP_DIR/bin/pecl
+sudo sed -i -e 's/-d memory_limit="-1"//' -e 's/-d output_buffering=1 -d open_basedir="" -d safe_mode=0/-d output_buffering=1 -d open_basedir="" -d safe_mode=0 -d memory_limit="-1"/' $PHP_DIR/bin/peardev
+sudo sed -i -re "s#('PEAR_CONFIG_SYSCONFDIR', PHP_SYSCONFDIR)#\1 . '/pear'#" $PHP_DIR/share/php/PEAR/Config.php
+
+sudo mkdir-p $PHP_DIR/conf/apache2/conf.d
+cat php.ini-dist | tr "\t" " " | sed -e'/memory_limit =/ s/\b128M/16M/g' | sed '/^include_path/d' | sed '/UNIX: /a include_path = ".:'"$PHP_DIR"'/share/php"' > php.ini-cgi
+sudo install -D -m644 php.ini-cgi $PHP_DIR/conf/apache2/php.ini
+
+#####################################
+### PHP 5 Settings
+#####################################
+# 設置 apache 支援 php
+# 設定方法一 (將mod設定寫入 mods-enabled)
+sudo sed -i '/php5_module/d' $APACHE_DIR/conf/apache2.conf
+sudo sed -i 's/ index.php//g' $APACHE_DIR/conf/apache2.conf
+sudo sed -i 's/DirectoryIndex /DirectoryIndex index.php /g' $APACHE_DIR/conf/apache2.conf
+
+echo 'LoadModule php5_module modules/libphp5.so' > $APACHE_DIR/conf/mods-enabled/php5.load
+
+sudo sh -c "cat > $APACHE_DIR/conf/mods-enabled/php5.conf << EOF
+<IfModule mod_php5.c>
+  AddType application/x-httpd-php .php .phtml .php3
+  AddType application/x-httpd-php-source .phps
+</IfModule>
+EOF"
+
+# 設定方法二 (只設定 apache2.conf)
+sudo sed -i '/php5_module/d' $APACHE_DIR/conf/apache2.conf
+sudo sed -i '/rewrite_module/a LoadModule php5_module modules/libphp5.so' $APACHE_DIR/conf/apache2.conf
+sudo sed -i 's/ index.php//g' $APACHE_DIR/conf/apache2.conf
+sudo sed -i 's/DirectoryIndex /DirectoryIndex index.php /g' $APACHE_DIR/conf/apache2.conf
+
+sudo sed -i '/x-httpd-php/d' $APACHE_DIR/conf/apache2.conf
+sudo sed -i '/AddOutputFilter/a #    AddType application/x-httpd-php .php' $APACHE_DIR/conf/apache2.conf
+sudo sed -i 's/#    AddType/    AddType/g' $APACHE_DIR/conf/apache2.conf
+
+# 重新啟動 apache2
+sudo /etc/init.d/apache2 stop
+sudo /etc/init.d/apache2 start
+
+# 測試
+cat > info.php << EOF
+<?php
+phpinfo();
+?>
+EOF
+
+sudo mv info.php /var/www/html/
+
+xdg-open http://localhost/info.php
+
+#####################################
+### Create DEB settings
+#####################################
+make install-headers install-build install-programs install-cli install-pear INSTALL_ROOT=$PKG_DIR
+install -D -m755 .libs/libphp5.so "$PKG_DIR"$PHP_DIR/lib/libphp5.so
+
+mkdir -p "$PKG_DIR"$PHP_DIR/conf/apache2/conf.d
+cat php.ini-dist | tr "\t" " " | sed -e'/memory_limit =/ s/\b128M/16M/g' | sed '/^include_path/d' | sed '/UNIX: /a include_path = ".:'"$PHP_DIR"'/share/php"' > php.ini-cgi
+install -D -m644 php.ini-cgi "$PKG_DIR"$PHP_DIR/conf/apache2/php.ini
+
+mkdir -p $PKG_DIR/DEBIAN
+
+# control:
+cat > $PKG_DIR/DEBIAN/control << EOF
+Package: php5
+Version: 5.2.17-1
+Architecture: all
+Maintainer: Debian Core Developers <debian-devel-discuss@lists.debian.org>
+Installed-Size: 45056
+Depends: libbz2-1.0, libc6, libdb5.3, libpcre3, libssl1.1, libxml2, zlib1g, mime-support, libmagic1, ucf, tzdata, libedit2, libncurses5, libcurl3, libfreetype6, libgd3, libjpeg62-turbo, libpng16-16, libx11-6, libxpm4, libgmp10, libldap-2.4-2, libsasl2-2, libltdl7, libmcrypt4, libmhash2, libodbc1, odbcinst1debian2, libpq5, libaspell15, librecode0, libsnmp30, libsqlite3-0, libsybdb5, libtidy5, libxslt1.1
+Section: php
+Priority: optional
+Homepage: http://www.php.net/
+Description: server-side, HTML-embedded scripting language (metapackage)
+ This package is a metapackage that, when installed, guarantees that you
+ have at least one of the three server-side versions of the PHP5 interpreter
+ installed. Removing this package won't remove PHP5 from your system, however
+ it may remove other packages that depend on this one.
+ .
+ PHP5 is an HTML-embedded scripting language. Much of its syntax is borrowed
+ from C, Java and Perl with a couple of unique PHP-specific features thrown
+ in. The goal of the language is to allow web developers to write dynamically
+ generated pages quickly. This version of PHP5 was built with the Suhosin patch.
+Original-Maintainer: Debian PHP Maintainers <pkg-php-maint@lists.alioth.debian.org>
+EOF
+
+# postinst:
+cat > $PKG_DIR/DEBIAN/postinst << EOF
+#!/bin/bash
+
+
+APACHE_DIR=/usr/local/apache2/2.2
+PHP_DIR=/usr/local/php/5.2
+
+APACHE_MOD_PATH=\$(\$APACHE_DIR/bin/apxs2 -q LIBEXECDIR)
+install -D -m755 \$PHP_DIR/lib/libphp5.so \$APACHE_MOD_PATH/libphp5.so
+
+# settings local apache libphp5 mods
+sed -i '/php5_module/d' \$APACHE_DIR/conf/apache2.conf
+sed -i 's/ index.php//g' \$APACHE_DIR/conf/apache2.conf
+sed -i 's/DirectoryIndex /DirectoryIndex index.php /g' \$APACHE_DIR/conf/apache2.conf
+
+echo 'LoadModule php5_module modules/libphp5.so' > \$APACHE_DIR/conf/mods-enabled/php5.load
+
+++cat > \$APACHE_DIR/conf/mods-enabled/php5.conf << EOF
+<IfModule mod_php5.c>
+  AddType application/x-httpd-php .php .phtml .php3
+  AddType application/x-httpd-php-source .phps
+</IfModule>
+++EOF
+
+# restart apache2
+if [ -x /usr/sbin/invoke-rc.d ]; then
+    invoke-rc.d apache2 stop > /dev/null
+else
+    /etc/init.d/apache2 stop > /dev/null
+fi
+
+sleep 2
+
+if [ -x /usr/sbin/invoke-rc.d ]; then
+    invoke-rc.d apache2 start > /dev/null
+else
+    /etc/init.d/apache2 start > /dev/null
+fi
+
+EOF
+
+sed -i 's/++//g' $PKG_DIR/DEBIAN/postinst
+chmod 755 $PKG_DIR/DEBIAN/postinst
+
+# postrm:
+cat > $PKG_DIR/DEBIAN/postrm << EOF
+#!/bin/bash
+
+
+APACHE_DIR=/usr/local/apache2/2.2
+APACHE_MOD_PATH=\$(\$APACHE_DIR/bin/apxs2 -q LIBEXECDIR)
+
+rm -rf \$APACHE_MOD_PATH/libphp5.so
+rm -rf \$APACHE_DIR/conf/mods-enabled/php5.load
+rm -rf \$APACHE_DIR/conf/mods-enabled/php5.conf
+
+# restart apache2
+if [ -x /usr/sbin/invoke-rc.d ]; then
+    invoke-rc.d apache2 stop > /dev/null
+else
+    /etc/init.d/apache2 stop > /dev/null
+fi
+
+sleep 2
+
+if [ -x /usr/sbin/invoke-rc.d ]; then
+    invoke-rc.d apache2 start > /dev/null
+else
+    /etc/init.d/apache2 start > /dev/null
+fi
+
+EOF
+
+chmod 755 $PKG_DIR/DEBIAN/postrm
+
+sudo chown -R 0:0 $PKG_DIR
+sudo dpkg -b $PKG_DIR $HOME/Build/php5_5.2.17-1_amd64.deb
