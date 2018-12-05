@@ -98,7 +98,7 @@ sudo mv info.php /var/www/html/
 xdg-open http://localhost/info.php
 
 #####################################
-### Create DEB settings
+### Create DEB
 #####################################
 make install-headers install-build install-programs install-cli install-pear INSTALL_ROOT=$PKG_DIR
 install -D -m755 .libs/libphp5.so "$PKG_DIR"$PHP_DIR/lib/libphp5.so
