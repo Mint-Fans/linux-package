@@ -1,0 +1,50 @@
+#################################################
+### Hopper Disassembler 4.2.0 Linux 去除 30 分限制
+#################################################
+
+找尋字串 "The demo period of %1 minutes is over."
+
+xrefs:
+.text:0000000000609C60 loc_609C60:
+.text:0000000000609C60                 push    rbx
+.text:0000000000609C61                 sub     rsp, 20h
+.text:0000000000609C65                 mov     rbx, rdi
+.text:0000000000609C68                 lea     rdi, aError     ; "Error"
+.text:0000000000609C6F                 mov     esi, 5
+.text:0000000000609C74                 call    __ZN7QString16fromAscii_helperEPKci ; QString::fromAscii_helper(char const*,int)
+.text:0000000000609C79                 mov     [rsp+10h], rax
+.text:0000000000609C7E                 lea     rdi, aTheDemoPeriodO ; "The demo period of %1 minutes is over.\"... ; 來到這裡
+.text:0000000000609C85                 mov     esi, 3Ch
+.text:0000000000609C8A                 call    __ZN7QString16fromAscii_helperEPKci ; QString::fromAscii_helper(char const*,int)
+
+xrefs loc_609C60
+.text:000000000060CBA0 loc_60CBA0:
+.text:000000000060CBA0                 mov     rdi, [rdi]
+.text:000000000060CBA3                 jmp     loc_609C60 ; 來到這裡
+
+xrefs loc_60CBA0
+
+.text:0000000000609BD0 sub_609BD0      proc near
+.text:0000000000609BD0                 push    rbx              ; 改為 retn (0xC3)
+.text:0000000000609BD1                 sub     rsp, 20h
+.text:0000000000609BD5                 mov     rbx, rdi
+.text:0000000000609BD8                 mov     esi, [rbx+80h]  ; int
+.text:0000000000609BDE                 call    __ZN7QObject9killTimerEi ; QObject::killTimer(int)
+.text:0000000000609BE3                 mov     [rsp+28h+var_28], rbx
+.text:0000000000609BE7                 lea     rax, loc_60CBA0   ; 來到這裡
+.text:0000000000609BEE                 mov     [rsp+28h+var_10], rax
+.text:0000000000609BF3                 lea     rax, loc_60CBB0
+.text:0000000000609BFA                 mov     [rsp+28h+var_18], rax
+.text:0000000000609BFF                 mov     rdi, cs:_dispatch_main_q_ptr
+.text:0000000000609C06                 lea     rsi, [rsp+28h+var_28]
+.text:0000000000609C0A                 call    sub_5505C0
+.text:0000000000609C0F                 mov     rax, [rsp+28h+var_18]
+.text:0000000000609C14                 test    rax, rax
+.text:0000000000609C17                 jz      short loc_609C27
+.text:0000000000609C19                 lea     rdi, [rsp+28h+var_28]
+.text:0000000000609C1D                 mov     edx, 3
+.text:0000000000609C22                 mov     rsi, rdi
+.text:0000000000609C25                 call    rax
+
+PATCH:
+0x209BD0 C3
