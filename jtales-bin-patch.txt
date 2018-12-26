@@ -1,0 +1,17 @@
+允許角色名稱使用中文
+將 xtales 執行 0xFA0D7 0F 84 改成 0F 85。
+0xFA0D7 0F 85
+
+Server.xtales 副檔名指定(中文化非必要)
+如果 jtales 執行檔改名，例如改成 ttales，那table目錄內副檔名也必須全改，這時候必須把 ttales 執行檔 0x2E6DD8 處的字串改成 ttales。
+0x2E6DD8 jtales
+
+MySQL 紀錄字元指定 (修改中文語系才需要)
+修改 xtales 執行檔內的 MySQL 紀錄字元編碼。例如將 sjis 改成 big5。
+0x309EF2 set names sjis
+0x309F01 sjis
+
+訊息視窗字串中文化
+字串偏移位址:
+0x30A400 - 0x3119C3
+使用CXAT來製作中文化
