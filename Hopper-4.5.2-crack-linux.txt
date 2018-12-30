@@ -1,0 +1,124 @@
+Hopper Disassembler 4.5.2 Linux 破解
+
+#########################################################
+### 解除 Demo 版本功能限制、去除啟動註冊對話
+#########################################################
+* 找尋字串 You cannot save with the demo version
+
+xrefs
+.text:000000000063B8ED loc_63B8ED:
+.text:000000000063B8ED                 lea     rdi, aError     ; "Error"
+.text:000000000063B8F4                 mov     esi, 5          ; char *
+.text:000000000063B8F9                 call    __ZN7QString16fromAscii_helperEPKci ; QString::fromAscii_helper(char const*,int)
+.text:000000000063B8FE                 mov     [rsp+68h+var_30], rax
+.text:000000000063B903                 lea     rdi, aYouCannotSaveW ; "You cannot save with the demo version"
+
+xrefs loc_63B8ED
+.text:000000000063B842                 call    sub_503B00      ; 進入
+.text:000000000063B847                 test    al, al
+.text:000000000063B849                 jz      loc_63B8ED      ; 來到這裡
+.text:000000000063B84F                 test    rbx, rbx
+.text:000000000063B852                 jz      loc_63B99B 
+
+sub_503B00:
+.text:0000000000503B00 sub_503B00      proc near
+.text:0000000000503B00                 push    rax
+.text:0000000000503B01                 call    sub_501A90
+.text:0000000000503B06                 cmp     eax, 3
+.text:0000000000503B09                 jnz     short loc_503B15
+.text:0000000000503B0B                 call    sub_502420
+.text:0000000000503B10                 call    sub_501A90
+.text:0000000000503B15
+.text:0000000000503B15 loc_503B15:
+.text:0000000000503B15                 dec     eax
+.text:0000000000503B17                 cmp     eax, 2          ; 改為 MOV AL,1 (B0 01)
+.text:0000000000503B1A                 setb    al              ; 改為 NOP
+.text:0000000000503B1D                 pop     rcx
+.text:0000000000503B1E                 retn
+.text:0000000000503B1E sub_503B00      endp
+
+PATH:
+103B17 B0 01 90
+103B1A 90 90 90
+
+#########################################################
+### 解除 30 分鐘使用限制
+#########################################################
+找尋字串 "The demo period of %1 minutes is over."
+
+xrefs
+
+.text:000000000063A640 loc_63A640:
+.text:000000000063A640                 push    rbx
+.text:000000000063A641                 sub     rsp, 20h
+.text:000000000063A645                 mov     rbx, rdi
+.text:000000000063A648                 lea     rdi, aError     ; "Error"
+.text:000000000063A64F                 mov     esi, 5
+.text:000000000063A654                 call    __ZN7QString16fromAscii_helperEPKci ; QString::fromAscii_helper(char const*,int)
+.text:000000000063A659                 mov     [rsp+10h], rax
+.text:000000000063A65E                 lea     rdi, aTheDemoPeriodO ; "The demo period of %1 minutes is over.\"...
+.text:000000000063A665                 mov     esi, 3Ch
+.text:000000000063A66A                 call    __ZN7QString16fromAscii_helperEPKci ; QString::fromAscii_helper(char const*,int)
+
+xrefs loc_63A640
+
+.text:000000000063E390 loc_63E390:
+.text:000000000063E390                 mov     rdi, [rdi]
+.text:000000000063E393                 jmp     loc_63A640 ; 來到這裡
+
+xrefs loc_63E390
+
+.text:000000000063A5BE                 call    __ZN7QObject9killTimerEi ; QObject::killTimer(int)
+.text:000000000063A5C3                 mov     [rsp+28h+var_28], rbx
+.text:000000000063A5C7                 lea     rax, loc_63E390 ; 來到這裡
+.text:000000000063A5CE                 mov     [rsp+28h+var_10], rax
+.text:000000000063A5D3                 lea     rax, loc_63E3A0
+.text:000000000063A5DA                 mov     [rsp+28h+var_18], rax
+.text:000000000063A5DF                 mov     rdi, cs:_dispatch_main_q_ptr
+.text:000000000063A5E6                 lea     rsi, [rsp+28h+var_28]
+.text:000000000063A5EA                 call    sub_568040
+.text:000000000063A5EF                 mov     rax, [rsp+28h+var_18]
+.text:000000000063A5F4                 test    rax, rax
+.text:000000000063A5F7                 jz      short loc_63A607 ; 改為 JMP
+.text:000000000063A5F9                 lea     rdi, [rsp+28h+var_28]
+.text:000000000063A5FD                 mov     edx, 3
+.text:000000000063A602                 mov     rsi, rdi
+.text:000000000063A605                 call    rax              ; 時間到應用程式退出
+.text:000000000063A607
+.text:000000000063A607 loc_63A607:
+.text:000000000063A607                 add     rsp, 20h
+.text:000000000063A60B                 pop     rbx
+.text:000000000063A60C                 retn
+.text:000000000063A60C sub_63A5B0      endp
+
+PATH:
+23A5F7 EB
+
+#########################################################
+### 去除 Demo 版本字串 (非必要)
+#########################################################
+
+找尋字串 Computer License %1
+
+xrefs Computer License %1
+
+.text:00000000004C004A loc_4C004A:
+.text:00000000004C004A                 call    sub_45F240      ; 讀取EAX值
+.text:00000000004C004F                 test    eax, eax        ; eax 0 跳往 demo
+.text:00000000004C0051                 jz      loc_4C0282      ; 改為 NOP
+.text:00000000004C0057                 cmp     eax, 1          ; eax 1 跳往 Personal License
+.text:00000000004C005A                 jz      loc_4C02F5      ; 改為 NOP
+.text:00000000004C0060                 cmp     eax, 2          ; eax 2 = Computer License 不是2則跳
+.text:00000000004C0063                 jnz     loc_4C065A      ; 改為 NOP
+.text:00000000004C0069                 mov     rax, [r15+30h]
+.text:00000000004C006D                 mov     r14, [rax+40h]
+.text:00000000004C0071                 lea     rdi, aComputerLicens ; "Computer License %1\nRegistered to %2"
+
+PATH:
+C0051 90 90 90 90 90 90
+C005A 90 90 90 90 90 90
+C0063 90 90 90 90 90 90
+
+或直接修改 DEMO 字串
+搜尋字串 Demo version
+offset 0x26436B
