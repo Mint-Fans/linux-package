@@ -1,0 +1,3175 @@
+diff -uNr dsniff-2.4.orig/arp.c dsniff-2.4/arp.c
+--- dsniff-2.4.orig/arp.c	2001-03-15 16:32:58.000000000 +0800
++++ dsniff-2.4/arp.c	2019-04-10 18:56:04.583464436 +0800
+@@ -34,12 +34,13 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <unistd.h>
++#include <string.h>
+ 
+ #include "arp.h"
+ 
+ #ifdef BSD
+ int
+-arp_cache_lookup(in_addr_t ip, struct ether_addr *ether)
++arp_cache_lookup(in_addr_t ip, struct ether_addr *ether, const char* linf)
+ {
+ 	int mib[6];
+ 	size_t len;
+@@ -91,7 +92,7 @@
+ #endif
+ 
+ int
+-arp_cache_lookup(in_addr_t ip, struct ether_addr *ether)
++arp_cache_lookup(in_addr_t ip, struct ether_addr *ether, const char* lif)
+ {
+ 	int sock;
+ 	struct arpreq ar;
+@@ -99,7 +100,7 @@
+ 	
+ 	memset((char *)&ar, 0, sizeof(ar));
+ #ifdef __linux__
+-	strncpy(ar.arp_dev, "eth0", sizeof(ar.arp_dev));   /* XXX - *sigh* */
++	strncpy(ar.arp_dev, lif, strlen(lif));
+ #endif
+ 	sin = (struct sockaddr_in *)&ar.arp_pa;
+ 	sin->sin_family = AF_INET;
+diff -uNr dsniff-2.4.orig/arp.h dsniff-2.4/arp.h
+--- dsniff-2.4.orig/arp.h	2001-03-15 16:27:08.000000000 +0800
++++ dsniff-2.4/arp.h	2019-04-10 18:56:04.563464342 +0800
+@@ -11,6 +11,6 @@
+ #ifndef _ARP_H_
+ #define _ARP_H_
+ 
+-int	arp_cache_lookup(in_addr_t ip, struct ether_addr *ether);
++int	arp_cache_lookup(in_addr_t ip, struct ether_addr *ether, const char* linf);
+ 
+ #endif /* _ARP_H_ */
+diff -uNr dsniff-2.4.orig/arpspoof.8 dsniff-2.4/arpspoof.8
+--- dsniff-2.4.orig/arpspoof.8	2000-11-28 15:43:43.000000000 +0800
++++ dsniff-2.4/arpspoof.8	2019-04-10 18:56:04.627464644 +0800
+@@ -9,7 +9,7 @@
+ .na
+ .nf
+ .fi
+-\fBarpspoof\fR [\fB-i \fIinterface\fR] [\fB-t \fItarget\fR] \fIhost\fR
++\fBarpspoof\fR [\fB\-i \fIinterface\fR] [\fB\-c \fIown|host|both\fR] [\fB\-t \fItarget\fR] [\fB\-r\fR] \fIhost\fR
+ .SH DESCRIPTION
+ .ad
+ .fi
+@@ -23,9 +23,19 @@
+ .SH OPTIONS
+ .IP "\fB-i \fIinterface\fR"
+ Specify the interface to use.
++.IP "\fB-c \fIown|host|both\fR"
++Specify which hardware address t use when restoring the arp configuration;
++while cleaning up, packets can be send with the own address as well as with
++the address of the host. Sending packets with a fake hw address can disrupt
++connectivity with certain switch/ap/bridge configurations, however it works
++more reliably than using the own address, which is the default way arpspoof
++cleans up afterwards.
+ .IP "\fB-t \fItarget\fR"
+ Specify a particular host to ARP poison (if not specified, all hosts
+-on the LAN).
++on the LAN). Repeat to specify multiple hosts.
++.IP "\fB\-r\fR"
++Poison both hosts (host and target) to capture traffic in both directions.
++(only valid in conjuntion with \-t)
+ .IP \fIhost\fR
+ Specify the host you wish to intercept packets for (usually the local
+ gateway).
+diff -uNr dsniff-2.4.orig/arpspoof.c dsniff-2.4/arpspoof.c
+--- dsniff-2.4.orig/arpspoof.c	2001-03-15 16:32:58.000000000 +0800
++++ dsniff-2.4/arpspoof.c	2019-04-10 18:58:35.820163708 +0800
+@@ -7,6 +7,8 @@
+  * Copyright (c) 1999 Dug Song <dugsong@monkey.org>
+  *
+  * $Id: arpspoof.c,v 1.5 2001/03/15 08:32:58 dugsong Exp $
++ *
++ * Improved 2011 by Stefan Tomanek <stefa@pico.ruhr.de>
+  */
+ 
+ #include "config.h"
+@@ -27,61 +29,68 @@
+ 
+ extern char *ether_ntoa(struct ether_addr *);
+ 
+-static struct libnet_link_int *llif;
+-static struct ether_addr spoof_mac, target_mac;
+-static in_addr_t spoof_ip, target_ip;
++struct host {
++	in_addr_t ip;
++	struct ether_addr mac;
++};
++
++static libnet_t *l;
++static struct host spoof = {0};
++static struct host *targets;
+ static char *intf;
++static int poison_reverse;
++
++static uint8_t *my_ha = NULL;
++static uint8_t *brd_ha = "\xff\xff\xff\xff\xff\xff";
++
++static int cleanup_src_own = 1;
++static int cleanup_src_host = 0;
+ 
+ static void
+ usage(void)
+ {
+-	fprintf(stderr, "Version: " VERSION "\n"
+-		"Usage: arpspoof [-i interface] [-t target] host\n");
++	printf("Version: " VERSION "\n"
++		"Usage: arpspoof [-i interface] [-c own|host|both] [-t target] [-r] host\n");
+ 	exit(1);
+ }
+ 
+ static int
+-arp_send(struct libnet_link_int *llif, char *dev,
+-	 int op, u_char *sha, in_addr_t spa, u_char *tha, in_addr_t tpa)
++arp_send(libnet_t *l, int op,
++	u_int8_t *sha, in_addr_t spa,
++	u_int8_t *tha, in_addr_t tpa,
++	u_int8_t *me)
+ {
+-	char ebuf[128];
+-	u_char pkt[60];
+-	
+-	if (sha == NULL &&
+-	    (sha = (u_char *)libnet_get_hwaddr(llif, dev, ebuf)) == NULL) {
+-		return (-1);
+-	}
+-	if (spa == 0) {
+-		if ((spa = libnet_get_ipaddr(llif, dev, ebuf)) == 0)
+-			return (-1);
+-		spa = htonl(spa); /* XXX */
+-	}
+-	if (tha == NULL)
+-		tha = "\xff\xff\xff\xff\xff\xff";
+-	
+-	libnet_build_ethernet(tha, sha, ETHERTYPE_ARP, NULL, 0, pkt);
+-	
+-	libnet_build_arp(ARPHRD_ETHER, ETHERTYPE_IP, ETHER_ADDR_LEN, 4,
+-			 op, sha, (u_char *)&spa, tha, (u_char *)&tpa,
+-			 NULL, 0, pkt + ETH_H);
++	int retval;
++
++	if (!me) me = sha;
+ 
+-	fprintf(stderr, "%s ",
+-		ether_ntoa((struct ether_addr *)sha));
++	libnet_autobuild_arp(op, sha, (u_int8_t *)&spa,
++			     tha, (u_int8_t *)&tpa, l);
++	libnet_build_ethernet(tha, me, ETHERTYPE_ARP, NULL, 0, l, 0);
++	
++	printf("%s ",
++		ether_ntoa((struct ether_addr *)me));
+ 
+ 	if (op == ARPOP_REQUEST) {
+-		fprintf(stderr, "%s 0806 42: arp who-has %s tell %s\n",
++		printf("%s 0806 42: arp who-has %s tell %s\n",
+ 			ether_ntoa((struct ether_addr *)tha),
+-			libnet_host_lookup(tpa, 0),
+-			libnet_host_lookup(spa, 0));
++			libnet_addr2name4(tpa, LIBNET_DONT_RESOLVE),
++			libnet_addr2name4(spa, LIBNET_DONT_RESOLVE));
+ 	}
+ 	else {
+-		fprintf(stderr, "%s 0806 42: arp reply %s is-at ",
++		printf("%s 0806 42: arp reply %s is-at ",
+ 			ether_ntoa((struct ether_addr *)tha),
+-			libnet_host_lookup(spa, 0));
+-		fprintf(stderr, "%s\n",
++			libnet_addr2name4(spa, LIBNET_DONT_RESOLVE));
++		printf("%s\n",
+ 			ether_ntoa((struct ether_addr *)sha));
+ 	}
+-	return (libnet_write_link_layer(llif, dev, pkt, sizeof(pkt)) == sizeof(pkt));
++	retval = libnet_write(l);
++	if (retval)
++		printf("%s", libnet_geterror(l));
++
++	libnet_clear_packet(l);
++
++	return retval;
+ }
+ 
+ #ifdef __linux__
+@@ -113,13 +122,13 @@
+ 	int i = 0;
+ 
+ 	do {
+-		if (arp_cache_lookup(ip, mac) == 0)
++		if (arp_cache_lookup(ip, mac, intf) == 0)
+ 			return (1);
+ #ifdef __linux__
+ 		/* XXX - force the kernel to arp. feh. */
+ 		arp_force(ip);
+ #else
+-		arp_send(llif, intf, ARPOP_REQUEST, NULL, 0, NULL, ip);
++		arp_send(l, ARPOP_REQUEST, NULL, 0, NULL, ip, NULL);
+ #endif
+ 		sleep(1);
+ 	}
+@@ -128,21 +137,56 @@
+ 	return (0);
+ }
+ 
++static int arp_find_all() {
++	struct host *target = targets;
++	while(target->ip) {
++		if (arp_find(target->ip, &target->mac)) {
++			return 1;
++		}
++		target++;
++	}
++
++	return 0;
++}
++
+ static void
+ cleanup(int sig)
+ {
++	int fw = arp_find(spoof.ip, &spoof.mac);
++	int bw = poison_reverse && targets[0].ip && arp_find_all();
+ 	int i;
+-	
+-	if (arp_find(spoof_ip, &spoof_mac)) {
+-		for (i = 0; i < 3; i++) {
++	int rounds = (cleanup_src_own*5 + cleanup_src_host*5);
++
++	printf("Cleaning up and re-arping targets...\n");
++	for (i = 0; i < rounds; i++) {
++		struct host *target = targets;
++		while(target->ip) {
++			uint8_t *src_ha = NULL;
++			if (cleanup_src_own && (i%2 || !cleanup_src_host)) {
++				src_ha = my_ha;
++			}
+ 			/* XXX - on BSD, requires ETHERSPOOF kernel. */
+-			arp_send(llif, intf, ARPOP_REPLY,
+-				 (u_char *)&spoof_mac, spoof_ip,
+-				 (target_ip ? (u_char *)&target_mac : NULL),
+-				 target_ip);
+-			sleep(1);
++			if (fw) {
++				arp_send(l, ARPOP_REPLY,
++					 (u_int8_t *)&spoof.mac, spoof.ip,
++					 (target->ip ? (u_int8_t *)&target->mac : brd_ha),
++					 target->ip,
++					 src_ha);
++				/* we have to wait a moment before sending the next packet */
++				sleep(1);
++			}
++			if (bw) {
++				arp_send(l, ARPOP_REPLY,
++					 (u_int8_t *)&target->mac, target->ip,
++					 (u_int8_t *)&spoof.mac,
++					 spoof.ip,
++					 src_ha);
++				sleep(1);
++			}
++			target++;
+ 		}
+ 	}
++
+ 	exit(0);
+ }
+ 
+@@ -151,21 +195,39 @@
+ {
+ 	extern char *optarg;
+ 	extern int optind;
+-	char ebuf[PCAP_ERRBUF_SIZE];
++	char pcap_ebuf[PCAP_ERRBUF_SIZE];
++	char libnet_ebuf[LIBNET_ERRBUF_SIZE];
+ 	int c;
+-	
++	int n_targets;
++	char *cleanup_src = NULL;
++
++	spoof.ip = 0;
+ 	intf = NULL;
+-	spoof_ip = target_ip = 0;
+-	
+-	while ((c = getopt(argc, argv, "i:t:h?V")) != -1) {
++	poison_reverse = 0;
++	n_targets = 0;
++
++	/* allocate enough memory for target list */
++	targets = calloc( argc+1, sizeof(struct host) );
++    
++	if ((l = libnet_init(LIBNET_LINK, NULL, libnet_ebuf)) == NULL)
++		errx(1, "%s", libnet_ebuf);
++
++
++	while ((c = getopt(argc, argv, "ri:t:c:h?V")) != -1) {
+ 		switch (c) {
+ 		case 'i':
+ 			intf = optarg;
+ 			break;
+ 		case 't':
+-			if ((target_ip = libnet_name_resolve(optarg, 1)) == -1)
++			if ((targets[n_targets++].ip = libnet_name2addr4(l, optarg, LIBNET_RESOLVE)) == -1)
+ 				usage();
+ 			break;
++		case 'r':
++			poison_reverse = 1;
++			break;
++		case 'c':
++			cleanup_src = optarg;
++			break;
+ 		default:
+ 			usage();
+ 		}
+@@ -175,31 +237,89 @@
+ 	
+ 	if (argc != 1)
+ 		usage();
+-	
+-	if ((spoof_ip = libnet_name_resolve(argv[0], 1)) == -1)
++
++	if (poison_reverse && !n_targets) {
++		errx(1, "Spoofing the reverse path (-r) is only available when specifying a target (-t).");
++		usage();
++	}
++
++	if (!cleanup_src || strcmp(cleanup_src, "own")==0) { /* default! */
++		/* only use our own hw address when cleaning up,
++		 * not jeopardizing any bridges on the way to our
++		 * target
++		 */
++		cleanup_src_own = 1;
++		cleanup_src_host = 0;
++	} else if (strcmp(cleanup_src, "host")==0) {
++		/* only use the target hw address when cleaning up;
++		 * this can screw up some bridges and scramble access
++		 * for our own host, however it resets the arp table
++		 * more reliably
++		 */
++		cleanup_src_own = 0;
++		cleanup_src_host = 1;
++	} else if (strcmp(cleanup_src, "both")==0) {
++		cleanup_src_own = 1;
++		cleanup_src_host = 1;
++	} else {
++		errx(1, "Invalid parameter to -c: use 'own' (default), 'host' or 'both'.");
++		usage();
++	}
++
++	if ((spoof.ip = libnet_name2addr4(l, argv[0], LIBNET_RESOLVE)) == -1)
+ 		usage();
+ 	
+-	if (intf == NULL && (intf = pcap_lookupdev(ebuf)) == NULL)
+-		errx(1, "%s", ebuf);
+-	
+-	if ((llif = libnet_open_link_interface(intf, ebuf)) == 0)
+-		errx(1, "%s", ebuf);
++	libnet_destroy(l);
+ 	
+-	if (target_ip != 0 && !arp_find(target_ip, &target_mac))
+-		errx(1, "couldn't arp for host %s",
+-		     libnet_host_lookup(target_ip, 0));
++	if (intf == NULL && (intf = pcap_lookupdev(pcap_ebuf)) == NULL)
++		errx(1, "%s", pcap_ebuf);
+ 	
++	if ((l = libnet_init(LIBNET_LINK, intf, libnet_ebuf)) == NULL)
++		errx(1, "%s", libnet_ebuf);
++
++	struct host *target = targets;
++	while(target->ip) {
++		if (target->ip != 0 && !arp_find(target->ip, &target->mac))
++			errx(1, "couldn't arp for host %s",
++			libnet_addr2name4(target->ip, LIBNET_DONT_RESOLVE));
++		target++;
++	}
++
++	if (poison_reverse) {
++		if (!arp_find(spoof.ip, &spoof.mac)) {
++			errx(1, "couldn't arp for spoof host %s",
++			     libnet_addr2name4(spoof.ip, LIBNET_DONT_RESOLVE));
++		}
++	}
++
++	if ((my_ha = (u_int8_t *)libnet_get_hwaddr(l)) == NULL) {
++		errx(1, "Unable to determine own mac address");
++	}
++
+ 	signal(SIGHUP, cleanup);
+ 	signal(SIGINT, cleanup);
+ 	signal(SIGTERM, cleanup);
+-	
++
+ 	for (;;) {
+-		arp_send(llif, intf, ARPOP_REPLY, NULL, spoof_ip,
+-			 (target_ip ? (u_char *)&target_mac : NULL),
+-			 target_ip);
++    if (!n_targets) {
++      arp_send(l, ARPOP_REPLY, my_ha, spoof.ip, brd_ha, 0, my_ha);
++    } else {
++		struct host *target = targets;
++		while(target->ip) {
++			arp_send(l, ARPOP_REPLY, my_ha, spoof.ip,
++				(target->ip ? (u_int8_t *)&target->mac : brd_ha),
++				target->ip,
++				my_ha);
++			if (poison_reverse) {
++				arp_send(l, ARPOP_REPLY, my_ha, target->ip, (uint8_t *)&spoof.mac, spoof.ip, my_ha);
++			}
++			target++;
++		}
++    }
++
+ 		sleep(2);
+ 	}
+ 	/* NOTREACHED */
+-	
++
+ 	exit(0);
+ }
+diff -uNr dsniff-2.4.orig/buf.c dsniff-2.4/buf.c
+--- dsniff-2.4.orig/buf.c	2001-03-15 16:32:59.000000000 +0800
++++ dsniff-2.4/buf.c	2019-04-10 18:56:04.583464436 +0800
+@@ -17,6 +17,7 @@
+ #include <unistd.h>
+ #include <ctype.h>
+ #include <err.h>
++#include <string.h>
+ 
+ #include "buf.h"
+ 
+diff -uNr dsniff-2.4.orig/configure dsniff-2.4/configure
+--- dsniff-2.4.orig/configure	2001-03-19 14:52:37.000000000 +0800
++++ dsniff-2.4/configure	2019-04-10 18:56:04.567464361 +0800
+@@ -2667,15 +2667,62 @@
+   echo "$ac_t""no" 1>&6
+ fi
+ 
++echo $ac_n "checking for __dn_expand in -lresolv""... $ac_c" 1>&6
++echo "configure:2672: checking for __dn_expand in -lresolv" >&5
++ac_lib_var=`echo resolv'_'__dn_expand | sed 'y%./+-%__p_%'`
++if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
++  echo $ac_n "(cached) $ac_c" 1>&6
++else
++  ac_save_LIBS="$LIBS"
++LIBS="-lresolv  $LIBS"
++cat > conftest.$ac_ext <<EOF
++#line 2680 "configure"
++#include "confdefs.h"
++/* Override any gcc2 internal prototype to avoid an error.  */
++/* We use char because int might match the return type of a gcc2
++    builtin and then its argument prototype would still apply.  */
++char __dn_expand();
++
++int main() {
++__dn_expand()
++; return 0; }
++EOF
++if { (eval echo configure:2691: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++  rm -rf conftest*
++  eval "ac_cv_lib_$ac_lib_var=yes"
++else
++  echo "configure: failed program was:" >&5
++  cat conftest.$ac_ext >&5
++  rm -rf conftest*
++  eval "ac_cv_lib_$ac_lib_var=no"
++fi
++rm -f conftest*
++LIBS="$ac_save_LIBS"
++
++fi
++if eval "test \"`echo '$ac_cv_lib_'$ac_lib_var`\" = yes"; then
++  echo "$ac_t""yes" 1>&6
++    ac_tr_lib=HAVE_LIB`echo resolv | sed -e 's/[^a-zA-Z0-9_]/_/g' \
++    -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/'`
++  cat >> confdefs.h <<EOF
++#define $ac_tr_lib 1
++EOF
++
++  LIBS="-lresolv $LIBS"
++
++else
++  echo "$ac_t""no" 1>&6
++fi
++
+ for ac_func in dirname strlcpy strlcat strsep
+ do
+ echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:2674: checking for $ac_func" >&5
++echo "configure:2721: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2679 "configure"
++#line 2726 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -2698,7 +2745,7 @@
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:2702: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:2749: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -2728,12 +2775,12 @@
+ for ac_func in MD5Update
+ do
+ echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:2732: checking for $ac_func" >&5
++echo "configure:2779: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2737 "configure"
++#line 2784 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -2756,7 +2803,7 @@
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:2760: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:2807: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -2788,12 +2835,12 @@
+ for ac_func in warnx
+ do
+ echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:2792: checking for $ac_func" >&5
++echo "configure:2839: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2797 "configure"
++#line 2844 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -2816,7 +2863,7 @@
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:2820: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:2867: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -2848,12 +2895,12 @@
+ for ac_func in ether_ntoa
+ do
+ echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:2852: checking for $ac_func" >&5
++echo "configure:2899: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2857 "configure"
++#line 2904 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -2876,7 +2923,7 @@
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:2880: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:2927: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -2912,7 +2959,7 @@
+ fi
+ 
+ echo $ac_n "checking for Berkeley DB with 1.85 compatibility""... $ac_c" 1>&6
+-echo "configure:2916: checking for Berkeley DB with 1.85 compatibility" >&5
++echo "configure:2963: checking for Berkeley DB with 1.85 compatibility" >&5
+ # Check whether --with-db or --without-db was given.
+ if test "${with_db+set}" = set; then
+   withval="$with_db"
+@@ -3015,7 +3062,7 @@
+ 
+ 
+ echo $ac_n "checking for libpcap""... $ac_c" 1>&6
+-echo "configure:3019: checking for libpcap" >&5
++echo "configure:3066: checking for libpcap" >&5
+ # Check whether --with-libpcap or --without-libpcap was given.
+ if test "${with_libpcap+set}" = set; then
+   withval="$with_libpcap"
+@@ -3063,7 +3110,7 @@
+ 
+ 
+ echo $ac_n "checking for libnet""... $ac_c" 1>&6
+-echo "configure:3067: checking for libnet" >&5
++echo "configure:3114: checking for libnet" >&5
+ # Check whether --with-libnet or --without-libnet was given.
+ if test "${with_libnet+set}" = set; then
+   withval="$with_libnet"
+@@ -3110,7 +3157,7 @@
+ 
+ 
+ echo $ac_n "checking for libnids""... $ac_c" 1>&6
+-echo "configure:3114: checking for libnids" >&5
++echo "configure:3161: checking for libnids" >&5
+ # Check whether --with-libnids or --without-libnids was given.
+ if test "${with_libnids+set}" = set; then
+   withval="$with_libnids"
+@@ -3152,9 +3199,9 @@
+ save_cppflags="$CPPFLAGS"
+ CPPFLAGS="$NIDSINC"
+ echo $ac_n "checking whether libnids version is good""... $ac_c" 1>&6
+-echo "configure:3156: checking whether libnids version is good" >&5
++echo "configure:3203: checking whether libnids version is good" >&5
+ cat > conftest.$ac_ext <<EOF
+-#line 3158 "configure"
++#line 3205 "configure"
+ #include "confdefs.h"
+ #include <nids.h>
+ EOF
+@@ -3173,7 +3220,7 @@
+ 
+ 
+ echo $ac_n "checking for OpenSSL""... $ac_c" 1>&6
+-echo "configure:3177: checking for OpenSSL" >&5
++echo "configure:3224: checking for OpenSSL" >&5
+ # Check whether --with-openssl or --without-openssl was given.
+ if test "${with_openssl+set}" = set; then
+   withval="$with_openssl"
+diff -uNr dsniff-2.4.orig/configure.in dsniff-2.4/configure.in
+--- dsniff-2.4.orig/configure.in	2000-12-21 00:31:21.000000000 +0800
++++ dsniff-2.4/configure.in	2019-04-10 18:56:04.567464361 +0800
+@@ -57,6 +57,7 @@
+ AC_CHECK_LIB(nsl, gethostbyname)
+ dnl XXX - feh, everything except OpenBSD sux.
+ AC_CHECK_LIB(resolv, dn_expand)
++AC_CHECK_LIB(resolv, __dn_expand)
+ AC_REPLACE_FUNCS(dirname strlcpy strlcat strsep)
+ needmd5=no
+ AC_CHECK_FUNCS(MD5Update, , [needmd5=yes])
+diff -uNr dsniff-2.4.orig/decode_aim.c dsniff-2.4/decode_aim.c
+--- dsniff-2.4.orig/decode_aim.c	2001-03-15 16:32:59.000000000 +0800
++++ dsniff-2.4/decode_aim.c	2019-04-10 18:56:04.587464455 +0800
+@@ -14,6 +14,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <arpa/inet.h>
+ 
+ #include "hex.h"
+ #include "buf.h"
+diff -uNr dsniff-2.4.orig/decode.c dsniff-2.4/decode.c
+--- dsniff-2.4.orig/decode.c	2001-03-15 16:32:59.000000000 +0800
++++ dsniff-2.4/decode.c	2019-04-10 18:56:04.591464474 +0800
+@@ -63,7 +63,8 @@
+ 	{ "http",	decode_http },
+ 	{ "ospf",	decode_ospf },
+ 	{ "poppass",	decode_poppass },
+-	{ "pop",	decode_pop },
++	{ "pop2",	decode_pop },
++	{ "pop3",	decode_pop },
+ 	{ "nntp",	decode_nntp },
+ 	{ "smb",	decode_smb },
+ 	{ "imap",	decode_imap },
+diff -uNr dsniff-2.4.orig/decode.h dsniff-2.4/decode.h
+--- dsniff-2.4.orig/decode.h	2001-03-15 16:33:06.000000000 +0800
++++ dsniff-2.4/decode.h	2019-04-10 18:56:04.635464682 +0800
+@@ -35,7 +35,7 @@
+ 			  (u_short)*((u_char *)p+0)<<8))
+ 			 
+ #define pntohl(p)	((u_int32_t)*((u_char *)p+3)<<0|   \
+-			 (u_int32_t)*((u_char *)p+2)<<18|  \
++			 (u_int32_t)*((u_char *)p+2)<<8|  \
+ 			 (u_int32_t)*((u_char *)p+1)<<16|  \
+ 			 (u_int32_t)*((u_char *)p+0)<<24)
+ 
+diff -uNr dsniff-2.4.orig/decode_mmxp.c dsniff-2.4/decode_mmxp.c
+--- dsniff-2.4.orig/decode_mmxp.c	2001-03-15 16:33:01.000000000 +0800
++++ dsniff-2.4/decode_mmxp.c	2019-04-10 18:56:04.587464455 +0800
+@@ -21,6 +21,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <arpa/inet.h>
+ 
+ #include "buf.h"
+ #include "decode.h"
+diff -uNr dsniff-2.4.orig/decode_nntp.c dsniff-2.4/decode_nntp.c
+--- dsniff-2.4.orig/decode_nntp.c	2001-03-15 16:33:01.000000000 +0800
++++ dsniff-2.4/decode_nntp.c	2019-04-10 18:56:04.583464436 +0800
+@@ -15,6 +15,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcat.h>
+ 
+ #include "base64.h"
+ #include "decode.h"
+diff -uNr dsniff-2.4.orig/decode_pop.c dsniff-2.4/decode_pop.c
+--- dsniff-2.4.orig/decode_pop.c	2001-03-15 16:33:02.000000000 +0800
++++ dsniff-2.4/decode_pop.c	2019-04-10 18:56:04.603464531 +0800
+@@ -6,6 +6,8 @@
+  * Copyright (c) 2000 Dug Song <dugsong@monkey.org>
+  *
+  * $Id: decode_pop.c,v 1.4 2001/03/15 08:33:02 dugsong Exp $
++ *
++ * Rewritten by Stefan Tomanek 2011 <stefan@pico.ruhr.de>
+  */
+ 
+ #include "config.h"
+@@ -14,6 +16,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcat.h>
+ 
+ #include "base64.h"
+ #include "options.h"
+@@ -44,32 +47,88 @@
+ decode_pop(u_char *buf, int len, u_char *obuf, int olen)
+ {
+ 	char *p;
++	char *s;
++	int n;
+ 	int i, j;
++	char *user;
++	char *password;
++	enum {
++		NONE,
++		AUTHPLAIN,
++		AUTHLOGIN,
++		USERPASS
++	} mode = NONE;
++
+ 	
+ 	obuf[0] = '\0';
+ 	
+ 	for (p = strtok(buf, "\r\n"); p != NULL; p = strtok(NULL, "\r\n")) {
+-		if (strncasecmp(p, "AUTH PLAIN", 10) == 0 ||
+-		    strncasecmp(p, "AUTH LOGIN", 10) == 0) {
+-			strlcat(obuf, p, olen);
+-			strlcat(obuf, "\n", olen);
+-			
+-			/* Decode SASL auth. */
+-			for (i = 0; i < 2 && (p = strtok(NULL, "\r\n")); i++) {
+-				strlcat(obuf, p, olen);
+-				j = base64_pton(p, p, strlen(p));
+-				p[j] = '\0';
+-				strlcat(obuf, " [", olen);
+-				strlcat(obuf, p, olen);
+-				strlcat(obuf, "]\n", olen);
++		if (mode == NONE) {
++			user = NULL;
++			password = NULL;
++			if (strncasecmp(p, "AUTH PLAIN", 10) == 0) {
++				mode = AUTHPLAIN;
++				continue;
++			}
++			if (strncasecmp(p, "AUTH LOGIN", 10) == 0) {
++				mode = AUTHLOGIN;
++				continue;
++			}
++			if (strncasecmp(p, "USER ", 5) == 0) {
++				mode = USERPASS;
++				/* the traditional login cuts right to the case,
++				 * so no continue here
++				 */
+ 			}
+ 		}
+-		/* Save regular POP2, POP3 auth info. */
+-		else if (strncasecmp(p, "USER ", 5) == 0 ||
+-			 strncasecmp(p, "PASS ", 5) == 0 ||
+-			 strncasecmp(p, "HELO ", 5) == 0) {
+-			strlcat(obuf, p, olen);
+-			strlcat(obuf, "\n", olen);
++		printf("(%d) %s\n", mode, p);
++		if (mode == USERPASS) {
++			if (strncasecmp(p, "USER ", 5) == 0) {
++				user = &p[5];
++			} else if (strncasecmp(p, "PASS ", 5) == 0) {
++				password = &p[5];
++			}
++		}
++
++		if (mode == AUTHPLAIN) {
++			j = base64_pton(p, p, strlen(p));
++			p[j] = '\0';
++			n = 0;
++			s = p;
++			/* p consists of three parts, divided by \0 */
++			while (s <= &p[j] && n<=3) {
++				if (n == 0) {
++					/* we do not process this portion yet */
++				} else if (n == 1) {
++					user = s;
++				} else if (n == 2) {
++					password = s;
++				}
++				n++;
++				while (*s) s++;
++				s++;
++			}
++		}
++
++		if (mode == AUTHLOGIN) {
++			j = base64_pton(p, p, strlen(p));
++			p[j] = '\0';
++			if (! user) {
++				user = p;
++			} else {
++				password = p;
++				/* got everything we need :-) */
++			}
++		}
++
++		if (user && password) {
++			strlcat(obuf, "\nusername [", olen);
++			strlcat(obuf, user, olen);
++			strlcat(obuf, "] password [", olen);
++			strlcat(obuf, password, olen);
++			strlcat(obuf, "]\n", olen);
++
++			mode = NONE;
+ 		}
+ 	}
+ 	return (strlen(obuf));
+diff -uNr dsniff-2.4.orig/decode_pptp.c dsniff-2.4/decode_pptp.c
+--- dsniff-2.4.orig/decode_pptp.c	2001-03-15 16:33:02.000000000 +0800
++++ dsniff-2.4/decode_pptp.c	2019-04-10 18:56:04.587464455 +0800
+@@ -16,6 +16,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <arpa/inet.h>
+ 
+ #include "buf.h"
+ #include "decode.h"
+diff -uNr dsniff-2.4.orig/decode_rlogin.c dsniff-2.4/decode_rlogin.c
+--- dsniff-2.4.orig/decode_rlogin.c	2001-03-15 16:33:02.000000000 +0800
++++ dsniff-2.4/decode_rlogin.c	2019-04-10 18:56:04.583464436 +0800
+@@ -14,6 +14,8 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcpy.h>
++#include <strlcat.h>
+ 
+ #include "options.h"
+ #include "decode.h"
+diff -uNr dsniff-2.4.orig/decode_smb.c dsniff-2.4/decode_smb.c
+--- dsniff-2.4.orig/decode_smb.c	2001-03-15 16:33:02.000000000 +0800
++++ dsniff-2.4/decode_smb.c	2019-04-10 18:56:04.583464436 +0800
+@@ -15,6 +15,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcat.h>
+ 
+ #include "decode.h"
+ 
+diff -uNr dsniff-2.4.orig/decode_smtp.c dsniff-2.4/decode_smtp.c
+--- dsniff-2.4.orig/decode_smtp.c	2001-03-15 16:33:02.000000000 +0800
++++ dsniff-2.4/decode_smtp.c	2019-04-10 18:56:04.583464436 +0800
+@@ -14,6 +14,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcat.h>
+ 
+ #include "base64.h"
+ #include "options.h"
+diff -uNr dsniff-2.4.orig/decode_sniffer.c dsniff-2.4/decode_sniffer.c
+--- dsniff-2.4.orig/decode_sniffer.c	2001-03-15 16:33:02.000000000 +0800
++++ dsniff-2.4/decode_sniffer.c	2019-04-10 18:56:04.583464436 +0800
+@@ -15,6 +15,8 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcat.h>
++#include <strlcpy.h>
+ 
+ #include "base64.h"
+ #include "decode.h"
+diff -uNr dsniff-2.4.orig/decode_socks.c dsniff-2.4/decode_socks.c
+--- dsniff-2.4.orig/decode_socks.c	2001-03-15 16:33:02.000000000 +0800
++++ dsniff-2.4/decode_socks.c	2019-04-10 18:56:04.583464436 +0800
+@@ -14,6 +14,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcat.h>
+ 
+ #include "decode.h"
+ 
+diff -uNr dsniff-2.4.orig/decode_tds.c dsniff-2.4/decode_tds.c
+--- dsniff-2.4.orig/decode_tds.c	2001-03-15 16:33:02.000000000 +0800
++++ dsniff-2.4/decode_tds.c	2019-04-10 18:56:04.595464493 +0800
+@@ -18,6 +18,8 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcat.h>
++#include <arpa/inet.h>
+ 
+ #include "decode.h"
+ 
+@@ -142,6 +144,11 @@
+ 	     len > sizeof(*th) && len >= ntohs(th->size);
+ 	     buf += ntohs(th->size), len -= ntohs(th->size)) {
+ 		
++		if (th->size != 8) {
++			/* wrong header length */
++			break;
++		}
++
+ 		if (th->type == 2) {
+ 			/* Version 4.x, 5.0 */
+ 			if (len < sizeof(*th) + sizeof(*tl))
+diff -uNr dsniff-2.4.orig/decode_telnet.c dsniff-2.4/decode_telnet.c
+--- dsniff-2.4.orig/decode_telnet.c	2001-03-15 16:33:03.000000000 +0800
++++ dsniff-2.4/decode_telnet.c	2019-04-10 18:56:04.587464455 +0800
+@@ -14,6 +14,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcpy.h>
+ 
+ #include "options.h"
+ #include "decode.h"
+diff -uNr dsniff-2.4.orig/decode_vrrp.c dsniff-2.4/decode_vrrp.c
+--- dsniff-2.4.orig/decode_vrrp.c	2001-03-15 16:33:03.000000000 +0800
++++ dsniff-2.4/decode_vrrp.c	2019-04-10 18:56:04.587464455 +0800
+@@ -15,6 +15,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <arpa/inet.h>
+ 
+ #include "buf.h"
+ #include "decode.h"
+diff -uNr dsniff-2.4.orig/decode_x11.c dsniff-2.4/decode_x11.c
+--- dsniff-2.4.orig/decode_x11.c	2001-03-15 16:33:03.000000000 +0800
++++ dsniff-2.4/decode_x11.c	2019-04-10 18:56:04.587464455 +0800
+@@ -14,6 +14,8 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strlcat.h>
++#include <strlcpy.h>
+ 
+ #include "decode.h"
+ 
+diff -uNr dsniff-2.4.orig/dnsspoof.8 dsniff-2.4/dnsspoof.8
+--- dsniff-2.4.orig/dnsspoof.8	2000-11-14 23:51:07.000000000 +0800
++++ dsniff-2.4/dnsspoof.8	2019-04-10 18:56:04.603464531 +0800
+@@ -31,7 +31,7 @@
+ address queries on the LAN with an answer of the local machine's IP
+ address.
+ .SH FILES
+-.IP \fI/usr/local/lib/dnsspoof.hosts\fR
++.IP \fI/usr/share/dsniff/dnsspoof.hosts\fR
+ Sample hosts file.
+ .SH "SEE ALSO"
+ dsniff(8), hosts(5)
+diff -uNr dsniff-2.4.orig/dnsspoof.c dsniff-2.4/dnsspoof.c
+--- dsniff-2.4.orig/dnsspoof.c	2001-03-15 16:33:03.000000000 +0800
++++ dsniff-2.4/dnsspoof.c	2019-04-10 18:56:04.587464455 +0800
+@@ -20,6 +20,7 @@
+ #include <stdlib.h>
+ #include <signal.h>
+ #include <string.h>
++#include <strlcpy.h>
+ #include <resolv.h>
+ #include <err.h>
+ #include <libnet.h>
+@@ -38,7 +39,7 @@
+ 
+ pcap_t		*pcap_pd = NULL;
+ int		 pcap_off = -1;
+-int		 lnet_sock = -1;
++libnet_t	*l;
+ u_long		 lnet_ip = -1;
+ 
+ static void
+@@ -90,19 +91,18 @@
+ dns_init(char *dev, char *filename)
+ {
+ 	FILE *f;
+-	struct libnet_link_int *llif;
++	libnet_t *l;
++	char libnet_ebuf[LIBNET_ERRBUF_SIZE];
+ 	struct dnsent *de;
+ 	char *ip, *name, buf[1024];
+ 
+-	if ((llif = libnet_open_link_interface(dev, buf)) == NULL)
+-		errx(1, "%s", buf);
++	if ((l = libnet_init(LIBNET_LINK, dev, libnet_ebuf)) == NULL)
++		errx(1, "%s", libnet_ebuf);
+ 	
+-	if ((lnet_ip = libnet_get_ipaddr(llif, dev, buf)) == -1)
+-		errx(1, "%s", buf);
++	if ((lnet_ip = libnet_get_ipaddr4(l)) == -1)
++		errx(1, "%s", libnet_geterror(l));
+ 
+-	lnet_ip = htonl(lnet_ip);
+-	
+-	libnet_close_link_interface(llif);
++	libnet_destroy(l);
+ 
+ 	SLIST_INIT(&dns_entries);
+ 	
+@@ -180,7 +180,7 @@
+ static void
+ dns_spoof(u_char *u, const struct pcap_pkthdr *pkthdr, const u_char *pkt)
+ {
+-	struct libnet_ip_hdr *ip;
++	struct libnet_ipv4_hdr *ip;
+ 	struct libnet_udp_hdr *udp;
+ 	HEADER *dns;
+ 	char name[MAXHOSTNAMELEN];
+@@ -189,7 +189,7 @@
+ 	in_addr_t dst;
+ 	u_short type, class;
+ 
+-	ip = (struct libnet_ip_hdr *)(pkt + pcap_off);
++	ip = (struct libnet_ipv4_hdr *)(pkt + pcap_off);
+ 	udp = (struct libnet_udp_hdr *)(pkt + pcap_off + (ip->ip_hl * 4));
+ 	dns = (HEADER *)(udp + 1);
+ 	p = (u_char *)(dns + 1);
+@@ -212,7 +212,7 @@
+ 	if (class != C_IN)
+ 		return;
+ 
+-	p = buf + IP_H + UDP_H + dnslen;
++	p = buf + dnslen;
+ 	
+ 	if (type == T_A) {
+ 		if ((dst = dns_lookup_a(name)) == -1)
+@@ -234,38 +234,38 @@
+ 		anslen += 12;
+ 	}
+ 	else return;
+-	
+-	libnet_build_ip(UDP_H + dnslen + anslen, 0, libnet_get_prand(PRu16),
+-			0, 64, IPPROTO_UDP, ip->ip_dst.s_addr,
+-			ip->ip_src.s_addr, NULL, 0, buf);
+-	
+-	libnet_build_udp(ntohs(udp->uh_dport), ntohs(udp->uh_sport),
+-			 NULL, dnslen + anslen, buf + IP_H);
+ 
+-	memcpy(buf + IP_H + UDP_H, (u_char *)dns, dnslen);
++	memcpy(buf, (u_char *)dns, dnslen);
+ 
+-	dns = (HEADER *)(buf + IP_H + UDP_H);
++	dns = (HEADER *)buf;
+ 	dns->qr = dns->ra = 1;
+ 	if (type == T_PTR) dns->aa = 1;
+ 	dns->ancount = htons(1);
+ 
+ 	dnslen += anslen;
++
++	libnet_clear_packet(l);
++	libnet_build_udp(ntohs(udp->uh_dport), ntohs(udp->uh_sport),
++			 LIBNET_UDP_H + dnslen, 0,
++			 (u_int8_t *)buf, dnslen, l, 0);
++
++	libnet_build_ipv4(LIBNET_IPV4_H + LIBNET_UDP_H + dnslen, 0,
++			  libnet_get_prand(LIBNET_PRu16), 0, 64, IPPROTO_UDP, 0,
++			  ip->ip_dst.s_addr, ip->ip_src.s_addr, NULL, 0, l, 0);
+ 	
+-	libnet_do_checksum(buf, IPPROTO_UDP, UDP_H + dnslen);
+-	
+-	if (libnet_write_ip(lnet_sock, buf, IP_H + UDP_H + dnslen) < 0)
++	if (libnet_write(l) < 0)
+ 		warn("write");
+ 
+ 	fprintf(stderr, "%s.%d > %s.%d:  %d+ %s? %s\n",
+-	      libnet_host_lookup(ip->ip_src.s_addr, 0), ntohs(udp->uh_sport),
+-	      libnet_host_lookup(ip->ip_dst.s_addr, 0), ntohs(udp->uh_dport),
++	      libnet_addr2name4(ip->ip_src.s_addr, 0), ntohs(udp->uh_sport),
++	      libnet_addr2name4(ip->ip_dst.s_addr, 0), ntohs(udp->uh_dport),
+ 	      ntohs(dns->id), type == T_A ? "A" : "PTR", name);
+ }
+ 
+ static void
+ cleanup(int sig)
+ {
+-	libnet_close_raw_sock(lnet_sock);
++	libnet_destroy(l);
+ 	pcap_close(pcap_pd);
+ 	exit(0);
+ }
+@@ -276,6 +276,7 @@
+ 	extern char *optarg;
+ 	extern int optind;
+ 	char *p, *dev, *hosts, buf[1024];
++	char ebuf[LIBNET_ERRBUF_SIZE];
+ 	int i;
+ 
+ 	dev = hosts = NULL;
+@@ -306,7 +307,7 @@
+ 		strlcpy(buf, p, sizeof(buf));
+ 	}
+ 	else snprintf(buf, sizeof(buf), "udp dst port 53 and not src %s",
+-		      libnet_host_lookup(lnet_ip, 0));
++		      libnet_addr2name4(lnet_ip, LIBNET_DONT_RESOLVE));
+ 	
+ 	if ((pcap_pd = pcap_init(dev, buf, 128)) == NULL)
+ 		errx(1, "couldn't initialize sniffing");
+@@ -314,10 +315,10 @@
+ 	if ((pcap_off = pcap_dloff(pcap_pd)) < 0)
+ 		errx(1, "couldn't determine link layer offset");
+ 	
+-	if ((lnet_sock = libnet_open_raw_sock(IPPROTO_RAW)) == -1)
++	if ((l = libnet_init(LIBNET_RAW4, dev, ebuf)) == NULL)
+ 		errx(1, "couldn't initialize sending");
+ 	
+-	libnet_seed_prand();
++	libnet_seed_prand(l);
+ 	
+ 	signal(SIGHUP, cleanup);
+ 	signal(SIGINT, cleanup);
+diff -uNr dsniff-2.4.orig/dsniff.8 dsniff-2.4/dsniff.8
+--- dsniff-2.4.orig/dsniff.8	2000-12-16 00:05:36.000000000 +0800
++++ dsniff-2.4/dsniff.8	2019-04-10 18:56:04.603464531 +0800
+@@ -10,7 +10,7 @@
+ .nf
+ .fi
+ \fBdsniff\fR [\fB-c\fR] [\fB-d\fR] [\fB-m\fR] [\fB-n\fR] [\fB-i
+-\fIinterface\fR] [\fB-s \fIsnaplen\fR] [\fB-f \fIservices\fR]
++\fIinterface\fR | \fB-p \fIpcapfile\fR] [\fB-s \fIsnaplen\fR] [\fB-f \fIservices\fR]
+ [\fB-t \fItrigger[,...]\fR]]
+ [\fB-r\fR|\fB-w\fR \fIsavefile\fR] [\fIexpression\fR]
+ .SH DESCRIPTION
+@@ -45,6 +45,9 @@
+ Do not resolve IP addresses to hostnames.
+ .IP "\fB-i \fIinterface\fR"
+ Specify the interface to listen on.
++.IP "\fB-p \fIpcapfile\fR"
++Rather than processing the contents of packets observed upon the network 
++process the given PCAP capture file.
+ .IP "\fB-s \fIsnaplen\fR"
+ Analyze at most the first \fIsnaplen\fR bytes of each TCP connection,
+ rather than the default of 1024.
+@@ -65,9 +68,9 @@
+ On a hangup signal \fBdsniff\fR will dump its current trigger table to
+ \fIdsniff.services\fR.
+ .SH FILES
+-.IP \fI/usr/local/lib/dsniff.services\fR
++.IP \fI/usr/share/dsniff/dsniff.services\fR
+ Default trigger table
+-.IP \fI/usr/local/lib/dsniff.magic\fR
++.IP \fI/usr/share/dsniff/dsniff.magic\fR
+ Network protocol magic
+ .SH "SEE ALSO"
+ arpspoof(8), libnids(3), services(5), magic(5)
+diff -uNr dsniff-2.4.orig/dsniff.c dsniff-2.4/dsniff.c
+--- dsniff-2.4.orig/dsniff.c	2001-03-15 16:33:03.000000000 +0800
++++ dsniff-2.4/dsniff.c	2019-04-10 18:56:04.595464493 +0800
+@@ -46,8 +46,9 @@
+ usage(void)
+ {
+ 	fprintf(stderr, "Version: " VERSION "\n"
+-		"Usage: dsniff [-cdmn] [-i interface] [-s snaplen] [-f services]\n"
+-		"              [-t trigger[,...]] [-r|-w savefile] [expression]\n");
++		"Usage: dsniff [-cdmn] [-i interface | -p pcapfile] [-s snaplen]\n"
++		"              [-f services] [-t trigger[,...]] [-r|-w savefile]\n"
++		"              [expression]\n");
+ 	exit(1);
+ }
+ 
+@@ -69,6 +70,80 @@
+ {
+ }
+ 
++
++static int get_all_ifaces(struct ifreq **, int *);
++static unsigned int get_addr_from_ifreq(struct ifreq *);
++
++int all_local_ipaddrs_chksum_disable()
++{
++	struct ifreq *ifaces;
++	int ifaces_count;
++	int i, ind = 0;
++	struct nids_chksum_ctl *ctlp;
++	unsigned int tmp;
++
++	if (!get_all_ifaces(&ifaces, &ifaces_count))
++		return -1;
++	ctlp =
++	    (struct nids_chksum_ctl *) malloc(ifaces_count *
++					      sizeof(struct
++						     nids_chksum_ctl));
++	if (!ctlp)
++		return -1;
++	for (i = 0; i < ifaces_count; i++) {
++		tmp = get_addr_from_ifreq(ifaces + i);
++		if (tmp) {
++			ctlp[ind].netaddr = tmp;
++			ctlp[ind].mask = inet_addr("255.255.255.255");
++			ctlp[ind].action = NIDS_DONT_CHKSUM;
++			ind++;
++		}
++	}
++	free(ifaces);
++	nids_register_chksum_ctl(ctlp, ind);
++}
++
++/* helper functions for Example 2 */
++unsigned int get_addr_from_ifreq(struct ifreq *iface)
++{
++	if (iface->ifr_addr.sa_family == AF_INET)
++		return ((struct sockaddr_in *) &(iface->ifr_addr))->
++		    sin_addr.s_addr;
++	return 0;
++}
++
++static int get_all_ifaces(struct ifreq **ifaces, int *count)
++{
++	int ifaces_size = 8 * sizeof(struct ifreq);
++	struct ifconf param;
++	int sock;
++	unsigned int i;
++
++	*ifaces = malloc(ifaces_size);
++	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
++	if (sock <= 0)
++		return 0;
++	for (;;) {
++		param.ifc_len = ifaces_size;
++		param.ifc_req = *ifaces;
++		if (ioctl(sock, SIOCGIFCONF, &param))
++			goto err;
++		if (param.ifc_len < ifaces_size)
++			break;
++		free(*ifaces);
++		ifaces_size *= 2;
++		ifaces = malloc(ifaces_size);
++	}
++	*count = param.ifc_len / sizeof(struct ifreq);
++	close(sock);
++	return 1;
++      err:
++	close(sock);
++	return 0;
++}
++
++
++
+ int
+ main(int argc, char *argv[])
+ {
+@@ -79,7 +154,7 @@
+ 
+ 	services = savefile = triggers = NULL;
+ 	
+-	while ((c = getopt(argc, argv, "cdf:i:mnr:s:t:w:h?V")) != -1) {
++	while ((c = getopt(argc, argv, "cdf:i:mnp:r:s:t:w:h?V")) != -1) {
+ 		switch (c) {
+ 		case 'c':
+ 			Opt_client = 1;
+@@ -99,6 +174,9 @@
+ 		case 'n':
+ 			Opt_dns = 0;
+ 			break;
++		case 'p':
++			nids_params.filename = optarg;
++			break;
+ 		case 'r':
+ 			Opt_read = 1;
+ 			savefile = optarg;
+@@ -168,10 +246,25 @@
+ 	else nids_register_tcp(trigger_tcp);
+ 	
+ 	if (nids_params.pcap_filter != NULL) {
+-		warnx("listening on %s [%s]", nids_params.device,
+-		      nids_params.pcap_filter);
++		if (nids_params.filename == NULL) {
++			warnx("listening on %s [%s]", nids_params.device,
++		        nids_params.pcap_filter);
++		}
++		else {
++			warnx("using %s [%s]", nids_params.filename,
++		        nids_params.pcap_filter);
++		}
+ 	}
+-	else warnx("listening on %s", nids_params.device);
++	else {
++		if (nids_params.filename == NULL) {
++			warnx("listening on %s", nids_params.device);
++		}
++		else {
++			warnx("using %s", nids_params.filename);
++		}
++	}
++
++	all_local_ipaddrs_chksum_disable();
+ 	
+ 	nids_run();
+ 	
+diff -uNr dsniff-2.4.orig/dsniff.services dsniff-2.4/dsniff.services
+--- dsniff-2.4.orig/dsniff.services	2000-12-16 04:10:58.000000000 +0800
++++ dsniff-2.4/dsniff.services	2019-04-10 18:56:04.591464474 +0800
+@@ -10,8 +10,8 @@
+ ospf		89/ip
+ http		98/tcp
+ poppass		106/tcp
+-pop		109/tcp
+-pop		110/tcp
++pop2		109/tcp
++pop3		110/tcp
+ portmap		111/tcp
+ portmap		-111/tcp
+ portmap		111/udp
+diff -uNr dsniff-2.4.orig/filesnarf.8 dsniff-2.4/filesnarf.8
+--- dsniff-2.4.orig/filesnarf.8	2000-11-19 14:23:33.000000000 +0800
++++ dsniff-2.4/filesnarf.8	2019-04-10 18:56:04.559464322 +0800
+@@ -9,7 +9,7 @@
+ .na
+ .nf
+ .fi
+-\fBfilesnarf\fR [\fB-i \fIinterface\fR] [[\fB-v\fR] \fIpattern [\fIexpression\fR]]
++\fBfilesnarf\fR [\fB-i \fIinterface\fR | \fB-p \fIpcapfile\fR] [[\fB-v\fR] \fIpattern [\fIexpression\fR]]
+ .SH DESCRIPTION
+ .ad
+ .fi
+@@ -18,6 +18,8 @@
+ .SH OPTIONS
+ .IP "\fB-i \fIinterface\fR"
+ Specify the interface to listen on.
++.IP "\fB-p \fIpcapfile\fR"
++Process packets from the specified PCAP capture file instead of the network.
+ .IP \fB-v\fR
+ "Versus" mode. Invert the sense of matching, to select non-matching
+ files.
+diff -uNr dsniff-2.4.orig/filesnarf.c dsniff-2.4/filesnarf.c
+--- dsniff-2.4.orig/filesnarf.c	2001-03-15 16:33:03.000000000 +0800
++++ dsniff-2.4/filesnarf.c	2019-04-10 18:56:04.647464740 +0800
+@@ -51,34 +51,10 @@
+ usage(void)
+ {
+ 	fprintf(stderr, "Version: " VERSION "\n"
+-		"Usage: filesnarf [-i interface] [[-v] pattern [expression]]\n");
++		"Usage: filesnarf [-i interface | -p pcapfile] [[-v] pattern [expression]]\n");
+ 	exit(1);
+ }
+ 
+-/* XXX - for nfs_prot_xdr.c */
+-bool_t
+-xdr_u_int64_t(XDR *xdrs, u_int64_t *nump)
+-{
+-	int i = 1;
+-	u_char *p = (u_char *)nump;
+-
+-	if (*(char *)&i == 1) {		/* endian haack. */
+-		if (xdr_u_long(xdrs, (u_long *)(p + 4)))
+-			return (xdr_u_long(xdrs, (u_long *)p));
+-	}
+-	else {
+-		if (xdr_u_long(xdrs, (u_long *)p))
+-			return (xdr_u_long(xdrs, (u_long *)(p + 4)));
+-	}
+-	return (FALSE);
+-}
+-
+-bool_t
+-xdr_int64_t(XDR *xdrs, int64_t *nump)
+-{
+-	return (xdr_u_int64_t(xdrs, (u_int64_t *)nump));
+-}
+-
+ static void
+ fh_map_init(void)
+ {
+@@ -134,8 +110,8 @@
+ 	int fd;
+ 
+ 	warnx("%s.%d > %s.%d: %s (%d@%d)",
+-	      libnet_host_lookup(addr->daddr, 0), addr->dest,
+-	      libnet_host_lookup(addr->saddr, 0), addr->source,
++	      libnet_addr2name4(addr->daddr, LIBNET_DONT_RESOLVE), addr->dest,
++	      libnet_addr2name4(addr->saddr, LIBNET_DONT_RESOLVE), addr->source,
+ 	      ma->filename, len, ma->offset);
+ 	
+ 	if ((fd = open(ma->filename, O_WRONLY|O_CREAT, 0644)) >= 0) {
+@@ -353,7 +329,7 @@
+ }
+ 
+ static void
+-decode_udp_nfs(struct libnet_ip_hdr *ip)
++decode_udp_nfs(struct libnet_ipv4_hdr *ip)
+ {
+ 	static struct tuple4 addr;
+ 	struct libnet_udp_hdr *udp;
+@@ -464,11 +440,14 @@
+ 	extern int optind;
+ 	int c;
+ 
+-	while ((c = getopt(argc, argv, "i:vh?V")) != -1) {
++	while ((c = getopt(argc, argv, "i:p:vh?V")) != -1) {
+ 		switch (c) {
+ 		case 'i':
+ 			nids_params.device = optarg;
+ 			break;
++		case 'p':
++			nids_params.filename = optarg;
++			break;
+ 		case 'v':
+ 			Opt_invert = 1;
+ 			break;
+@@ -498,11 +477,24 @@
+ 	nids_register_ip(decode_udp_nfs);
+ 	nids_register_tcp(decode_tcp_nfs);
+ 
+-	if (nids_params.pcap_filter != NULL) {
+-		warnx("listening on %s [%s]", nids_params.device,
+-		      nids_params.pcap_filter);
+-	}
+-	else warnx("listening on %s", nids_params.device);
++        if (nids_params.pcap_filter != NULL) {
++                if (nids_params.filename == NULL) {
++                        warnx("listening on %s [%s]", nids_params.device,
++                              nids_params.pcap_filter);
++                }
++                else {
++                        warnx("using %s [%s]", nids_params.filename,
++                              nids_params.pcap_filter);
++                }
++        }
++        else {
++                if (nids_params.filename == NULL) {
++                        warnx("listening on %s", nids_params.device);
++                }
++                else {
++                        warnx("using %s", nids_params.filename);
++                }
++        }
+ 
+ 	nids_run();
+ 
+diff -uNr dsniff-2.4.orig/macof.c dsniff-2.4/macof.c
+--- dsniff-2.4.orig/macof.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/macof.c	2019-04-10 18:56:04.575464398 +0800
+@@ -48,8 +48,8 @@
+ static void
+ gen_mac(u_char *mac)
+ {
+-	*((in_addr_t *)mac) = libnet_get_prand(PRu32);
+-	*((u_short *)(mac + 4)) = libnet_get_prand(PRu16);
++	*((in_addr_t *)mac) = libnet_get_prand(LIBNET_PRu32);
++	*((u_short *)(mac + 4)) = libnet_get_prand(LIBNET_PRu16);
+ }
+ 
+ int
+@@ -59,22 +59,23 @@
+ 	extern int optind;
+ 	int c, i;
+ 	struct libnet_link_int *llif;
+-	char ebuf[PCAP_ERRBUF_SIZE];
++	char pcap_ebuf[PCAP_ERRBUF_SIZE];
++	char libnet_ebuf[LIBNET_ERRBUF_SIZE];
+ 	u_char sha[ETHER_ADDR_LEN], tha[ETHER_ADDR_LEN];
+ 	in_addr_t src, dst;
+ 	u_short sport, dport;
+ 	u_int32_t seq;
+-	u_char pkt[ETH_H + IP_H + TCP_H];
++	libnet_t *l;
+ 	
+ 	while ((c = getopt(argc, argv, "vs:d:e:x:y:i:n:h?V")) != -1) {
+ 		switch (c) {
+ 		case 'v':
+ 			break;
+ 		case 's':
+-			Src = libnet_name_resolve(optarg, 0);
++			Src = libnet_name2addr4(l, optarg, 0);
+ 			break;
+ 		case 'd':
+-			Dst = libnet_name_resolve(optarg, 0);
++			Dst = libnet_name2addr4(l, optarg, 0);
+ 			break;
+ 		case 'e':
+ 			Tha = (u_char *)ether_aton(optarg);
+@@ -101,13 +102,13 @@
+ 	if (argc != 0)
+ 		usage();
+ 	
+-	if (!Intf && (Intf = pcap_lookupdev(ebuf)) == NULL)
+-		errx(1, "%s", ebuf);
++	if (!Intf && (Intf = pcap_lookupdev(pcap_ebuf)) == NULL)
++		errx(1, "%s", pcap_ebuf);
+ 	
+-	if ((llif = libnet_open_link_interface(Intf, ebuf)) == 0)
+-		errx(1, "%s", ebuf);
++	if ((l = libnet_init(LIBNET_LINK, Intf, libnet_ebuf)) == NULL)
++		errx(1, "%s", libnet_ebuf);
+ 	
+-	libnet_seed_prand();
++	libnet_seed_prand(l);
+ 	
+ 	for (i = 0; i != Repeat; i++) {
+ 		
+@@ -117,39 +118,39 @@
+ 		else memcpy(tha, Tha, sizeof(tha));
+ 		
+ 		if (Src != 0) src = Src;
+-		else src = libnet_get_prand(PRu32);
++		else src = libnet_get_prand(LIBNET_PRu32);
+ 		
+ 		if (Dst != 0) dst = Dst;
+-		else dst = libnet_get_prand(PRu32);
++		else dst = libnet_get_prand(LIBNET_PRu32);
+ 		
+ 		if (Sport != 0) sport = Sport;
+-		else sport = libnet_get_prand(PRu16);
++		else sport = libnet_get_prand(LIBNET_PRu16);
+ 		
+ 		if (Dport != 0) dport = Dport;
+-		else dport = libnet_get_prand(PRu16);
++		else dport = libnet_get_prand(LIBNET_PRu16);
+ 
+-		seq = libnet_get_prand(PRu32);
+-		
+-		libnet_build_ethernet(tha, sha, ETHERTYPE_IP, NULL, 0, pkt);
+-		
+-		libnet_build_ip(TCP_H, 0, libnet_get_prand(PRu16), 0, 64,
+-				IPPROTO_TCP, src, dst, NULL, 0, pkt + ETH_H);
++		seq = libnet_get_prand(LIBNET_PRu32);
+ 		
+ 		libnet_build_tcp(sport, dport, seq, 0, TH_SYN, 512,
+-				 0, NULL, 0, pkt + ETH_H + IP_H);
++				 0, 0, LIBNET_TCP_H, NULL, 0, l, 0);
+ 		
+-		libnet_do_checksum(pkt + ETH_H, IPPROTO_IP, IP_H);
+-		libnet_do_checksum(pkt + ETH_H, IPPROTO_TCP, TCP_H);
++		libnet_build_ipv4(LIBNET_TCP_H, 0,
++				  libnet_get_prand(LIBNET_PRu16), 0, 64,
++				  IPPROTO_TCP, 0, src, dst, NULL, 0, l, 0);
+ 		
+-		if (libnet_write_link_layer(llif, Intf, pkt, sizeof(pkt)) < 0)
++		libnet_build_ethernet(tha, sha, ETHERTYPE_IP, NULL, 0, l, 0);
++		
++		if (libnet_write(l) < 0)
+ 			errx(1, "write");
+ 
++		libnet_clear_packet(l);
++
+ 		fprintf(stderr, "%s ",
+ 			ether_ntoa((struct ether_addr *)sha));
+ 		fprintf(stderr, "%s %s.%d > %s.%d: S %u:%u(0) win 512\n",
+ 			ether_ntoa((struct ether_addr *)tha),
+-			libnet_host_lookup(Src, 0), sport,
+-			libnet_host_lookup(Dst, 0), dport, seq, seq);
++			libnet_addr2name4(Src, 0), sport,
++			libnet_addr2name4(Dst, 0), dport, seq, seq);
+ 	}
+ 	exit(0);
+ }
+diff -uNr dsniff-2.4.orig/magic.c dsniff-2.4/magic.c
+--- dsniff-2.4.orig/magic.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/magic.c	2019-04-10 18:56:04.587464455 +0800
+@@ -36,6 +36,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <strlcpy.h>
+ #include <ctype.h>
+ #include <time.h>
+ #include <err.h>
+diff -uNr dsniff-2.4.orig/mailsnarf.8 dsniff-2.4/mailsnarf.8
+--- dsniff-2.4.orig/mailsnarf.8	2000-11-19 14:09:28.000000000 +0800
++++ dsniff-2.4/mailsnarf.8	2019-04-10 18:56:04.559464322 +0800
+@@ -9,7 +9,7 @@
+ .na
+ .nf
+ .fi
+-\fBmailsnarf\fR [\fB-i \fIinterface\fR] [[\fB-v\fR] \fIpattern [\fIexpression\fR]]
++\fBmailsnarf\fR [\fB-i \fIinterface\fR | \fB-p \fIpcapfile\fR] [[\fB-v\fR] \fIpattern [\fIexpression\fR]]
+ .SH DESCRIPTION
+ .ad
+ .fi
+@@ -19,6 +19,8 @@
+ .SH OPTIONS
+ .IP "\fB-i \fIinterface\fR"
+ Specify the interface to listen on.
++.IP "\fB-p \fIpcapfile\fR"
++Process packets from the specified PCAP capture file instead of the network.
+ .IP \fB-v\fR
+ "Versus" mode. Invert the sense of matching, to select non-matching
+ messages.
+diff -uNr dsniff-2.4.orig/mailsnarf.c dsniff-2.4/mailsnarf.c
+--- dsniff-2.4.orig/mailsnarf.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/mailsnarf.c	2019-04-10 18:56:04.563464342 +0800
+@@ -59,7 +59,7 @@
+ usage(void)
+ {
+ 	fprintf(stderr, "Version: " VERSION "\n"
+-		"Usage: mailsnarf [-i interface] [[-v] pattern [expression]]\n");
++		"Usage: mailsnarf [-i interface | -p pcapfile] [[-v] pattern [expression]]\n");
+ 	exit(1);
+ }
+ 
+@@ -178,7 +178,7 @@
+ 	if (smtp->state != SMTP_DATA) {
+ 		while ((i = buf_index(&buf, "\r\n", 2)) >= 0) {
+ 			line = buf_tok(&buf, NULL, i + 2);
+-			line->base[line->end] = '\0';
++			line->base[line->end-1] = '\0';
+ 			p = buf_ptr(line);
+ 			
+ 			if (strncasecmp(p, "RSET", 4) == 0) {
+@@ -344,11 +344,14 @@
+ 	extern int optind;
+ 	int c;
+ 	
+-	while ((c = getopt(argc, argv, "i:vh?V")) != -1) {
++	while ((c = getopt(argc, argv, "i:p:vh?V")) != -1) {
+ 		switch (c) {
+ 		case 'i':
+ 			nids_params.device = optarg;
+ 			break;
++                case 'p':
++                        nids_params.filename = optarg;
++                        break;
+ 		case 'v':
+ 			Opt_invert = 1;
+ 			break;
+@@ -378,10 +381,23 @@
+ 	nids_register_tcp(sniff_pop_session);
+ 
+ 	if (nids_params.pcap_filter != NULL) {
+-		warnx("listening on %s [%s]", nids_params.device,
+-		      nids_params.pcap_filter);
+-	}
+-	else warnx("listening on %s", nids_params.device);
++                if (nids_params.filename == NULL) {
++		        warnx("listening on %s [%s]", nids_params.device,
++		              nids_params.pcap_filter);
++                }
++                else {
++		        warnx("using %s [%s]", nids_params.filename,
++		              nids_params.pcap_filter);
++                }
++	}
++	else {
++                if (nids_params.filename == NULL) {
++                    warnx("listening on %s", nids_params.device);
++                }
++                else {
++                    warnx("using %s", nids_params.filename);
++                }
++        }
+ 	
+ 	nids_run();
+ 	
+diff -uNr dsniff-2.4.orig/Makefile.in dsniff-2.4/Makefile.in
+--- dsniff-2.4.orig/Makefile.in	2001-03-15 16:34:42.000000000 +0800
++++ dsniff-2.4/Makefile.in	2019-04-10 18:56:04.643464720 +0800
+@@ -17,6 +17,7 @@
+ 
+ CC	= @CC@
+ CFLAGS	= @CFLAGS@ -DDSNIFF_LIBDIR=\"$(libdir)/\"
++CPPFLAGS = @CPPFLAGS@
+ LDFLAGS	= @LDFLAGS@
+ 
+ PCAPINC = @PCAPINC@
+@@ -74,68 +75,80 @@
+ CONFIGS	= dsniff.magic dsniff.services dnsspoof.hosts
+ 
+ .c.o:
+-	$(CC) $(CFLAGS) $(INCS) -c $(srcdir)/$*.c
++	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCS) -c $(srcdir)/$*.c
+ 
+-all: libmissing.a $(PROGS)
++all: $(PROGS)
+ 
+-mount.c: mount.x
++mount.h: mount.x
+ 	rpcgen -h mount.x -o mount.h
++
++mount.c: mount.x
+ 	rpcgen -c mount.x -o mount.c
+ 
+-nfs_prot.c: nfs_prot.x
++mount.o: mount.h
++
++decode_mountd.o: mount.h
++
++nfs_prot.h: nfs_prot.x
+ 	rpcgen -h nfs_prot.x -o nfs_prot.h
++
++nfs_prot.c: nfs_prot.x
+ 	rpcgen -c nfs_prot.x -o nfs_prot.c
+ 
++nfs_prot.o: nfs_prot.h
++
++filesnarf.o: nfs_prot.h
++
+ $(LIBOBJS):
+-	$(CC) $(CFLAGS) $(INCS) -c $(srcdir)/missing/$*.c
++	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCS) -c $(srcdir)/missing/$*.c
+ 
+ libmissing.a: $(LIBOBJS)
+ 	ar -cr $@ $(LIBOBJS)
+ 	$(RANLIB) $@
+ 
+-dsniff: $(HDRS) $(SRCS) $(OBJS)
++dsniff: $(HDRS) $(SRCS) $(OBJS) libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS) $(NIDSLIB) $(PCAPLIB) $(LNETLIB) $(DBLIB) $(SSLLIB)
+ 
+-arpspoof: arpspoof.o arp.o
++arpspoof: arpspoof.o arp.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ arpspoof.o arp.o $(LIBS) $(PCAPLIB) $(LNETLIB)
+ 
+-dnsspoof: dnsspoof.o pcaputil.o
++dnsspoof: dnsspoof.o pcaputil.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ dnsspoof.o pcaputil.o $(LIBS) $(PCAPLIB) $(LNETLIB)
+ 
+-filesnarf: nfs_prot.o filesnarf.o pcaputil.o rpc.o
++filesnarf: nfs_prot.o filesnarf.o pcaputil.o rpc.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ filesnarf.o nfs_prot.o pcaputil.o rpc.o $(LIBS) $(NIDSLIB) $(PCAPLIB) $(LNETLIB)
+ 
+-macof: macof.o
++macof: macof.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ macof.o $(LIBS) $(PCAPLIB) $(LNETLIB)
+ 
+-mailsnarf: mailsnarf.o buf.o pcaputil.o
++mailsnarf: mailsnarf.o buf.o pcaputil.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ mailsnarf.o buf.o pcaputil.o $(LIBS) $(NIDSLIB) $(PCAPLIB) $(LNETLIB)
+ 
+-msgsnarf: msgsnarf.o buf.o pcaputil.o
++msgsnarf: msgsnarf.o buf.o pcaputil.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ msgsnarf.o buf.o pcaputil.o $(LIBS) $(NIDSLIB) $(PCAPLIB) $(LNETLIB)
+ 
+-sshmitm: sshmitm.o buf.o hex.o record.o ssh.o sshcrypto.o
++sshmitm: sshmitm.o buf.o hex.o record.o ssh.o sshcrypto.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ sshmitm.o buf.o hex.o record.o ssh.o sshcrypto.o $(LIBS) $(LNETLIB) $(DBLIB) $(SSLLIB)
+ 
+-sshow: sshow.o pcaputil.o
++sshow: sshow.o pcaputil.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ sshow.o pcaputil.o $(LIBS) $(NIDSLIB) $(PCAPLIB) $(LNETLIB)
+ 
+-tcpkill: tcpkill.o pcaputil.o
++tcpkill: tcpkill.o pcaputil.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ tcpkill.o pcaputil.o $(LIBS) $(PCAPLIB) $(LNETLIB)
+ 
+-tcpnice: tcpnice.o pcaputil.o
++tcpnice: tcpnice.o pcaputil.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ tcpnice.o pcaputil.o $(LIBS) $(PCAPLIB) $(LNETLIB)
+ 
+-tcphijack: tcphijack.o pcaputil.o
++tcphijack: tcphijack.o pcaputil.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ tcphijack.o pcaputil.o $(LIBS) $(PCAPLIB) $(LNETLIB)
+ 
+-urlsnarf: urlsnarf.o base64.o buf.o pcaputil.o
++urlsnarf: urlsnarf.o base64.o buf.o pcaputil.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ urlsnarf.o base64.o buf.o pcaputil.o $(LIBS) $(NIDSLIB) $(PCAPLIB) $(LNETLIB)
+ 
+-webmitm: webmitm.o base64.o buf.o decode_http.o record.o
++webmitm: webmitm.o base64.o buf.o decode_http.o record.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ webmitm.o base64.o buf.o decode_http.o record.o $(LIBS) $(LNETLIB) $(DBLIB) $(SSLLIB)
+ 
+-webspy: webspy.o base64.o buf.o remote.o
++webspy: webspy.o base64.o buf.o remote.o libmissing.a
+ 	$(CC) $(LDFLAGS) -o $@ webspy.o base64.o buf.o remote.o $(LIBS) $(NIDSLIB) $(PCAPLIB) $(LNETLIB) $(X11LIB)
+ 
+ install:
+diff -uNr dsniff-2.4.orig/missing/strlcat.h dsniff-2.4/missing/strlcat.h
+--- dsniff-2.4.orig/missing/strlcat.h	1970-01-01 08:00:00.000000000 +0800
++++ dsniff-2.4/missing/strlcat.h	2019-04-10 18:56:04.587464455 +0800
+@@ -0,0 +1 @@
++size_t strlcat(char *dst, const char *src, size_t siz);
+diff -uNr dsniff-2.4.orig/missing/strlcpy.h dsniff-2.4/missing/strlcpy.h
+--- dsniff-2.4.orig/missing/strlcpy.h	1970-01-01 08:00:00.000000000 +0800
++++ dsniff-2.4/missing/strlcpy.h	2019-04-10 18:56:04.587464455 +0800
+@@ -0,0 +1 @@
++size_t strlcpy(char *dst, const char *src, size_t siz);
+diff -uNr dsniff-2.4.orig/msgsnarf.8 dsniff-2.4/msgsnarf.8
+--- dsniff-2.4.orig/msgsnarf.8	2000-11-19 14:10:50.000000000 +0800
++++ dsniff-2.4/msgsnarf.8	2019-04-10 18:56:04.563464342 +0800
+@@ -9,7 +9,7 @@
+ .na
+ .nf
+ .fi
+-\fBmsgsnarf\fR [\fB-i \fIinterface\fR] [[\fB-v\fR] \fIpattern [\fIexpression\fR]]
++\fBmsgsnarf\fR [\fB-i \fIinterface\fR | \fB-p \fIpcapfile\fR] [[\fB-v\fR] \fIpattern [\fIexpression\fR]]
+ .SH DESCRIPTION
+ .ad
+ .fi
+@@ -19,6 +19,8 @@
+ .SH OPTIONS
+ .IP "\fB-i \fIinterface\fR"
+ Specify the interface to listen on.
++.IP "\fB-p \fIpcapfile\fR"
++Process packets from the specified PCAP capture file instead of the network.
+ .IP \fB-v\fR
+ "Versus" mode. Invert the sense of matching, to select non-matching
+ messages.
+diff -uNr dsniff-2.4.orig/msgsnarf.c dsniff-2.4/msgsnarf.c
+--- dsniff-2.4.orig/msgsnarf.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/msgsnarf.c	2019-04-10 18:56:04.607464550 +0800
+@@ -23,6 +23,7 @@
+ #include <nids.h>
+ #include <pcap.h>
+ #include <pcaputil.h>
++#include <time.h>
+ 
+ #include "buf.h"
+ #include "decode.h"
+@@ -44,7 +45,7 @@
+ usage(void)
+ {
+ 	fprintf(stderr, "Version: " VERSION "\n"
+-		"Usage: msgsnarf [-i interface] [[-v] pattern [expression]]\n");
++		"Usage: msgsnarf [-i interface | -p pcapfile] [[-v] pattern [expression]]\n");
+ 	exit(1);
+ }
+ 
+@@ -583,6 +584,7 @@
+ 		if (i == 0) {
+ 			if ((c = malloc(sizeof(*c))) == NULL)
+ 				nids_params.no_mem("sniff_msgs");
++			memset(c, 0, sizeof(*c));
+ 			c->ip = ts->addr.saddr;
+ 			c->nick = strdup("unknown");
+ 			SLIST_INSERT_HEAD(&client_list, c, next);
+@@ -632,11 +634,14 @@
+ 	extern int optind;
+ 	int c;
+ 	
+-	while ((c = getopt(argc, argv, "i:hv?V")) != -1) {
++	while ((c = getopt(argc, argv, "i:p:hv?V")) != -1) {
+ 		switch (c) {
+ 		case 'i':
+ 			nids_params.device = optarg;
+ 			break;
++		case 'p':
++			nids_params.filename = optarg;
++			break;
+ 		case 'v':
+ 			Opt_invert = 1;
+ 			break;
+@@ -665,11 +670,24 @@
+ 	
+ 	nids_register_tcp(sniff_msgs);
+ 
+-	if (nids_params.pcap_filter != NULL) {
+-		warnx("listening on %s [%s]", nids_params.device,
+-		      nids_params.pcap_filter);
+-	}
+-	else warnx("listening on %s", nids_params.device);
++        if (nids_params.pcap_filter != NULL) {
++                if (nids_params.filename == NULL) {
++                        warnx("listening on %s [%s]", nids_params.device,
++                              nids_params.pcap_filter);
++                }
++                else {
++                        warnx("using %s [%s]", nids_params.filename,
++                              nids_params.pcap_filter);
++                }
++        }
++        else {
++                if (nids_params.filename == NULL) {
++                    warnx("listening on %s", nids_params.device);
++                }
++                else {
++                    warnx("using %s", nids_params.filename);
++                }
++        }
+ 
+ 	nids_run();
+ 	
+diff -uNr dsniff-2.4.orig/nfs_prot.x dsniff-2.4/nfs_prot.x
+--- dsniff-2.4.orig/nfs_prot.x	2000-11-14 23:51:06.000000000 +0800
++++ dsniff-2.4/nfs_prot.x	2019-04-10 18:56:04.647464740 +0800
+@@ -190,7 +190,7 @@
+ /*
+  * Basic data types
+  */
+-typedef u_int64_t	uint64;
++typedef uint64_t	uint64;
+ typedef int64_t		int64;
+ typedef unsigned int	uint32;
+ typedef int		int32;
+diff -uNr dsniff-2.4.orig/pathnames.h dsniff-2.4/pathnames.h
+--- dsniff-2.4.orig/pathnames.h	2001-03-15 16:33:06.000000000 +0800
++++ dsniff-2.4/pathnames.h	2019-04-10 18:56:04.603464531 +0800
+@@ -12,7 +12,7 @@
+ #define PATHNAMES_H
+ 
+ #ifndef DSNIFF_LIBDIR
+-#define DSNIFF_LIBDIR		"/usr/local/lib/"
++#define DSNIFF_LIBDIR		"/usr/share/dsniff/"
+ #endif
+ 
+ #define DSNIFF_SERVICES		"dsniff.services"
+diff -uNr dsniff-2.4.orig/pcaputil.c dsniff-2.4/pcaputil.c
+--- dsniff-2.4.orig/pcaputil.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/pcaputil.c	2019-04-10 18:56:04.607464550 +0800
+@@ -52,6 +52,9 @@
+ 	case DLT_NULL:
+ 		offset = 4;
+ 		break;
++	case DLT_LINUX_SLL:   /* e.g. ppp */
++		offset = 16;
++		break;
+ 	default:
+ 		warnx("unsupported datalink type");
+ 		break;
+diff -uNr dsniff-2.4.orig/record.c dsniff-2.4/record.c
+--- dsniff-2.4.orig/record.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/record.c	2019-04-10 18:56:04.575464398 +0800
+@@ -65,8 +65,8 @@
+ 	tm = localtime(&rec->time);
+ 	strftime(tstr, sizeof(tstr), "%x %X", tm);
+ 	
+-	srcp = libnet_host_lookup(rec->src, Opt_dns);
+-	dstp = libnet_host_lookup(rec->dst, Opt_dns);
++	srcp = libnet_addr2name4(rec->src, Opt_dns);
++	dstp = libnet_addr2name4(rec->dst, Opt_dns);
+ 
+ 	if ((pr = getprotobynumber(rec->proto)) == NULL)
+ 		protop = "unknown";
+diff -uNr dsniff-2.4.orig/remote.c dsniff-2.4/remote.c
+--- dsniff-2.4.orig/remote.c	2000-11-14 23:51:04.000000000 +0800
++++ dsniff-2.4/remote.c	2019-04-10 18:56:04.619464606 +0800
+@@ -652,7 +652,7 @@
+ 	  if (remote_command_count > 0)
+ 	    {
+ 	      fprintf (stderr,
+-		"%s: the `-id' option must preceed all `-remote' options.\n",
++		"%s: the `-id' option must precede all `-remote' options.\n",
+ 		       progname);
+ 	      usage ();
+ 	      exit (-1);
+diff -uNr dsniff-2.4.orig/rpc.c dsniff-2.4/rpc.c
+--- dsniff-2.4.orig/rpc.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/rpc.c	2019-04-10 18:56:04.639464702 +0800
+@@ -125,6 +125,9 @@
+ 			return (0);
+ 		}
+ 	}
++	else
++		return (0);
++	
+ 	stat = xdr_getpos(&xdrs);
+ 	xdr_destroy(&xdrs);
+ 	
+diff -uNr dsniff-2.4.orig/ssh.c dsniff-2.4/ssh.c
+--- dsniff-2.4.orig/ssh.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/ssh.c	2019-04-10 18:56:04.611464568 +0800
+@@ -16,12 +16,14 @@
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ #include <openssl/rand.h>
++#include <openssl/md5.h>
+ 
+ #include <err.h>
+ #include <errno.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <arpa/inet.h>
+ #include <unistd.h>
+ 
+ #include "hex.h"
+@@ -232,7 +234,10 @@
+ 	u_char *p, cipher, cookie[8], msg[1024];
+ 	u_int32_t num;
+ 	int i;
+-	
++    
++	const BIGNUM *servkey_e, *servkey_n;
++	const BIGNUM *hostkey_e, *hostkey_n;
++
+ 	/* Generate anti-spoofing cookie. */
+ 	RAND_bytes(cookie, sizeof(cookie));
+ 	
+@@ -241,11 +246,13 @@
+ 	*p++ = SSH_SMSG_PUBLIC_KEY;			/* type */
+ 	memcpy(p, cookie, 8); p += 8;			/* cookie */
+ 	num = 768; PUTLONG(num, p);			/* servkey bits */
+-	put_bn(ssh->ctx->servkey->e, &p);		/* servkey exponent */
+-	put_bn(ssh->ctx->servkey->n, &p);		/* servkey modulus */
++	RSA_get0_key(ssh->ctx->servkey, &servkey_n, &servkey_e, NULL);
++	put_bn(servkey_e, &p);		/* servkey exponent */
++	put_bn(servkey_n, &p);		/* servkey modulus */
+ 	num = 1024; PUTLONG(num, p);			/* hostkey bits */
+-	put_bn(ssh->ctx->hostkey->e, &p);		/* hostkey exponent */
+-	put_bn(ssh->ctx->hostkey->n, &p);		/* hostkey modulus */
++	RSA_get0_key(ssh->ctx->hostkey, &hostkey_n, &hostkey_e, NULL);
++	put_bn(hostkey_e, &p);		/* hostkey exponent */
++	put_bn(hostkey_n, &p);		/* hostkey modulus */
+ 	num = 0; PUTLONG(num, p);			/* protocol flags */
+ 	num = ssh->ctx->encmask; PUTLONG(num, p);	/* ciphers */
+ 	num = ssh->ctx->authmask; PUTLONG(num, p);	/* authmask */
+@@ -296,7 +303,7 @@
+ 	SKIP(p, i, 4);
+ 
+ 	/* Decrypt session key. */
+-	if (BN_cmp(ssh->ctx->servkey->n, ssh->ctx->hostkey->n) > 0) {
++	if (BN_cmp(servkey_n, hostkey_n) > 0) {
+ 		rsa_private_decrypt(enckey, enckey, ssh->ctx->servkey);
+ 		rsa_private_decrypt(enckey, enckey, ssh->ctx->hostkey);
+ 	}
+@@ -316,8 +323,8 @@
+ 	BN_clear_free(enckey);
+ 	
+ 	/* Derive real session key using session id. */
+-	if ((p = ssh_session_id(cookie, ssh->ctx->hostkey->n,
+-				ssh->ctx->servkey->n)) == NULL) {
++	if ((p = ssh_session_id(cookie, hostkey_n,
++				servkey_n)) == NULL) {
+ 		warn("ssh_session_id");
+ 		return (-1);
+ 	}
+@@ -326,10 +333,8 @@
+ 	}
+ 	/* Set cipher. */
+ 	if (cipher == SSH_CIPHER_3DES) {
+-		ssh->estate = des3_init(ssh->sesskey, sizeof(ssh->sesskey));
+-		ssh->dstate = des3_init(ssh->sesskey, sizeof(ssh->sesskey));
+-		ssh->encrypt = des3_encrypt;
+-		ssh->decrypt = des3_decrypt;
++		warnx("cipher 3des no longer supported");
++		return (-1);
+ 	}
+ 	else if (cipher == SSH_CIPHER_BLOWFISH) {
+ 		ssh->estate = blowfish_init(ssh->sesskey,sizeof(ssh->sesskey));
+@@ -355,7 +360,10 @@
+ 	u_char *p, cipher, cookie[8], msg[1024];
+ 	u_int32_t num;
+ 	int i;
+-	
++
++	BIGNUM *servkey_n, *servkey_e;
++	BIGNUM *hostkey_n, *hostkey_e;
++
+ 	/* Get public key. */
+ 	if ((i = SSH_recv(ssh, pkt, sizeof(pkt))) <= 0) {
+ 		warn("SSH_recv");
+@@ -377,21 +385,23 @@
+ 
+ 	/* Get servkey. */
+ 	ssh->ctx->servkey = RSA_new();
+-	ssh->ctx->servkey->n = BN_new();
+-	ssh->ctx->servkey->e = BN_new();
++	servkey_n = BN_new();
++	servkey_e = BN_new();
++	RSA_set0_key(ssh->ctx->servkey, servkey_n, servkey_e, NULL);
+ 
+ 	SKIP(p, i, 4);
+-	get_bn(ssh->ctx->servkey->e, &p, &i);
+-	get_bn(ssh->ctx->servkey->n, &p, &i);
++	get_bn(servkey_e, &p, &i);
++	get_bn(servkey_n, &p, &i);
+ 
+ 	/* Get hostkey. */
+ 	ssh->ctx->hostkey = RSA_new();
+-	ssh->ctx->hostkey->n = BN_new();
+-	ssh->ctx->hostkey->e = BN_new();
++	hostkey_n = BN_new();
++	hostkey_e = BN_new();
++	RSA_set0_key(ssh->ctx->hostkey, hostkey_n, hostkey_e, NULL);
+ 
+ 	SKIP(p, i, 4);
+-	get_bn(ssh->ctx->hostkey->e, &p, &i);
+-	get_bn(ssh->ctx->hostkey->n, &p, &i);
++	get_bn(hostkey_e, &p, &i);
++	get_bn(hostkey_n, &p, &i);
+ 
+ 	/* Get cipher, auth masks. */
+ 	SKIP(p, i, 4);
+@@ -403,8 +413,8 @@
+ 	RAND_bytes(ssh->sesskey, sizeof(ssh->sesskey));
+ 
+ 	/* Obfuscate with session id. */
+-	if ((p = ssh_session_id(cookie, ssh->ctx->hostkey->n,
+-				ssh->ctx->servkey->n)) == NULL) {
++	if ((p = ssh_session_id(cookie, hostkey_n,
++				servkey_n)) == NULL) {
+ 		warn("ssh_session_id");
+ 		return (-1);
+ 	}
+@@ -420,7 +430,7 @@
+ 		else BN_add_word(bn, ssh->sesskey[i]);
+ 	}
+ 	/* Encrypt session key. */
+-	if (BN_cmp(ssh->ctx->servkey->n, ssh->ctx->hostkey->n) < 0) {
++	if (BN_cmp(servkey_n, hostkey_n) < 0) {
+ 		rsa_public_encrypt(bn, bn, ssh->ctx->servkey);
+ 		rsa_public_encrypt(bn, bn, ssh->ctx->hostkey);
+ 	}
+@@ -468,10 +478,8 @@
+ 		ssh->decrypt = blowfish_decrypt;
+ 	}
+ 	else if (cipher == SSH_CIPHER_3DES) {
+-		ssh->estate = des3_init(ssh->sesskey, sizeof(ssh->sesskey));
+-		ssh->dstate = des3_init(ssh->sesskey, sizeof(ssh->sesskey));
+-		ssh->encrypt = des3_encrypt;
+-		ssh->decrypt = des3_decrypt;
++		warnx("cipher 3des no longer supported");
++		return (-1);
+ 	}
+ 	/* Get server response. */
+ 	if ((i = SSH_recv(ssh, pkt, sizeof(pkt))) <= 0) {
+diff -uNr dsniff-2.4.orig/sshcrypto.c dsniff-2.4/sshcrypto.c
+--- dsniff-2.4.orig/sshcrypto.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/sshcrypto.c	2019-04-10 18:56:04.647464740 +0800
+@@ -14,10 +14,13 @@
+ 
+ #include <sys/types.h>
+ #include <openssl/ssl.h>
++#include <openssl/blowfish.h>
++#include <openssl/des.h>
+ 
+ #include <err.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <string.h>
+ 
+ #include "sshcrypto.h"
+ 
+@@ -26,10 +29,12 @@
+ 	u_char			iv[8];
+ };
+ 
++#if 0
+ struct des3_state {
+-	des_key_schedule	k1, k2, k3;
+-	des_cblock		iv1, iv2, iv3;
++	DES_key_schedule	k1, k2, k3;
++	DES_cblock		iv1, iv2, iv3;
+ };
++#endif
+ 
+ void
+ rsa_public_encrypt(BIGNUM *out, BIGNUM *in, RSA *key)
+@@ -37,10 +42,12 @@
+ 	u_char *inbuf, *outbuf;
+ 	int len, ilen, olen;
+ 
+-	if (BN_num_bits(key->e) < 2 || !BN_is_odd(key->e))
++	const BIGNUM *n, *e;
++	RSA_get0_key(key, &n, &e, NULL);
++	if (BN_num_bits(e) < 2 || !BN_is_odd(e))
+ 		errx(1, "rsa_public_encrypt() exponent too small or not odd");
+ 
+-	olen = BN_num_bytes(key->n);
++	olen = BN_num_bytes(n);
+ 	outbuf = malloc(olen);
+ 
+ 	ilen = BN_num_bytes(in);
+@@ -69,7 +76,9 @@
+ 	u_char *inbuf, *outbuf;
+ 	int len, ilen, olen;
+ 
+-	olen = BN_num_bytes(key->n);
++	const BIGNUM *n;
++	RSA_get0_key(key, &n, NULL, NULL);
++	olen = BN_num_bytes(n);
+ 	outbuf = malloc(olen);
+ 
+ 	ilen = BN_num_bytes(in);
+@@ -144,6 +153,7 @@
+ 	swap_bytes(dst, dst, len);
+ }
+ 
++#if 0
+ /* XXX - SSH1's weirdo 3DES... */
+ void *
+ des3_init(u_char *sesskey, int len)
+@@ -153,13 +163,13 @@
+ 	if ((state = malloc(sizeof(*state))) == NULL)
+ 		err(1, "malloc");
+ 
+-	des_set_key((void *)sesskey, state->k1);
+-	des_set_key((void *)(sesskey + 8), state->k2);
++	DES_set_key((void *)sesskey, &state->k1);
++	DES_set_key((void *)(sesskey + 8), &state->k2);
+ 
+ 	if (len <= 16)
+-		des_set_key((void *)sesskey, state->k3);
++		DES_set_key((void *)sesskey, &state->k3);
+ 	else
+-		des_set_key((void *)(sesskey + 16), state->k3);
++		DES_set_key((void *)(sesskey + 16), &state->k3);
+ 	
+ 	memset(state->iv1, 0, 8);
+ 	memset(state->iv2, 0, 8);
+@@ -175,9 +185,9 @@
+ 	estate = (struct des3_state *)state;
+ 	memcpy(estate->iv1, estate->iv2, 8);
+ 	
+-	des_ncbc_encrypt(src, dst, len, estate->k1, &estate->iv1, DES_ENCRYPT);
+-	des_ncbc_encrypt(dst, dst, len, estate->k2, &estate->iv2, DES_DECRYPT);
+-	des_ncbc_encrypt(dst, dst, len, estate->k3, &estate->iv3, DES_ENCRYPT);
++	DES_ncbc_encrypt(src, dst, len, &estate->k1, &estate->iv1, DES_ENCRYPT);
++	DES_ncbc_encrypt(dst, dst, len, &estate->k2, &estate->iv2, DES_DECRYPT);
++	DES_ncbc_encrypt(dst, dst, len, &estate->k3, &estate->iv3, DES_ENCRYPT);
+ }
+ 
+ void
+@@ -188,7 +198,8 @@
+ 	dstate = (struct des3_state *)state;
+ 	memcpy(dstate->iv1, dstate->iv2, 8);
+ 	
+-	des_ncbc_encrypt(src, dst, len, dstate->k3, &dstate->iv3, DES_DECRYPT);
+-	des_ncbc_encrypt(dst, dst, len, dstate->k2, &dstate->iv2, DES_ENCRYPT);
+-	des_ncbc_encrypt(dst, dst, len, dstate->k1, &dstate->iv1, DES_DECRYPT);
++	DES_ncbc_encrypt(src, dst, len, &dstate->k3, &dstate->iv3, DES_DECRYPT);
++	DES_ncbc_encrypt(dst, dst, len, &dstate->k2, &dstate->iv2, DES_ENCRYPT);
++	DES_ncbc_encrypt(dst, dst, len, &dstate->k1, &dstate->iv1, DES_DECRYPT);
+ }
++#endif
+diff -uNr dsniff-2.4.orig/sshmitm.c dsniff-2.4/sshmitm.c
+--- dsniff-2.4.orig/sshmitm.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/sshmitm.c	2019-04-10 18:56:04.631464664 +0800
+@@ -24,6 +24,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <unistd.h>
++#include <strlcat.h>
+ 
+ #include "buf.h"
+ #include "record.h"
+@@ -44,6 +45,8 @@
+ struct	 sockaddr_in csin, ssin;
+ int	 sig_pipe[2];
+ 
++static	 libnet_t *l;
++
+ static void
+ usage(void)
+ {
+@@ -363,6 +366,7 @@
+ 	u_long ip;
+ 	u_short lport, rport;
+ 	int c;
++	char libnet_ebuf[LIBNET_ERRBUF_SIZE];
+ 
+ 	lport = rport = 22;
+ 
+@@ -389,12 +393,15 @@
+ 	if (argc < 1)
+ 		usage();
+ 	
+-	if ((ip = libnet_name_resolve(argv[0], 1)) == -1)
+-		usage();
+-
+ 	if (argc == 2 && (rport = atoi(argv[1])) == 0)
+ 		usage();
+ 	
++	if ((l = libnet_init(LIBNET_LINK, NULL, libnet_ebuf)) == NULL)
++		errx(1, "%s", libnet_ebuf);
++	
++	if ((ip = libnet_name2addr4(l, argv[0], LIBNET_RESOLVE)) == -1)
++		usage();
++	
+ 	record_init(NULL);
+ 	
+ 	mitm_init(lport, ip, rport);
+diff -uNr dsniff-2.4.orig/sshow.8 dsniff-2.4/sshow.8
+--- dsniff-2.4.orig/sshow.8	2001-03-17 13:37:47.000000000 +0800
++++ dsniff-2.4/sshow.8	2019-04-10 18:56:04.563464342 +0800
+@@ -9,7 +9,7 @@
+ .na
+ .nf
+ .fi
+-\fBsshow\fR [\fB-d\fR] [\fB-i \fIinterface\fR] [\fIexpression\fR]
++\fBsshow\fR [\fB-d\fR] [\fB-i \fIinterface\fR | \fB-p \fIpcapfile\fR] [\fIexpression\fR]
+ .SH DESCRIPTION
+ .ad
+ .fi
+@@ -28,6 +28,8 @@
+ Enable verbose debugging output.
+ .IP "\fB-i \fIinterface\fR"
+ Specify the interface to listen on.
++.IP "\fB-p \fIpcapfile\fR"
++Process packets from the specified PCAP capture file instead of the network.
+ .IP "\fIexpression\fR"
+ Specify a tcpdump(8) filter expression to select traffic to sniff.
+ .SH "SEE ALSO"
+diff -uNr dsniff-2.4.orig/sshow.c dsniff-2.4/sshow.c
+--- dsniff-2.4.orig/sshow.c	2001-03-19 14:52:15.000000000 +0800
++++ dsniff-2.4/sshow.c	2019-04-10 18:56:04.635464682 +0800
+@@ -15,6 +15,7 @@
+ 
+ #include <sys/types.h>
+ #include <sys/times.h>
++#include <time.h>
+ 
+ #include <netinet/in_systm.h>
+ #include <netinet/in.h>
+@@ -81,7 +82,7 @@
+ static void
+ usage(void)
+ {
+-	fprintf(stderr, "Usage: sshow [-d] [-i interface]\n");
++	fprintf(stderr, "Usage: sshow [-d] [-i interface | -p pcapfile]\n");
+ 	exit(1);
+ }
+ 
+@@ -216,13 +217,16 @@
+ {
+ 	clock_t delay;
+ 	int payload;
++#if defined(_SC_CLK_TCK)
++	long CLK_TCK = sysconf(_SC_CLK_TCK);
++#endif
+ 
+ 	delay = add_history(session, 0, cipher_size, plain_range);
+ 
+ 	if (debug)
+ 		printf("- %s -> %s: DATA (%s bytes, %.2f seconds)\n",
+ 			s_saddr(ts), s_daddr(ts), s_range(plain_range),
+-			(float)delay / CLK_TCK);
++			(float)delay / CLOCKS_PER_SEC);
+ 	if (debug > 1)
+ 		print_data(&ts->server, cipher_size);
+ 
+@@ -264,13 +268,16 @@
+ 	clock_t delay;
+ 	int skip;
+ 	range string_range;
++#if defined(_SC_CLK_TCK)
++	long CLK_TCK = sysconf(_SC_CLK_TCK);
++#endif
+ 	
+ 	delay = add_history(session, 1, cipher_size, plain_range);
+ 	
+ 	if (debug)
+ 		printf("- %s <- %s: DATA (%s bytes, %.2f seconds)\n",
+ 		       s_saddr(ts), s_daddr(ts), s_range(plain_range),
+-		       (float)delay / CLK_TCK);
++		       (float)delay / CLOCKS_PER_SEC);
+ 	if (debug > 1)
+ 		print_data(&ts->client, cipher_size);
+ 	
+@@ -299,7 +306,7 @@
+ 	
+ 	if (session->state == 1 &&
+ #ifdef USE_TIMING
+-	    now - get_history(session, 2)->timestamp >= CLK_TCK &&
++	    now - get_history(session, 2)->timestamp >= CLOCKS_PER_SEC &&
+ #endif
+ 	    session->protocol == 1 &&
+ 	    (session->history.directions & 7) == 5 &&
+@@ -615,7 +622,7 @@
+ 	extern int optind;
+ 	int c;
+ 	
+-	while ((c = getopt(argc, argv, "di:h?")) != -1) {
++	while ((c = getopt(argc, argv, "di:p:h?")) != -1) {
+ 		switch (c) {
+ 		case 'd':
+ 			debug++;
+@@ -623,6 +630,9 @@
+ 		case 'i':
+ 			nids_params.device = optarg;
+ 			break;
++		case 'p':
++			nids_params.filename = optarg;
++			break;
+ 		default:
+ 			usage();
+ 			break;
+@@ -651,11 +661,24 @@
+ 	
+ 	nids_register_tcp(process_event);
+ 
+-	if (nids_params.pcap_filter != NULL) {
+-		warnx("listening on %s [%s]", nids_params.device,
+-		      nids_params.pcap_filter);
+-	}
+-	else warnx("listening on %s", nids_params.device);
++        if (nids_params.pcap_filter != NULL) {
++                if (nids_params.filename == NULL) {
++                        warnx("listening on %s [%s]", nids_params.device,
++                              nids_params.pcap_filter);
++                }
++                else {
++                        warnx("using %s [%s]", nids_params.filename,
++                              nids_params.pcap_filter);
++                }
++        }
++        else {
++                if (nids_params.filename == NULL) {
++                    warnx("listening on %s", nids_params.device);
++                }
++                else {
++                    warnx("using %s", nids_params.filename);
++                }
++        }
+ 
+ 	nids_run();
+ 	
+diff -uNr dsniff-2.4.orig/tcpkill.c dsniff-2.4/tcpkill.c
+--- dsniff-2.4.orig/tcpkill.c	2001-03-17 16:10:43.000000000 +0800
++++ dsniff-2.4/tcpkill.c	2019-04-10 18:56:04.575464398 +0800
+@@ -39,17 +39,18 @@
+ static void
+ tcp_kill_cb(u_char *user, const struct pcap_pkthdr *pcap, const u_char *pkt)
+ {
+-	struct libnet_ip_hdr *ip;
++	struct libnet_ipv4_hdr *ip;
+ 	struct libnet_tcp_hdr *tcp;
+-	u_char ctext[64], buf[IP_H + TCP_H];
++	u_char ctext[64];
+ 	u_int32_t seq, win;
+-	int i, *sock, len;
++	int i, len;
++	libnet_t *l;
+ 
+-	sock = (int *)user;
++	l = (libnet_t *)user;
+ 	pkt += pcap_off;
+ 	len = pcap->caplen - pcap_off;
+ 
+-	ip = (struct libnet_ip_hdr *)pkt;
++	ip = (struct libnet_ipv4_hdr *)pkt;
+ 	if (ip->ip_p != IPPROTO_TCP)
+ 		return;
+ 	
+@@ -57,34 +58,31 @@
+ 	if (tcp->th_flags & (TH_SYN|TH_FIN|TH_RST))
+ 		return;
+ 
+-	libnet_build_ip(TCP_H, 0, 0, 0, 64, IPPROTO_TCP,
+-			ip->ip_dst.s_addr, ip->ip_src.s_addr,
+-			NULL, 0, buf);
+-
+-	libnet_build_tcp(ntohs(tcp->th_dport), ntohs(tcp->th_sport),
+-			 0, 0, TH_RST, 0, 0, NULL, 0, buf + IP_H);
+-	
+ 	seq = ntohl(tcp->th_ack);
+ 	win = ntohs(tcp->th_win);
+ 	
+ 	snprintf(ctext, sizeof(ctext), "%s:%d > %s:%d:",
+-		 libnet_host_lookup(ip->ip_src.s_addr, 0),
++		 libnet_addr2name4(ip->ip_src.s_addr, LIBNET_DONT_RESOLVE),
+ 		 ntohs(tcp->th_sport),
+-		 libnet_host_lookup(ip->ip_dst.s_addr, 0),
++		 libnet_addr2name4(ip->ip_dst.s_addr, LIBNET_DONT_RESOLVE),
+ 		 ntohs(tcp->th_dport));
+ 	
+-	ip = (struct libnet_ip_hdr *)buf;
+-	tcp = (struct libnet_tcp_hdr *)(ip + 1);
+-	
+ 	for (i = 0; i < Opt_severity; i++) {
+-		ip->ip_id = libnet_get_prand(PRu16);
+ 		seq += (i * win);
+-		tcp->th_seq = htonl(seq);
+ 		
+-		libnet_do_checksum(buf, IPPROTO_TCP, TCP_H);
++		libnet_clear_packet(l);
++		
++		libnet_build_tcp(ntohs(tcp->th_dport), ntohs(tcp->th_sport),
++				 seq, 0, TH_RST, 0, 0, 0, LIBNET_TCP_H, 
++				 NULL, 0, l, 0);
++		
++		libnet_build_ipv4(LIBNET_IPV4_H + LIBNET_TCP_H, 0,
++				  libnet_get_prand(LIBNET_PRu16), 0, 64,
++				  IPPROTO_TCP, 0, ip->ip_dst.s_addr,
++				  ip->ip_src.s_addr, NULL, 0, l, 0);
+ 		
+-		if (libnet_write_ip(*sock, buf, sizeof(buf)) < 0)
+-			warn("write_ip");
++		if (libnet_write(l) < 0)
++			warn("write");
+ 		
+ 		fprintf(stderr, "%s R %lu:%lu(0) win 0\n", ctext, seq, seq);
+ 	}
+@@ -95,8 +93,10 @@
+ {
+ 	extern char *optarg;
+ 	extern int optind;
+-	int c, sock;
++	int c;
+ 	char *p, *intf, *filter, ebuf[PCAP_ERRBUF_SIZE];
++	char libnet_ebuf[LIBNET_ERRBUF_SIZE];
++	libnet_t *l;
+ 	pcap_t *pd;
+ 	
+ 	intf = NULL;
+@@ -136,14 +136,14 @@
+ 	if ((pcap_off = pcap_dloff(pd)) < 0)
+ 		errx(1, "couldn't determine link layer offset");
+ 	
+-	if ((sock = libnet_open_raw_sock(IPPROTO_RAW)) == -1)
++	if ((l = libnet_init(LIBNET_RAW4, intf, libnet_ebuf)) == NULL)
+ 		errx(1, "couldn't initialize sending");
+ 	
+-	libnet_seed_prand();
++	libnet_seed_prand(l);
+ 	
+ 	warnx("listening on %s [%s]", intf, filter);
+ 	
+-	pcap_loop(pd, -1, tcp_kill_cb, (u_char *)&sock);
++	pcap_loop(pd, -1, tcp_kill_cb, (u_char *)l);
+   
+ 	/* NOTREACHED */
+ 	
+diff -uNr dsniff-2.4.orig/tcpnice.c dsniff-2.4/tcpnice.c
+--- dsniff-2.4.orig/tcpnice.c	2001-03-17 15:41:51.000000000 +0800
++++ dsniff-2.4/tcpnice.c	2019-04-10 18:56:04.575464398 +0800
+@@ -41,107 +41,106 @@
+ }
+ 
+ static void
+-send_tcp_window_advertisement(int sock, struct libnet_ip_hdr *ip,
++send_tcp_window_advertisement(libnet_t *l, struct libnet_ipv4_hdr *ip,
+ 			     struct libnet_tcp_hdr *tcp)
+ {
+ 	int len;
+ 	
+ 	ip->ip_hl = 5;
+-	ip->ip_len = htons(IP_H + TCP_H);
+-	ip->ip_id = libnet_get_prand(PRu16);
+-	memcpy(buf, (u_char *)ip, IP_H);
++	ip->ip_len = htons(LIBNET_IPV4_H + LIBNET_TCP_H);
++	ip->ip_id = libnet_get_prand(LIBNET_PRu16);
++	memcpy(buf, (u_char *)ip, LIBNET_IPV4_H);
+ 	
+ 	tcp->th_off = 5;
+ 	tcp->th_win = htons(MIN_WIN);
+-	memcpy(buf + IP_H, (u_char *)tcp, TCP_H);
++	memcpy(buf + LIBNET_IPV4_H, (u_char *)tcp, LIBNET_TCP_H);
+ 	
+-	libnet_do_checksum(buf, IPPROTO_TCP, TCP_H);
++	libnet_do_checksum(l, buf, IPPROTO_TCP, LIBNET_TCP_H);
+ 	
+-	len = IP_H + TCP_H;
++	len = LIBNET_IPV4_H + LIBNET_TCP_H;
+ 	
+-	if (libnet_write_ip(sock, buf, len) != len)
++	if (libnet_write_raw_ipv4(l, buf, len) != len)
+ 		warn("write");
+ 	
+ 	fprintf(stderr, "%s:%d > %s:%d: . ack %lu win %d\n",
+-		libnet_host_lookup(ip->ip_src.s_addr, 0), ntohs(tcp->th_sport),
+-		libnet_host_lookup(ip->ip_dst.s_addr, 0), ntohs(tcp->th_dport),
++		libnet_addr2name4(ip->ip_src.s_addr, 0), ntohs(tcp->th_sport),
++		libnet_addr2name4(ip->ip_dst.s_addr, 0), ntohs(tcp->th_dport),
+ 		ntohl(tcp->th_ack), 1);
+ }
+ 
+ static void
+-send_icmp_source_quench(int sock, struct libnet_ip_hdr *ip)
++send_icmp_source_quench(libnet_t *l, struct libnet_ipv4_hdr *ip)
+ {
+-	struct libnet_icmp_hdr *icmp;
++	struct libnet_icmpv4_hdr *icmp;
+ 	int len;
+ 	
+ 	len = (ip->ip_hl * 4) + 8;
+ 
+-	libnet_build_ip(ICMP_ECHO_H + len, 0, libnet_get_prand(PRu16),
+-			0, 64, IPPROTO_ICMP, ip->ip_dst.s_addr,
+-			ip->ip_src.s_addr, NULL, 0, buf);
+-	
+-	icmp = (struct libnet_icmp_hdr *)(buf + IP_H);
++	icmp = (struct libnet_icmpv4_hdr *)(buf + LIBNET_IPV4_H);
+ 	icmp->icmp_type = ICMP_SOURCEQUENCH;
+ 	icmp->icmp_code = 0;
+-	memcpy((u_char *)icmp + ICMP_ECHO_H, (u_char *)ip, len);
++	memcpy((u_char *)icmp + LIBNET_ICMPV4_ECHO_H, (u_char *)ip, len);
+ 	
+-	libnet_do_checksum(buf, IPPROTO_ICMP, ICMP_ECHO_H + len);
++	len += LIBNET_ICMPV4_ECHO_H;
+ 	
+-	len += (IP_H + ICMP_ECHO_H);
++	libnet_build_ipv4(LIBNET_IPV4_H + len, 0,
++			  libnet_get_prand(LIBNET_PRu16), 0, 64, IPPROTO_ICMP,
++			  0, ip->ip_dst.s_addr, ip->ip_src.s_addr,
++			  (u_int8_t *) icmp, len, l, 0);
+ 	
+-	if (libnet_write_ip(sock, buf, len) != len)
++	if (libnet_write(l) != len)
+ 		warn("write");
+ 	
+ 	fprintf(stderr, "%s > %s: icmp: source quench\n",
+-		libnet_host_lookup(ip->ip_dst.s_addr, 0),
+-		libnet_host_lookup(ip->ip_src.s_addr, 0));
++		libnet_addr2name4(ip->ip_dst.s_addr, 0),
++		libnet_addr2name4(ip->ip_src.s_addr, 0));
+ }
+ 
+ static void
+-send_icmp_frag_needed(int sock, struct libnet_ip_hdr *ip)
++send_icmp_frag_needed(libnet_t *l, struct libnet_ipv4_hdr *ip)
+ {
+-	struct libnet_icmp_hdr *icmp;
++	struct libnet_icmpv4_hdr *icmp;
+ 	int len;
+ 
+ 	len = (ip->ip_hl * 4) + 8;
+ 	
+-	libnet_build_ip(ICMP_MASK_H + len, 4, libnet_get_prand(PRu16),
+-			0, 64, IPPROTO_ICMP, ip->ip_dst.s_addr,
+-			ip->ip_src.s_addr, NULL, 0, buf);
+-
+-	icmp = (struct libnet_icmp_hdr *)(buf + IP_H);
++	icmp = (struct libnet_icmpv4_hdr *)(buf + LIBNET_IPV4_H);
+ 	icmp->icmp_type = ICMP_UNREACH;
+ 	icmp->icmp_code = ICMP_UNREACH_NEEDFRAG;
+ 	icmp->hun.frag.pad = 0;
+ 	icmp->hun.frag.mtu = htons(MIN_MTU);
+-	memcpy((u_char *)icmp + ICMP_MASK_H, (u_char *)ip, len);
++	memcpy((u_char *)icmp + LIBNET_ICMPV4_MASK_H, (u_char *)ip, len);
+ 
+-	libnet_do_checksum(buf, IPPROTO_ICMP, ICMP_MASK_H + len);
+-	
+-	len += (IP_H + ICMP_MASK_H);
++	len += LIBNET_ICMPV4_MASK_H;
++
++	libnet_build_ipv4(LIBNET_IPV4_H + len, 4,
++			  libnet_get_prand(LIBNET_PRu16), 0, 64, IPPROTO_ICMP,
++			  0, ip->ip_dst.s_addr, ip->ip_src.s_addr,
++			  (u_int8_t *) icmp, len, l, 0);
+ 	
+-	if (libnet_write_ip(sock, buf, len) != len)
++	if (libnet_write(l) != len)
+ 		warn("write");
+ 	
+ 	fprintf(stderr, "%s > %s: icmp: ",
+-		libnet_host_lookup(ip->ip_dst.s_addr, 0),
+-		libnet_host_lookup(ip->ip_src.s_addr, 0));
++		libnet_addr2name4(ip->ip_dst.s_addr, 0),
++		libnet_addr2name4(ip->ip_src.s_addr, 0));
+ 	fprintf(stderr, "%s unreachable - need to frag (mtu %d)\n",
+-		libnet_host_lookup(ip->ip_src.s_addr, 0), MIN_MTU);
++		libnet_addr2name4(ip->ip_src.s_addr, 0), MIN_MTU);
+ }
+ 
+ static void
+ tcp_nice_cb(u_char *user, const struct pcap_pkthdr *pcap, const u_char *pkt)
+ {
+-	struct libnet_ip_hdr *ip;
++	struct libnet_ipv4_hdr *ip;
+ 	struct libnet_tcp_hdr *tcp;
+-	int *sock, len;
++	int len;
++	libnet_t *l;
+ 
+-	sock = (int *)user;
++	l = (libnet_t *)user;
+ 	pkt += pcap_off;
+ 	len = pcap->caplen - pcap_off;
+ 
+-	ip = (struct libnet_ip_hdr *)pkt;
++	ip = (struct libnet_ipv4_hdr *)pkt;
+ 	if (ip->ip_p != IPPROTO_TCP)
+ 		return;
+ 	
+@@ -151,11 +150,11 @@
+ 	
+ 	if (ntohs(ip->ip_len) > (ip->ip_hl << 2) + (tcp->th_off << 2)) {
+ 		if (Opt_icmp)
+-			send_icmp_source_quench(*sock, ip);
++			send_icmp_source_quench(l, ip);
+ 		if (Opt_win)
+-			send_tcp_window_advertisement(*sock, ip, tcp);
++			send_tcp_window_advertisement(l, ip, tcp);
+ 		if (Opt_pmtu)
+-			send_icmp_frag_needed(*sock, ip);
++			send_icmp_frag_needed(l, ip);
+ 	}
+ }
+ 
+@@ -164,8 +163,10 @@
+ {
+ 	extern char *optarg;
+ 	extern int optind;
+-	int c, sock;
++	int c;
+ 	char *intf, *filter, ebuf[PCAP_ERRBUF_SIZE];
++	char libnet_ebuf[LIBNET_ERRBUF_SIZE];
++	libnet_t *l;
+ 	pcap_t *pd;
+ 	
+ 	intf = NULL;
+@@ -209,14 +210,14 @@
+ 	if ((pcap_off = pcap_dloff(pd)) < 0)
+ 		errx(1, "couldn't determine link layer offset");
+ 	
+-	if ((sock = libnet_open_raw_sock(IPPROTO_RAW)) == -1)
++	if ((l = libnet_init(LIBNET_RAW4, intf, libnet_ebuf)) == NULL)
+ 		errx(1, "couldn't initialize sending");
+ 	
+-	libnet_seed_prand();
++	libnet_seed_prand(l);
+ 	
+ 	warnx("listening on %s [%s]", intf, filter);
+ 	
+-	pcap_loop(pd, -1, tcp_nice_cb, (u_char *)&sock);
++	pcap_loop(pd, -1, tcp_nice_cb, (u_char *)l);
+ 	
+ 	/* NOTREACHED */
+ 	
+diff -uNr dsniff-2.4.orig/tcp_raw.c dsniff-2.4/tcp_raw.c
+--- dsniff-2.4.orig/tcp_raw.c	2001-03-15 16:33:04.000000000 +0800
++++ dsniff-2.4/tcp_raw.c	2019-04-10 18:56:04.575464398 +0800
+@@ -119,7 +119,7 @@
+ }
+ 
+ struct iovec *
+-tcp_raw_input(struct libnet_ip_hdr *ip, struct libnet_tcp_hdr *tcp, int len)
++tcp_raw_input(struct libnet_ipv4_hdr *ip, struct libnet_tcp_hdr *tcp, int len)
+ {
+ 	struct tha tha;
+ 	struct tcp_conn *conn;
+@@ -131,7 +131,7 @@
+ 
+ 	/* Verify TCP checksum. */
+ 	cksum = tcp->th_sum;
+-	libnet_do_checksum((u_char *) ip, IPPROTO_TCP, len);
++	libnet_do_checksum(NULL, (u_char *) ip, IPPROTO_TCP, len);
+ 
+ 	if (cksum != tcp->th_sum)
+ 		return (NULL);
+diff -uNr dsniff-2.4.orig/tcp_raw.h dsniff-2.4/tcp_raw.h
+--- dsniff-2.4.orig/tcp_raw.h	2001-03-15 16:33:06.000000000 +0800
++++ dsniff-2.4/tcp_raw.h	2019-04-10 18:56:04.575464398 +0800
+@@ -15,7 +15,7 @@
+ 				   u_short sport, u_short dport,
+ 				   u_char *buf, int len);
+ 
+-struct iovec   *tcp_raw_input(struct libnet_ip_hdr *ip,
++struct iovec   *tcp_raw_input(struct libnet_ipv4_hdr *ip,
+ 			      struct libnet_tcp_hdr *tcp, int len);
+ 
+ void		tcp_raw_timeout(int timeout, tcp_raw_callback_t callback);
+diff -uNr dsniff-2.4.orig/trigger.c dsniff-2.4/trigger.c
+--- dsniff-2.4.orig/trigger.c	2001-03-15 16:33:05.000000000 +0800
++++ dsniff-2.4/trigger.c	2019-04-10 18:56:04.575464398 +0800
+@@ -276,7 +276,7 @@
+ }
+ 	
+ void
+-trigger_ip(struct libnet_ip_hdr *ip)
++trigger_ip(struct libnet_ipv4_hdr *ip)
+ {
+ 	struct trigger *t, tr;
+ 	u_char *buf;
+@@ -305,7 +305,7 @@
+ 
+ /* libnids needs a nids_register_udp()... */
+ void
+-trigger_udp(struct libnet_ip_hdr *ip)
++trigger_udp(struct libnet_ipv4_hdr *ip)
+ {
+ 	struct trigger *t, tr;
+ 	struct libnet_udp_hdr *udp;
+@@ -437,7 +437,7 @@
+ }
+ 
+ void
+-trigger_tcp_raw(struct libnet_ip_hdr *ip)
++trigger_tcp_raw(struct libnet_ipv4_hdr *ip)
+ {
+ 	struct trigger *t, tr;
+ 	struct libnet_tcp_hdr *tcp;
+diff -uNr dsniff-2.4.orig/trigger.h dsniff-2.4/trigger.h
+--- dsniff-2.4.orig/trigger.h	2001-03-15 16:33:06.000000000 +0800
++++ dsniff-2.4/trigger.h	2019-04-10 18:56:04.575464398 +0800
+@@ -24,10 +24,10 @@
+ int	trigger_set_tcp(int port, char *name);
+ int	trigger_set_rpc(int program, char *name);
+ 
+-void	trigger_ip(struct libnet_ip_hdr *ip);
+-void	trigger_udp(struct libnet_ip_hdr *ip);
++void	trigger_ip(struct libnet_ipv4_hdr *ip);
++void	trigger_udp(struct libnet_ipv4_hdr *ip);
+ void	trigger_tcp(struct tcp_stream *ts, void **conn_save);
+-void	trigger_tcp_raw(struct libnet_ip_hdr *ip);
++void	trigger_tcp_raw(struct libnet_ipv4_hdr *ip);
+ void	trigger_tcp_raw_timeout(int signal);
+ void	trigger_rpc(int program, int proto, int port);
+ 
+diff -uNr dsniff-2.4.orig/urlsnarf.8 dsniff-2.4/urlsnarf.8
+--- dsniff-2.4.orig/urlsnarf.8	2000-11-19 14:24:51.000000000 +0800
++++ dsniff-2.4/urlsnarf.8	2019-04-10 18:56:04.563464342 +0800
+@@ -9,7 +9,7 @@
+ .na
+ .nf
+ .fi
+-\fBurlsnarf\fR [\fB-n\fR] [\fB-i \fIinterface\fR]  [[\fB-v\fR] \fIpattern [\fIexpression\fR]]
++\fBurlsnarf\fR [\fB-n\fR] [\fB-i \fIinterface\fR | \fB-p \fIpcapfile\fR]  [[\fB-v\fR] \fIpattern [\fIexpression\fR]]
+ .SH DESCRIPTION
+ .ad
+ .fi
+@@ -21,6 +21,9 @@
+ .IP \fB-n\fR
+ Do not resolve IP addresses to hostnames.
+ .IP "\fB-i \fIinterface\fR"
++Specify the interface to listen on.
++.IP "\fB-p \fIpcapfile\fR"
++Process packets from the specified PCAP capture file instead of the network.
+ .IP \fB-v\fR
+ "Versus" mode. Invert the sense of matching, to select non-matching
+ URLs.
+diff -uNr dsniff-2.4.orig/urlsnarf.c dsniff-2.4/urlsnarf.c
+--- dsniff-2.4.orig/urlsnarf.c	2001-03-15 17:26:13.000000000 +0800
++++ dsniff-2.4/urlsnarf.c	2019-04-10 18:56:04.611464568 +0800
+@@ -36,12 +36,13 @@
+ u_short		Opt_dns = 1;
+ int		Opt_invert = 0;
+ regex_t	       *pregex = NULL;
++time_t          tt = 0;
+ 
+ static void
+ usage(void)
+ {
+ 	fprintf(stderr, "Version: " VERSION "\n"
+-		"Usage: urlsnarf [-n] [-i interface] [[-v] pattern [expression]]\n");
++		"Usage: urlsnarf [-n] [-i interface | -p pcapfile] [[-v] pattern [expression]]\n");
+ 	exit(1);
+ }
+ 
+@@ -57,9 +58,12 @@
+ {
+ 	static char tstr[32], sign;
+ 	struct tm *t, gmt;
+-	time_t tt = time(NULL);
+ 	int days, hours, tz, len;
+ 	
++	if (!nids_params.filename) {
++		tt = time(NULL);
++	}
++	
+ 	gmt = *gmtime(&tt);
+ 	t = localtime(&tt);
+ 	
+@@ -68,7 +72,7 @@
+ 		 t->tm_hour - gmt.tm_hour);
+ 	tz = hours * 60 + t->tm_min - gmt.tm_min;
+ 	
+-	len = strftime(tstr, sizeof(tstr), "%e/%b/%Y:%X", t);
++	len = strftime(tstr, sizeof(tstr), "%d/%b/%Y:%X", t);
+ 	if (len < 0 || len > sizeof(tstr) - 5)
+ 		return (NULL);
+ 	
+@@ -84,6 +88,43 @@
+ 	return (tstr);
+ }
+ 
++static char *
++escape_log_entry(char *string)
++{
++	char *out;
++	unsigned char *c, *o;
++	size_t len;
++
++	if (!string)
++		return NULL;
++
++	/* Determine needed length */
++	for (c = string, len = 0; *c; c++) {
++		if ((*c < 32) || (*c >= 128))
++			len += 4;
++		else if ((*c == '"') || (*c =='\\'))
++			len += 2;
++		else
++			len++;
++	}
++	out = malloc(len+1);
++	if (!out)
++		return NULL;
++	for (c = string, o = out; *c; c++, o++) {
++		if ((*c < 32) || (*c >= 128)) {
++			snprintf(o, 5, "\\x%02x", *c);
++			o += 3;
++		} else if ((*c == '"') || ((*c =='\\'))) {
++			*(o++) = '\\';
++			*o = *c;
++		} else {
++			*o = *c;
++		}
++	}
++	out[len]='\0';
++	return out;
++}
++
+ static int
+ process_http_request(struct tuple4 *addr, u_char *data, int len)
+ {
+@@ -142,18 +183,26 @@
+ 				buf_tok(NULL, NULL, i);
+ 			}
+ 		}
+-		if (user == NULL)
+-			user = "-";
+-		if (vhost == NULL)
+-			vhost = libnet_host_lookup(addr->daddr, Opt_dns);
+-		if (referer == NULL)
+-			referer = "-";
+-		if (agent == NULL)
+-			agent = "-";
+-		
++		user = escape_log_entry(user);
++		vhost = escape_log_entry(vhost);
++		uri = escape_log_entry(uri);
++		referer = escape_log_entry(referer);
++		agent = escape_log_entry(agent);
++
+ 		printf("%s - %s [%s] \"%s http://%s%s\" - - \"%s\" \"%s\"\n",
+-		       libnet_host_lookup(addr->saddr, Opt_dns),
+-		       user, timestamp(), req, vhost, uri, referer, agent);
++		       libnet_addr2name4(addr->saddr, Opt_dns),
++		       (user?user:"-"),
++		       timestamp(), req, 
++		       (vhost?vhost:libnet_addr2name4(addr->daddr, Opt_dns)), 
++		       uri,
++		       (referer?referer:"-"),
++		       (agent?agent:"-"));
++
++		free(user);
++		free(vhost);
++		free(uri);
++		free(referer);
++		free(agent);
+ 	}
+ 	fflush(stdout);
+ 	
+@@ -200,12 +249,16 @@
+ 	extern char *optarg;
+ 	extern int optind;
+ 	int c;
++	struct nids_chksum_ctl chksum_ctl;
+ 	
+-	while ((c = getopt(argc, argv, "i:nvh?V")) != -1) {
++	while ((c = getopt(argc, argv, "i:p:nvh?V")) != -1) {
+ 		switch (c) {
+ 		case 'i':
+ 			nids_params.device = optarg;
+ 			break;
++		case 'p':
++			nids_params.filename = optarg;
++			break;
+ 		case 'n':
+ 			Opt_dns = 0;
+ 			break;
+@@ -238,12 +291,73 @@
+ 	
+ 	nids_register_tcp(sniff_http_client);
+ 
+-	warnx("listening on %s [%s]", nids_params.device,
+-	      nids_params.pcap_filter);
++        if (nids_params.pcap_filter != NULL) {
++                if (nids_params.filename == NULL) {
++                        warnx("listening on %s [%s]", nids_params.device,
++                              nids_params.pcap_filter);
++                }
++                else {
++                        warnx("using %s [%s]", nids_params.filename,
++                              nids_params.pcap_filter);
++                }
++        }
++        else {
++                if (nids_params.filename == NULL) {
++                    warnx("listening on %s", nids_params.device);
++                }
++                else {
++                    warnx("using %s", nids_params.filename);
++                }
++        }
++
++        chksum_ctl.netaddr = 0;
++        chksum_ctl.mask = 0;
++        chksum_ctl.action = NIDS_DONT_CHKSUM;
++
++        nids_register_chksum_ctl(&chksum_ctl, 1);
++
++	pcap_t *p;
++	char pcap_errbuf[PCAP_ERRBUF_SIZE];
++	if (nids_params.filename == NULL) {
++		/* adapted from libnids.c:open_live() */
++		if (strcmp(nids_params.device, "all") == 0)
++			nids_params.device = "any";
++		p = pcap_open_live(nids_params.device, 16384, 
++				   (nids_params.promisc != 0),
++				   0, pcap_errbuf);
++		if (!p) {
++			fprintf(stderr, "pcap_open_live(): %s\n",
++				pcap_errbuf);
++			exit(1);
++		}
++	}
++	else {
++		p = pcap_open_offline(nids_params.filename, 
++				      pcap_errbuf);
++		if (!p) {
++			fprintf(stderr, "pcap_open_offline(%s): %s\n",
++				nids_params.filename, pcap_errbuf);
++		}
++	}
+ 
+-	nids_run();
+-	
+-	/* NOTREACHED */
++	struct pcap_pkthdr *h;
++	u_char *d;
++	int rc;
++	while ((rc = pcap_next_ex(p, &h, &d)) == 1) {
++		tt = h->ts.tv_sec;
++		nids_pcap_handler(NULL, h, d);
++	}
++	switch (rc) {
++	case(-2): /* end of pcap file */
++	case(0):  /* timeout on live capture */
++		break;
++	case(-1):
++	default:
++		fprintf(stderr, "rc = %i\n", rc);
++		pcap_perror(p, "pcap_read_ex()");
++		exit(1);
++		break;
++	}
+ 	
+ 	exit(0);
+ }
+diff -uNr dsniff-2.4.orig/webmitm.c dsniff-2.4/webmitm.c
+--- dsniff-2.4.orig/webmitm.c	2001-03-17 16:35:05.000000000 +0800
++++ dsniff-2.4/webmitm.c	2019-04-10 18:56:04.631464664 +0800
+@@ -47,6 +47,8 @@
+ int	 do_ssl, sig_pipe[2];
+ in_addr_t	static_host = 0;
+ 
++static	 libnet_t *l;
++
+ extern int decode_http(char *, int, char *, int);
+ 
+ static void
+@@ -242,7 +244,7 @@
+ 			word = buf_tok(&msg, "/", 1);
+ 			vhost = buf_strdup(word);
+ 		}
+-		ssin.sin_addr.s_addr = libnet_name_resolve(vhost, 1);
++		ssin.sin_addr.s_addr = libnet_name2addr4(l, vhost, LIBNET_RESOLVE);
+ 		free(vhost);
+ 		
+ 		if (ssin.sin_addr.s_addr == ntohl(INADDR_LOOPBACK) ||
+@@ -496,6 +498,7 @@
+ 	extern char *optarg;
+ 	extern int optind;
+ 	int c;
++	char libnet_ebuf[LIBNET_ERRBUF_SIZE];
+ 
+ 	while ((c = getopt(argc, argv, "dh?V")) != -1) {
+ 		switch (c) {
+@@ -509,8 +512,11 @@
+ 	argc -= optind;
+ 	argv += optind;
+ 
++	if ((l = libnet_init(LIBNET_LINK, NULL, libnet_ebuf)) == NULL)
++		errx(1, "%s", libnet_ebuf);
++	
+ 	if (argc == 1) {
+-		if ((static_host = libnet_name_resolve(argv[0], 1)) == -1)
++		if ((static_host = libnet_name2addr4(l, argv[0], LIBNET_RESOLVE)) == -1)
+ 			usage();
+ 	}
+ 	else if (argc != 0) usage();
+diff -uNr dsniff-2.4.orig/webspy.8 dsniff-2.4/webspy.8
+--- dsniff-2.4.orig/webspy.8	2000-11-14 23:51:05.000000000 +0800
++++ dsniff-2.4/webspy.8	2019-04-10 18:56:04.563464342 +0800
+@@ -9,7 +9,7 @@
+ .na
+ .nf
+ .fi
+-\fBwebspy\fR [\fB-i \fIinterface\fR] \fIhost\fR
++\fBwebspy\fR [\fB-i \fIinterface\fR | \fB-p \fIpcapfile\fR] \fIhost\fR
+ .SH DESCRIPTION
+ .ad
+ .fi
+@@ -20,6 +20,8 @@
+ .SH OPTIONS
+ .IP "\fB-i \fIinterface\fR"
+ Specify the interface to listen on.
++.IP "\fB-p \fIpcapfile\fR"
++Process packets from the specified PCAP capture file instead of the network.
+ .IP \fIhost\fR
+ Specify the web client to spy on.
+ .SH "SEE ALSO"
+diff -uNr dsniff-2.4.orig/webspy.c dsniff-2.4/webspy.c
+--- dsniff-2.4.orig/webspy.c	2001-03-15 16:33:05.000000000 +0800
++++ dsniff-2.4/webspy.c	2019-04-10 18:56:04.631464664 +0800
+@@ -33,6 +33,7 @@
+ extern int mozilla_remote_commands (Display *, Window, char **);
+ char	*expected_mozilla_version = "4.7";
+ char	*progname = "webspy";
++static	libnet_t *l;
+ 
+ Display		*dpy;
+ char		 cmd[2048], *cmdtab[2];
+@@ -42,7 +43,7 @@
+ usage(void)
+ {
+ 	fprintf(stderr, "Version: " VERSION "\n"
+-		"Usage: %s [-i interface] host\n", progname);
++		"Usage: %s [-i interface | -p pcapfile] host\n", progname);
+ 	exit(1);
+ }
+ 
+@@ -126,7 +127,7 @@
+ 		if (auth == NULL)
+ 			auth = "";
+ 		if (vhost == NULL)
+-			vhost = libnet_host_lookup(addr->daddr, 0);
++			vhost = libnet_addr2name4(addr->daddr, 0);
+ 		
+ 		snprintf(cmd, sizeof(cmd), "openURL(http://%s%s%s%s)",
+ 			 auth, *auth ? "@" : "", vhost, uri);
+@@ -183,12 +184,16 @@
+ 	extern char *optarg;
+ 	extern int optind;
+ 	int c;
++	char libnet_ebuf[LIBNET_ERRBUF_SIZE];
+ 	
+-	while ((c = getopt(argc, argv, "i:h?V")) != -1) {
++	while ((c = getopt(argc, argv, "i:p:h?V")) != -1) {
+ 		switch (c) {
+ 		case 'i':
+ 			nids_params.device = optarg;
+ 			break;
++		case 'p':
++			nids_params.filename = optarg;
++			break;
+ 		default:
+ 			usage();
+ 		}
+@@ -202,7 +207,10 @@
+ 	cmdtab[0] = cmd;
+ 	cmdtab[1] = NULL;
+ 	
+-	if ((host = libnet_name_resolve(argv[0], 1)) == -1)
++	if ((l = libnet_init(LIBNET_LINK, NULL, libnet_ebuf)) == NULL)
++		errx(1, "%s", libnet_ebuf);
++	
++	if ((host = libnet_name2addr4(l, argv[0], LIBNET_RESOLVE)) == -1)
+ 		errx(1, "unknown host");
+ 	
+ 	if ((dpy = XOpenDisplay(NULL)) == NULL)
+@@ -216,7 +224,13 @@
+ 	
+ 	nids_register_tcp(sniff_http_client);
+ 
+-	warnx("listening on %s", nids_params.device);
++        if (nids_params.filename == NULL) {
++                warnx("listening on %s", nids_params.device);
++        }
++        else {
++                warnx("using %s", nids_params.filename);
++        }
++
+ 
+ 	nids_run();
+ 	
