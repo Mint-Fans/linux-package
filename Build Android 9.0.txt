@@ -1,0 +1,54 @@
+########################
+### Build Android 9.0
+########################
+## Build Requires:
+sudo apt-get update
+sudo apt install openjdk-9-jdk
+sudo apt-get install bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libssl-dev libwxgtk3.0-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev
+
+## repo
+curl https://storage.googleapis.com/git-repo-downloads/repo > repo
+chmod 755 repo
+sudo mv repo /usr/bin/repo
+
+## Download Source Code
+# Google Android 9.0
+# Page: https://source.android.com/setup/start/build-numbers#source-code-tags-and-builds
+mkdir -p google/android-9.0
+cd google/android-9.0
+repo init -u https://android.googlesource.com/platform/manifest -b android-9.0.0_r47
+repo sync
+
+# LineageOS 16.0
+mkdir -p android/lineage
+cd android/lineage
+repo init -u https://github.com/LineageOS/android.git -b lineage-16.0
+repo sync
+
+# Omnirom 9.0
+mkdir -p omnirom/android-9.0
+cd omnirom/android-9.0
+repo init -u git://github.com/omnirom/android.git -b android-9.0
+repo sync
+
+## Patch:
+# Build 32-bit OS Patch
+sed -i 's/ARCH_VARIANT := armv8-a/ARCH_VARIANT := armv7-a-neon/g' build/make/core/combo/TARGET_linux-arm.mk
+
+## Download Device Config
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/Android/android_device_Amazing_A55.tar.gz
+tar zxvf android_device_Amazing_A55.tar.gz
+
+## Build
+sudo -s
+
+export USE_CCACHE=1
+ccache -M 50G
+export CCACHE_COMPRESS=1
+
+source build/envsetup.sh && lunch TaiwanMobile_Amazing_A55-eng
+
+make -j$(nproc) bootimage
+make -j$(nproc) recoveryimage
+make -j$(nproc) systemimage
+make -j$(nproc) vendorimage
