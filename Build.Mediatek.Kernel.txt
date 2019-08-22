@@ -1,0 +1,49 @@
+###############################################
+### Build Mediatek Kernel
+###############################################
+## 下載原始碼
+mkdir -p linux-mtk-4.4.95
+cd linux-mtk-4.4.95
+git clone https://github.com/parthibx24/android_kernel_wiko_p200.git kernel/mediatek
+
+## 下載編譯工具
+git clone https://android.googlesource.com/kernel/build build -b master --depth=1
+git clone https://android.googlesource.com/kernel/tests kernel/tests -b oreo-release
+# 編譯 armv7 kernel
+git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 -b oreo-release --depth=1
+# 編譯 armv8 kernel
+git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 -b oreo-release --depth=1
+
+## 從手機提取核心配置
+adb shell "cp /proc/config.gz /sdcard/"
+adb shell "gunzip /sdcard/config.gz"
+adb pull /sdcard/config kernel/mediatek/arch/arm/configs/a55_defconfig
+# 或下載已提取版本
+curl https://raw.githubusercontent.com/Mint-Fans/linux-package/Android/twm-a55-kern-config > kernel/mediatek/arch/arm/configs/a55_defconfig
+echo 'CONFIG_SECTION_MISMATCH_WARN_ONLY=y' >> kernel/mediatek/arch/arm/configs/a55_defconfig
+
+## TWM A55 Patch
+cp kernel/mediatek/include/trace/events/fpsgo.h kernel/mediatek/include/uapi/linux/fpsgo.h
+rm -rf kernel/mediatek/drivers/misc/mediatek/imgsensor/src/mt6739/camera_hw
+cp -r kernel/mediatek/drivers/misc/mediatek/imgsensor/src/mt6739/camera_project/k600/camera_hw kernel/mediatek/drivers/misc/mediatek/imgsensor/src/mt6739/
+cp -r kernel/mediatek/drivers/misc/mediatek/imgsensor/src/mt6739/camera_project/k600/v1/* kernel/mediatek/drivers/misc/mediatek/imgsensor/src/common/v1/
+rm -rf kernel/mediatek/drivers/misc/mediatek/imgsensor/src/common/v1/imgsensor_sensor_list.c
+cp kernel/mediatek/drivers/misc/mediatek/imgsensor/src/mt6739/camera_project/k600/v1/imgsensor_sensor_list.c kernel/mediatek/drivers/misc/mediatek/imgsensor/src/common/v1/
+
+cp kernel/mediatek/build.config.goldfish.arm kernel/mediatek/build.config
+sed -i 's/DEFCONFIG=.*/DEFCONFIG=a55_defconfig/g' kernel/mediatek/build.config
+sed -i 's/KERNEL_DIR=.*/KERNEL_DIR=kernel\/mediatek/g' kernel/mediatek/build.config
+ln -s kernel/mediatek/build.config .
+
+## TEST:
+sed -i 's/CONFIG_CUSTOM_KERNEL_IMGSENSOR=.*/CONFIG_CUSTOM_KERNEL_IMGSENSOR="gc8034_cxt_k600 gc5025_cxt_k600"/g' kernel/mediatek/arch/arm/configs/a55_defconfig
+sed -i 's/CONFIG_CUSTOM_KERNEL_LCM=.*/CONFIG_CUSTOM_KERNEL_LCM="nt35695B_fhd_dsi_cmd_auo_nt50358_hdp"/g' kernel/mediatek/arch/arm/configs/a55_defconfig
+
+## 編譯 Kernel
+source build/envsetup.sh && build/build.sh
+
+## 測試 Kernel
+fastboot boot Image.lz4-dtb
+
+## 檢視 Kernel Log
+adb shell dmesg
