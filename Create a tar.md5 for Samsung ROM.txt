@@ -1,0 +1,7 @@
+### Create a tar.md5 for Samsung ROM
+# Repack Image to tar
+tar -cf AP.tar cm.mbn recovery.img boot.img system.img
+
+# generate .tar.md5
+md5sum -t AP.tar >> AP.tar
+mv AP.tar AP.tar.md5
