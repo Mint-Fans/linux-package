@@ -1,0 +1,46 @@
+######################################
+### Build TWRP For Samsung Note 5
+######################################
+# 更新套件庫
+sudo apt update
+
+# 安裝套件
+sudo apt install git-core gnupg flex bison gperf build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z-dev ccache libgl1-mesa-dev libxml2-utils xsltproc unzip rsync
+
+# 安裝 OpenJDK
+sudo apt install openjdk-8-jdk
+
+# 下載 omni for twrp 原始碼
+https://androidfilehost.com/?fid=673956719939830631
+
+mkdir -p twrp-7.0 && cd twrp-7.0
+tar Jxvf ../omni_twrp-7.1.2-20180326-norepo.tar.xz
+
+# 下載 clang
+# rm -rf prebuilts/clang/host/linux-X86
+# git clone https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 prebuilts/clang/host/linux-x86 -b android-7.1.2_r36 --depth=1
+
+# 下載 TWRP 3.3.1
+rm -rf bootable/recovery
+git clone https://github.com/omnirom/android_bootable_recovery.git bootable/recovery -b android-9.0 --depth=1
+
+# 下載手機配置文件
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/Android/device-samsung-note5-twrp.tar.gz
+tar zxvf device-samsung-note5-twrp.tar.gz
+
+# 版號修改
+OSVER=7.0.0
+sed -i "s/PLATFORM_VERSION :=.*/PLATFORM_VERSION := $OSVER/g" build/core/version_defaults.mk
+DATE=$(date +%Y-%m-%d)
+sed -i "s/PLATFORM_SECURITY_PATCH :=.*/PLATFORM_SECURITY_PATCH := $DATE/g" build/core/version_defaults.mk
+
+# 編譯
+sudo -s
+export LANG=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
+
+source build/envsetup.sh && lunch omni_noblelte-eng
+
+make -j$(nproc) recoveryimage
+
+編譯完成後檔案在：out/target/product/noblelte/recovery.img
