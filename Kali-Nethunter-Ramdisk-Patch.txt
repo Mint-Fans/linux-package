@@ -20,10 +20,10 @@ sed -i '/environ.rc/i \import \/init.nethunter.rc' init.rc
 # ueventd patch
 echo '/dev/hidg*                0666   root       root' >> ueventd.rc
 
-# selinux patch (in ramdisk)
+# selinux patch (in ramdisk) 有些機型是在 /system/etc/selinux 目錄下，那 ramdisk 就不用打這個補釘
 echo '/dev/hidg[0-9]*                                  u:object_r:input_device:s0' >> file_contexts
 
-# default.prop patch (in ramdisk)
+# default.prop patch (in ramdisk) 有些機型是在 /system/etc 目錄下，那 ramdisk 就不用打這個補釘
 sed -i 's/ro.adb.secure=.*/ro.adb.secure=1/g' default.prop
 sed -i 's/ro.secure=.*/ro.secure=1/g' default.prop
 
