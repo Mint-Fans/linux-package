@@ -3,7 +3,7 @@
 ##########################################
 ### 各廠牌適用
 ## 下載必要檔案 (Linux底下的操作)
-https://drive.google.com/file/d/1Au27D4Fd6O0eQDyFQqzBDsR5oUgcH38X/view?usp=sharing
+https://drive.google.com/file/d/1mnsVj57KLSMQwbcprsMPmWOxM4QwMyXu/view?usp=sharing
 
 下載 nethunter-any-2019.3.tar.gz 後解壓縮
 tar zxvf nethunter-any-2019.3.tar.gz
