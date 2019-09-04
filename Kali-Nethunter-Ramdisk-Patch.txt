@@ -1,0 +1,40 @@
+########################################
+### Kali Nethunter boot.img Patch
+########################################
+Kali 官方編譯的 Image.gz-dtb 是針對某些機型的自訂核心，所以沒辦法套用在其他不支援的機種。
+因為某些機型不支援，所以只能取需要的檔案自己手動安裝。
+
+要解開 boot.img 修改、添加檔案後，然後打包在刷入
+
+解開 boot.img 後
+cd 到 ramdisk 目錄
+
+## boot.img 檔案內容修改 (以下在 Linux 底下操作範例)
+# 修復權限
+find -type f \( -name "*.rc" ! -name "ueventd.*" \) -exec chmod 0750 {} \;
+find -type f \( -name "*.xml" -o -name "*.do" -o -name "*.pem" -o -name "*.vtab" -o -name "fstab.*" -o -name "*.prop" -o -name "*_contexts" -o -name "ueventd.*" -o -name "sepolicy" -o -name "sepolicy_version" \) -exec chmod 0644 {} \;
+
+# init.rc 插入 import /init.nethunter.rc
+sed -i '/environ.rc/i \import \/init.nethunter.rc' init.rc
+
+# ueventd patch
+echo '/dev/hidg*                0666   root       root' >> ueventd.rc
+
+# selinux patch (in ramdisk)
+echo '/dev/hidg[0-9]*                                  u:object_r:input_device:s0' >> file_contexts
+
+# default.prop patch (in ramdisk)
+sed -i 's/ro.adb.secure=.*/ro.adb.secure=1/g' default.prop
+sed -i 's/ro.secure=.*/ro.secure=1/g' default.prop
+
+## 添加檔案
+# ramdisk
+init.nethunter.rc 複製到 ramdisk 根目錄
+usb_config.sh 複製到 ramdisk sbin 目錄
+
+修改完後，重新打包 boot.img。
+
+一般機型直接進 fastboot 刷入即可。
+三星機型必須做成 tar.md5 檔案，使用 odin3 刷入。
+
+
