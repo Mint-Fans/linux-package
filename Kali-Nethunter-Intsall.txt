@@ -1,0 +1,134 @@
+##########################################
+### Kali Nethunter 安裝
+##########################################
+### 各廠牌適用
+## 下載必要檔案 (Linux底下的操作)
+https://drive.google.com/file/d/1Au27D4Fd6O0eQDyFQqzBDsR5oUgcH38X/view?usp=sharing
+
+下載 nethunter-any-2019.3.tar.gz 後解壓縮
+tar zxvf nethunter-any-2019.3.tar.gz
+cd nethunter
+
+# 選則需要的版本下載
+# 迷你版
+# arm64 64-bit 版本
+wget https://build.nethunter.com/kalifs/kalifs-latest/kalifs-arm64-minimal.tar.xz
+# arm 32-bit 版本
+wget https://build.nethunter.com/kalifs/kalifs-latest/kalifs-armhf-minimal.tar.xz
+
+# 完整版
+# arm64 64-bit
+wget https://build.nethunter.com/kalifs/kalifs-latest/kalifs-arm64-full.tar.xz
+# arm 32-bit
+wget https://build.nethunter.com/kalifs/kalifs-latest/kalifs-armhf-full.tar.xz
+
+adb push system /sdcard/temp
+adb push wallpaper /sdcard/wallpaper
+
+adb install app/NetHunter.apk
+adb install app/NetHunterStore.apk
+adb install app/NetHunterStorePrivilegedExtension.apk
+adb install app/NetHunterTerminal.apk
+adb install app/NetHunterVNC.apk
+
+# 迷你版 arm 32-bit 版本 範例
+adb push kalifs-armhf-minimal.tar.xz /sdcard/temp/kalifs.tar.xz
+
+
+adb shell
+
+## 連接手機後的操作
+su
+mount /system -o rw,remount
+cp -r /sdcard/temp/etc/init.d /system/etc/
+cp -r /sdcard/temp/etc/nano /system/etc/
+cp -r /sdcard/temp/etc/terminfo /system/etc/
+cp -r /sdcard/temp/etc/firmware /system/etc/
+cp /sdcard/temp/etc/permissions/com.offsec.nethunter.store.privileged.xml /system/etc/permissions/
+
+chown -R 0:0 /system/etc/init.d
+chmod 0755 /system/etc/init.d/90userinit
+chown -R 0:0 /system/etc/nano
+chmod 0644 /system/etc/nano/*
+chown -R 0:0 /system/etc/terminfo
+chown -R 0:0 /system/etc/terminfo/*
+chmod 0644 /system/etc/terminfo/*/*
+chmod 0644 /system/etc/permissions/com.offsec.nethunter.store.privileged.xml
+chown -R 0:0 /system/etc/firmware
+chmod 0644 /system/etc/firmware/*
+chmod 0644 /system/etc/firmware/rtlwifi/*
+chmod 0644 /system/etc/firmware/zd1211/*
+
+cp -r /sdcard/temp/bin/lualibs /system/bin/
+cp -r /sdcard/temp/bin/scripts /system/bin/
+
+chown -R 0:2000 /system/bin/lualibs
+chown -R 0:2000 /system/bin/scripts
+chmod 0755 /system/bin/lualibs/*
+chmod 0755 /system/bin/scripts/*
+
+## 開機動畫(三星手機不適用)
+mv /system/media/bootanimation.zip /system/media/backup.zip
+cp /sdcard/temp/media/bootanimation.zip /system/media/
+chmod 0644 /system/media/bootanimation.zip
+
+## busybox
+# arm64 64-bit 版本
+cp /sdcard/temp/xbin/busybox-arm64 /system/xbin/busybox_nh
+# arm 32-bit 版本
+cp /sdcard/temp/xbin/busybox-arm /system/xbin/busybox_nh
+
+chmod 0755 /system/xbin/busybox_nh
+cp /system/xbin/busybox_nh /system/xbin/busybox
+/system/xbin/busybox_nh --install -s /system/xbin
+
+## hid-keyboard
+# arm64 64-bit 版本
+cp /sdcard/temp/xbin/hid-keyboard-arm64 /system/xbin/hid-keyboard
+# arm 32-bit 版本
+cp /sdcard/temp/xbin/hid-keyboard-arm /system/xbin/hid-keyboard
+
+chmod 0755 /system/xbin/hid-keyboard
+
+## 安裝 Kali 檔案系統
+mkdir -p /data/local/userinit.d
+chmod -R 0755 /data/local/userinit.d
+echo '#!/system/bin/sh' > /data/local/userinit.sh
+chmod 0755 /data/local/userinit.sh
+
+mkdir -p /data/local/nhsystem
+cd /sdcard/temp
+busybox tar Jxvf kalifs.tar.xz -C /data/local/nhsystem/
+
+# arm64 版本必須重命名為 kali-armhf
+mv /data/local/nhsystem/kali-arm64 /data/local/nhsystem/kali-armhf
+
+ln -sf /data/data/com.offsec.nethunter/files/scripts/bootkali /system/bin/bootkali
+ln -sf /data/data/com.offsec.nethunter/files/scripts/bootkali_init /system/bin/bootkali_init
+ln -sf /data/data/com.offsec.nethunter/files/scripts/bootkali_login /system/bin/bootkali_login
+ln -sf /data/data/com.offsec.nethunter/files/scripts/bootkali_bash /system/bin/bootkali_bash
+ln -sf /data/data/com.offsec.nethunter/files/scripts/killkali /system/bin/killkali
+
+## 部份機型 file_contexts 在  /system/etc/selinux 的適用
+# selinux patch (in system)
+echo '/dev/hidg[0-9]*                                  u:object_r:input_device:s0' >> /system/etc/selinux/plat_file_contexts
+
+## 部份機型 default.prop 在  /system/etc 的適用
+# default.prop patch (in system)
+sed -i 's/ro.adb.secure=.*/ro.adb.secure=1/g' /system/etc/prop.default
+sed -i 's/ro.secure=.*/ro.secure=1/g' /system/etc/prop.default
+
+## 清除臨時安裝檔
+cd ..
+rm -rf /sdcard/temp
+
+## 恢復唯獨模式
+mount /system -o ro,remount
+
+## 退出
+exit
+exit
+
+因為不是直接刷官方的zip，所以桌面的圖片要自己設定，Kali 的桌布路徑 /sdcard/wallpaper/nethunter
+
+手機重啟，並刷入修改過的 boot.img 就完成了！
