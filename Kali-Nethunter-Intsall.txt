@@ -5,8 +5,8 @@
 ## 下載必要檔案 (Linux底下的操作)
 https://drive.google.com/file/d/1mnsVj57KLSMQwbcprsMPmWOxM4QwMyXu/view?usp=sharing
 
-下載 nethunter-any-2019.3.tar.gz 後解壓縮
-tar zxvf nethunter-any-2019.3.tar.gz
+下載 nethunter-any-2019.3.zip 後解壓縮
+unzip nethunter-any-2019.3.zip
 cd nethunter
 
 # 選則需要的版本下載
