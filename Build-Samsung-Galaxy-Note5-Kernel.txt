@@ -17,7 +17,7 @@ git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarc
 CROSS_COMPILE   ?= ../PLATFORM/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
 
 ## 核心配置
-cat >> kernel/arch/arm64/configs/noblelte_tw_defconfig << EOF
+cat >> arch/arm64/configs/noblelte_tw_defconfig << EOF
 #
 # kali NetHunter Module
 #
