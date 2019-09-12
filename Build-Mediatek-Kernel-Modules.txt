@@ -1,0 +1,133 @@
+###############################################
+### Build Mediatek Kernel Modules
+###############################################
+## 下載原始碼
+mkdir -p linux-mtk-4.4.95
+cd linux-mtk-4.4.95
+git clone https://github.com/parthibx24/android_kernel_wiko_p200.git kernel/mediatek
+
+## 下載編譯工具
+git clone https://android.googlesource.com/kernel/build build -b master --depth=1
+git clone https://android.googlesource.com/kernel/tests kernel/tests -b oreo-release
+# 編譯 armv7
+wget https://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/arm-eabi/gcc-linaro-6.3.1-2017.05-x86_64_arm-eabi.tar.xz
+tar Jxvf gcc-linaro-6.3.1-2017.05-x86_64_arm-eabi.tar.xz
+# 編譯 armv8
+wget https://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/aarch64-elf/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-elf.tar.xz
+tar Jxvf gcc-linaro-6.3.1-2017.05-x86_64_aarch64-elf.tar.xz
+
+## Patch
+sed -i '/CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE=/d' kernel/mediatek/arch/arm/configs/k39tv1_bsp_defconfig
+cp kernel/mediatek/include/trace/events/fpsgo.h kernel/mediatek/include/uapi/linux/fpsgo.h
+
+cat > kernel/mediatek/build.config << EOF
+ARCH=arm
+BRANCH=android-4.4
+CROSS_COMPILE=arm-eabi-
+DEFCONFIG=k39tv1_bsp_defconfig
+EXTRA_CMDS=''
+KERNEL_DIR=kernel/mediatek
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=gcc-linaro-6.3.1-2017.05-x86_64_arm-eabi/bin
+FILES="
+arch/arm/boot/zImage
+vmlinux
+System.map
+"
+EOF
+
+cat >> kernel/mediatek/arch/arm/configs/k39tv1_bsp_defconfig << EOF
+#
+# kali NetHunter Module for MediaTek
+#
+CONFIG_BT=m
+CONFIG_BT_INTEL=m
+CONFIG_BT_BCM=m
+CONFIG_BT_RTL=m
+CONFIG_BT_HCIBTUSB=m
+CONFIG_BT_HCIUART=m
+CONFIG_BT_HCIBCM203X=m
+CONFIG_BT_HCIBPA10X=m
+CONFIG_BT_HCIBFUSB=m
+CONFIG_BT_ATH3K=m
+CONFIG_MAC80211=m
+CONFIG_OF_MDIO=m
+CONFIG_MII=m
+CONFIG_PHYLIB=m
+CONFIG_USB_RTL8150=m
+CONFIG_USB_RTL8152=m
+CONFIG_USB_USBNET=m
+CONFIG_USB_NET_AX8817X=m
+CONFIG_USB_NET_AX88179_178A=m
+CONFIG_USB_NET_CDCETHER=m
+CONFIG_USB_NET_CDC_NCM=m
+CONFIG_USB_NET_NET1080=m
+CONFIG_USB_NET_RNDIS_HOST=m
+CONFIG_USB_NET_CDC_SUBSET=m
+CONFIG_USB_NET_ZAURUS=m
+CONFIG_USB_ZD1201=m
+CONFIG_USB_NET_RNDIS_WLAN=m
+CONFIG_ATH_COMMON=m
+CONFIG_ATH_CARDS=m
+CONFIG_ATH9K=m
+CONFIG_ATH9K_HW=m
+CONFIG_ATH9K_COMMON=m
+CONFIG_ATH9K_BTCOEX_SUPPORT=m
+CONFIG_ATH9K_HTC=m
+CONFIG_ATH6KL=m
+CONFIG_RTL_CARDS=m
+CONFIG_X86_PKG_TEMP_THERMAL=m
+CONFIG_USB_ACM=m
+CONFIG_CRYPTO_GF128MUL=m
+CONFIG_CRYPTO_CCM=m
+CONFIG_CRYPTO_GCM=m
+CONFIG_CRYPTO_CMAC=m
+CONFIG_CRYPTO_GHASH=m
+EOF
+
+ln -s kernel/mediatek/build.config .
+
+
+## 編譯 Kernel
+source build/envsetup.sh && build/build.sh
+
+# 複製模塊
+mkdir -p modules
+cp out/android-4.4/kernel/mediatek/crypto/ccm.ko modules/
+cp out/android-4.4/kernel/mediatek/crypto/gcm.ko modules/
+cp out/android-4.4/kernel/mediatek/crypto/gf128mul.ko modules/
+cp out/android-4.4/kernel/mediatek/crypto/ghash-generic.ko modules/
+cp out/android-4.4/kernel/mediatek/crypto/cmac.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/bluetooth/bfusb.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/bluetooth/bpa10x.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/bluetooth/btbcm.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/bluetooth/btintel.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/bluetooth/btrtl.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/bluetooth/btusb.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/bluetooth/hci_uart.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/bluetooth/ath3k.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/bluetooth/bcm203x.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/mii.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/phy/libphy.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/ax88179_178a.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/cdc_ether.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/cdc_ncm.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/cdc_subset.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/net1080.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/asix.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/r8152.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/rndis_host.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/rtl8150.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/usbnet.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/usb/zaurus.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/wireless/ath/ath.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/wireless/ath/ath6kl/ath6kl_core.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/wireless/ath/ath9k/ath9k.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/wireless/ath/ath9k/ath9k_common.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/wireless/ath/ath9k/ath9k_htc.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/wireless/ath/ath9k/ath9k_hw.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/wireless/rndis_wlan.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/net/wireless/zd1201.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/of/of_mdio.ko modules/
+cp out/android-4.4/kernel/mediatek/drivers/usb/class/cdc-acm.ko modules/
+cp out/android-4.4/kernel/mediatek/net/bluetooth/bluetooth.ko modules/
+cp out/android-4.4/kernel/mediatek/net/mac80211/mac80211.ko modules/
