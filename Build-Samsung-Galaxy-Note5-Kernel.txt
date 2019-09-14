@@ -1,0 +1,89 @@
+###############################################
+### Build Samsung Galaxy Note5 Kernel
+###############################################
+## 下載原始碼
+http://opensource.samsung.com/reception/receptionSub.do?method=sub&sub=T&menu_item=mobile&classification1=mobile_phone
+搜尋 SM-N9208 下載
+下載後解壓縮
+unzip SM-N9208_TW_NN_Opensource.zip
+cd SM-N9208_TW_NN_Opensource
+tar zxvf Kernel.tar.gz
+
+## 下載編譯工具
+git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 PLATFORM/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 -b nougat-release --depth=1
+
+## 指定編譯器
+修改 Makefile 檔案
+CROSS_COMPILE   ?= ../PLATFORM/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
+
+## 核心配置
+cd Kernel
+
+make ARCH=arm64 noblelte_tw_defconfig
+
+make ARCH=arm64 menuconfig
+
+# MAC80211 網路驅動
+模塊 mac80211.ko
+Networking support > Wireless
+    <*> Generic IEEE 802.11 Networking Stack (mac80211)
+
+# USB Modem & USB ATAPI 驅動
+模塊 cdc-acm.ko、ums-freecom.ko
+
+Device Drivers > USB support
+    <*> USB Modem (CDC ACM) support
+    <*> Freecom USB/ATAPI Bridge support
+
+# USB 無線網卡驅動
+Device Drivers > Network device support > Wireless LAN
+選擇需要的驅動
+範例: Atheros 晶片無線網卡
+<*> Atheros Wireless Cards  --->
+    <*>   Atheros 802.11n wireless cards support (Atheros ath9k)
+    <*>   Atheros HTC based wireless cards support (Atheros ath9k HTC)
+    <*>   Linux Community AR9170 802.11n USB support
+
+    <*>   Atheros mobile chipsets support
+    <*>   Atheros ath6kl SDIO support
+    <*>   Atheros ath6kl USB support
+
+    <*>   Atheros AR5523 wireless driver support
+
+    <*>   Atheros 802.11ac wireless cards support (Atheros ath10k)
+    <*>   Qualcomm Atheros WCN3660/3680 support
+
+# USB 藍芽驅動
+Networking support > Bluetooth subsystem support > Bluetooth device drivers
+<*> HCI USB driver
+<*> HCI UART driver
+<*> HCI BCM203x USB driver
+<*> HCI BPA10x USB driver
+<*> HCI BlueFRITZ! USB driver
+
+# USB 網卡驅動
+Device Drivers > Network device support > USB Network Adapters
+<*> USB Pegasus/Pegasus-II based ethernet device support
+<*> USB RTL8150 based ethernet device support
+<*> Realtek RTL8152 Based USB 2.0 Ethernet Adapters
+
+# mac80211 注入 Patch
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/kali/mac80211.patch
+patch -p0 -i mac80211.patch
+
+## 編譯 Kernel
+make -j$(nproc) ARCH=arm64
+
+export INSTALL_PATH=$(pwd)/out
+export INSTALL_MOD_PATH=$(pwd)/out
+
+make -j$(nproc) ARCH=arm64 modules_install
+make -j$(nproc) ARCH=arm64 install
+
+編譯完成後檔案在 out 目錄下
+Kernel: out/vmlinuz-3.10.61
+Modules: out/lib/modules/3.10.61/kernel/*/*/*/*.ko
+
+## 清除
+make clean
+
