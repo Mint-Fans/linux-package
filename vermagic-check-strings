@@ -1,0 +1,76 @@
+# 找尋 Kernel vermagic 字串
+Kernel 解密 搜尋 Kennel 版號
+
+strings zImage | grep '4.4.95'
+
+Linux version 4.4.95 (fubochen@zechin228) (gcc version 6.3.1 20170404 (Linaro GCC 6.3-2017.05) ) #1 SMP PREEMPT Fri Sep 7 21:28:00 CST 2018
+4.4.95 SMP preempt mod_unload modversions ARMv7 p2v8 
+/lib/firmware/updates/4.4.95
+/lib/firmware/4.4.95
+4.4.95
+
+
+strings boot.img-zImage' | grep '3.10.61'
+
+Linux version 3.10.61-12461156 (dpi@21HH1F03) (gcc version 4.9 20150123 (prerelease) (GCC) ) #1 SMP PREEMPT Mon Aug 20 13:03:25 KST 2018
+3.10.61-12461156 SMP preempt mod_unload aarch64
+/lib/firmware/updates/3.10.61-12461156
+/lib/firmware/3.10.61-12461156
+3.10.61-12461156
+
+# vermagic 格式
+UTS_RELEASE   MODULE_VERMAGIC_SMP  MODULE_VERMAGIC_PREEMPT  MODULE_VERMAGIC_MODULE_UNLOAD  MODULE_VERMAGIC_MODVERSIONS  MODULE_ARCH_VERMAGIC 
+
+
+# UTS_RELEASE 組成
+Makefile
+UTS_RELEASE = VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION
+
+# MODULE_ARCH_VERMAGIC 組成
+# armv7 參考 arch/arm/include/asm/module.h
+MODULE_ARCH_VERMAGIC_ARMVSN  MODULE_ARCH_VERMAGIC_P2V  VERMAGIC_ARMTHUMB
+
+# armv8 參考 arch/arm64/include/asm/module.h
+MODULE_ARCH_VERMAGIC = aarch64
+
+
+# 完整的 vermagic 字串
+# armv7
+4.4.95-123 SMP preempt mod_unload modversions ARMv7 p2v8 thumb2
+
+# armv8 
+3.10.61-123 SMP preempt mod_unload modversions aarch64
+
+如果版號有 「-xxxx」 的額外版號
+Makefile 裡添加 EXTRAVERSION = -xxxxx
+
+如果有 SMP 字串
+.config 裡加入 CONFIG_SMP=y
+如果沒有 SMP 字串
+.config 去除 CONFIG_SMP
+
+如果有 preempt 字串
+.config 裡加入 CONFIG_PREEMPT=y
+如果沒有 preempt 字串
+.config 去除 CONFIG_PREEMPT
+
+如果有 mod_unload 字串
+.config 裡加入 CONFIG_MODULE_UNLOAD=y
+如果沒有 mod_unload 字串
+.config 去除 CONFIG_MODULE_UNLOAD
+
+如果有 modversions 字串
+.config 裡加入 CONFIG_MODVERSIONS=y
+如果沒有 modversions 字串
+.config 去除 CONFIG_MODVERSIONS
+
+如果有 p2v8 字串
+.config 裡加入 CONFIG_ARM_PATCH_PHYS_VIRT=y
+如果沒有 p2v8 字串
+.config 去除 CONFIG_ARM_PATCH_PHYS_VIRT
+
+如果有 thumb2 字串
+.config 裡加入 CONFIG_THUMB2_KERNEL=y
+如果沒有 thumb2 字串
+.config 去除 CONFIG_THUMB2_KERNEL
+
