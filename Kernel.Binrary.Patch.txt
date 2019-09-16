@@ -157,6 +157,6 @@ c02b1ff4         ldm        sp, {r4, r5, r6, r7, r8, sb, fp, sp, pc}
 gzip -n -f -9 Image.unpack
 然後會得到一個 Image.unpack.gz 的檔案
 
-再用打開 Image.unpack.gz，把 Image.unpack.gz 的內容複製，按照「piggy.gzip 的開始偏移量」複寫進 boot.img-zImage 就完成補釘了。
+再用HEX 編輯器打開 Image.unpack.gz，把 Image.unpack.gz 的內容複製，按照「piggy.gzip 的開始偏移量」複寫進 boot.img-zImage 就完成補釘了。
 
 然後打包 boot.img 刷入。
