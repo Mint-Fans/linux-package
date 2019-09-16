@@ -1,0 +1,162 @@
+Kernel Binrary Patch
+
+準備工具：
+HEX 編輯器：看自己那一款上手，個人使用 HxD
+Debuger: IDA Pro 或者 Hopper Disassembler
+
+boot.img 解壓縮將核心提取出來，有些核心有壓縮，有些沒壓縮。如何檢查
+用 HEX 編輯器打開 核心(boot.img-zImage) 找尋字串 Linux version 。有找到就是沒壓縮。沒找到就是已壓縮。
+Linux 底下可以用 $ strings boot.img-zImage | grep "Linux version"  來檢查。
+
+這裡只說 gzip 壓縮的範例
+具體可以參考 https://www.xmsec.cc/re-modify-kernel-bypass-antidebug/
+
+gzip 壓縮的核心應該分三段
+
+---------------
+第一段雜質
+---------------
+piggy.gzip
+---------------
+第三段雜質
+---------------
+
+piggy.gzip 就是已壓縮的核心，就是要提取這段出來解壓縮。
+
+最好用 HEX 編輯器 把第二段取出來，用 dd 提取的話，後面會包含第三段雜質。這個自己壓個 gzip 檔案去比較看看就知道，第三段雜質從那開始。
+取出原本的 piggy.gzip 是要知道他的大小，因為修改後重新打包的 piggy.gzip 不可以比原來的大。因為覆蓋到第三段雜質，手機會無法啟動。
+
+
+# 取得 zImage 裡面 piggy.gzip 的開始偏移量
+OPS=$(LC_ALL=C grep -a -b -o $'\x1f\x8b\x08\x00'  boot.img-zImage | cut -d ":" -f 1)
+printf "0x%x" $OPS 
+
+把偏移量記錄下來，後面要覆寫 boot.img-zImage 用。
+
+# 從 boot.img-zImage 解壓縮核心
+OPS=$(LC_ALL=C grep -a -b -o $'\x1f\x8b\x08\x00'  boot.img-zImage | cut -d ":" -f 1)
+dd if=boot.img-zImage bs=1 skip=$OPS | zcat > Image.unpack
+
+解壓縮好之後就要開始進入重點了。
+
+
+# 用 Debuger 分析 Image.unpack
+通常從手機提取的 Kernel 都已經去掉符號，所以最好把先前編譯模塊的原始碼裡面 kernel/ 目錄下的 module.c module.o 做參考
+module.o 可以用 Debuger 打開分析 這個有帶符號。
+
+Kernel 要修改的部份是原本編進核心內的 module.o 部份。
+
+原始碼修改的參考：
+
+* 去除模塊CRC效驗
+module.c
+
+函數 check_version
+
+bad_version:
+        pr_warn("%s: disagrees about version of symbol %s", mod->name, symname);
+        return 0;
+
+必須讓 bad_version  return 1
+
+* 去掉 setup_load_info 函數裡面的 return ERR_PTR(-ENOEXEC);
+
+* 去除模塊 vermagic 字串驗證
+函數 check_modinfo
+        /* This is allowed: modprobe --force will invalidate it. */
+        if (!modmagic) {
+                err = try_to_force_load(mod, "bad vermagic");
+                if (err)
+                        return err;
+        } else if (!same_magic(modmagic, vermagic, info->index.vers)) {
+                pr_err("%s: version magic "%s" should be "%s"
+",
+                       mod->name, modmagic, vermagic);
+                return -ENOEXEC;
+        }
+
+去掉 return err 跟 return -ENOEXEC;
+
+以上是原始碼的修改參考方向，實際上還是要改解壓縮的核心。
+
+
+# 取得函數符號位址
+手機連接電腦
+adb shell
+su
+echo 0 > /proc/sys/kernel/kptr_restrict
+
+cat /proc/kallsyms |grep load_module
+c02b358c t load_module
+
+cat /proc/kallsyms |grep check_version
+c02b1fa8 t check_version.part.5
+
+紀錄 load_module 跟 check_version.part.5 的位址
+
+# 分析 Kernel
+用 Debuger 打開 Image.unpack
+base address       0xC0008000
+代碼段開始位址   0x1F9000     (每個核心不一樣 用 HEX 編輯器自己去看，不輸入也無所謂)
+
+# load_module Patch
+go to c02b358c (load_module)
+
+往下找到這段操作代碼
+
+符號是參考 module.o 添加上去，原本是不帶符號。
+c02b3884         ldr        r2, = (Modulelayout)
+c02b3888         mov        r0, r8
+c02b388c         bl         sub_c02b1fa8      ; check_version.part.5
+c02b3890         cmp        r0, #0x0
+c02b3894         beq        loc_c02b3784      ; NOP
+
+             loc_c02ab898:
+c02b3898         cmn        r4, #0x1000
+c02b389c         bhi        loc_c02b3f48
+c02b38a0         ldr        r1, =aVermagic
+c02b38a4         mov        r0, r5
+c02b38a8         bl         sub_c02b1c10      ; get_modinfo
+c02b38ac         tst        r7, #0x2
+c02b38b0         mov        r6, r0
+c02b38b4         bne        loc_c02b3784      ; NOP
+c02b38b8         cmp        r0, #0x0
+c02b38bc         beq        loc_c02b3784      ; NOP
+
+
+0x2AB894 Patch: BA FF FF 0A   改為   00 F0 20 E3
+0x2AB8B4 Patch: b2 ff ff 1a   改為   00 F0 20 E3
+0x2AB8BC Patch: b0 ff ff 0a   改為   00 F0 20 E3
+
+c02b38e8         str        r3, [fp, #-0xa0]
+c02b38ec         beq        sub_c02ab58c+892
+c02b38f0         ldr        r3, = (4.4.95+ SMP preempt mod_unload modversions ARMv7 p2v8)
+c02b38f4         mov        r2, r6
+c02b38f8         add        r1, r4, #0xc
+c02b38fc         ldr        r0, = (version magic "%s" should be "%s")
+c02b3900         bl         sub_c02f5f38      ; printk
+c02b3904         b          loc_c02b3784      ; NOP
+
+0x2AB904 Patch: 9e ff ff ea   改為   00 F0 20 E3
+
+# check_version Patch
+go to c02b1fa8 (check_version.part.5)
+往下找到這段
+
+c02b1ff0         mov        r0, r8         ; patch to  mov  r0, #0x1 (01 00 a0 e3)
+c02b1ff4         ldm        sp, {r4, r5, r6, r7, r8, sb, fp, sp, pc}
+
+
+0x2A9FF0 Patch: 08 00 a0 e1   改為   01 00 a0 e3
+
+把要補釘的位置紀錄下來，Debuger 顯示的位址 剪掉基址 0xC0008000 就是檔案的篇移量。
+
+用 HEX 編輯器打開 Image.unpack 按照篇移量把補釘複寫進去就可以了。
+
+打好補釘後壓縮 Image.unpack
+gzip -n -f -9 Image.unpack
+然後會得到一個 Image.unpack.gz 的檔案
+
+再用打開 Image.unpack.gz，把 Image.unpack.gz 的內容複製，按照「piggy.gzip 的開始偏移量」複寫進 boot.img-zImage 就完成補釘了。
+
+然後打包 boot.img 刷入。
