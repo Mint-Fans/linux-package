@@ -48,7 +48,7 @@ Kernel 要修改的部份是原本編進核心內的 module.o 部份。
 
 原始碼修改的參考：
 
-* 去除模塊CRC效驗
+* 去除模塊CRC校驗
 module.c
 
 函數 check_version
