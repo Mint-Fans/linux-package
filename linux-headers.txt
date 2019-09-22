@@ -1,0 +1,47 @@
+### linux-headers
+
+# Build Depends
+sudo apt-get install libelf-dev
+
+# Patch:
+sed -i 's/$(CONFIG_BUILD_BIN2C)/y/g' scripts/basic/Makefile
+sed -i 's/$(CONFIG_KALLSYMS)/y/g' scripts/Makefile
+sed -i 's/$(CONFIG_LOGO)/y/g' scripts/Makefile
+sed -i 's/$(CONFIG_VT)/y/g' scripts/Makefile
+sed -i 's/$(BUILD_C_RECORDMCOUNT)/y/g' scripts/Makefile
+sed -i 's/$(CONFIG_MODULE_SIG)/y/g' scripts/Makefile
+sed -i 's/$(CONFIG_SYSTEM_TRUSTED_KEYRING)/y/g' scripts/Makefile
+sed -i 's/$(CONFIG_MODVERSIONS)/y/g' scripts/Makefile
+sed -i '/insert-sys-cert/a\hostprogs-y += unifdef'  scripts/Makefile
+# echo '#define LINUX_PACKAGE_ID " Debian 4.14.13"' > include/generated/package.h
+
+KERNVER=$(cat .config | grep 'Linux/x86' | awk '{print $3}')
+BUILD_DIR=build/linux-headers/usr/src/linux-headers-${KERNVER}
+KARCH=x86
+
+# Configuration
+make x86_64_defconfig
+make menuconfig
+
+# Initialization
+make CONFIG_XEN=y prepare
+make init
+
+# Build linux-kbuild
+make scripts
+make O=$BUILD_DIR scripts
+make tools/objtool
+
+# Install linux-headers
+install -Dt "${BUILD_DIR}" -m644 Makefile .config Module.symvers
+install -Dt "${BUILD_DIR}/arch/${KARCH}" -m644 arch/${KARCH}/Makefile*
+cp -t "${BUILD_DIR}/arch/${KARCH}" -a arch/${KARCH}/include
+cp -t "${BUILD_DIR}" -a include
+
+# Install linux-kbuild
+cp -t "${BUILD_DIR}/scripts/" scripts/*
+install -Dt "${BUILD_DIR}/scripts/kconfig" -m755 scripts/kconfig/conf
+install -Dt "${BUILD_DIR}/tools/objtool" -m755 tools/objtool/objtool
+
+# Clean files
+find $BUILD_DIR \( -name .*.cmd -o -name *.o \) -execdir rm {} +

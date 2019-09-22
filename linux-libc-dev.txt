@@ -1,0 +1,24 @@
+### linux-libc-dev
+
+# Build Depends
+sudo apt-get install libelf-dev
+
+BUILD_DIR=build/linux-libc-dev/usr
+
+# HOST_MULTIARCH
+# amd64 = x86_64-linux-gnu
+# i386 = i386-linux-gnu
+# armv4+ = arm-linux-gnueabi
+# armv7 = arm-linux-gnueabihf
+# armv8 = aarch64-linux-gnu
+HOST_MULTIARCH=x86_64-linux-gnu
+
+# Install linux-libc-dev
+make headers_install INSTALL_HDR_PATH=$BUILD_DIR
+mkdir -p $BUILD_DIR/include/$HOST_MULTIARCH
+mv $BUILD_DIR/include/asm $BUILD_DIR/include/$HOST_MULTIARCH
+
+# Clean files
+rm -rf $BUILD_DIR/include/drm $BUILD_DIR/include/scsi
+find $BUILD_DIR/include \( -name .install -o -name ..install.cmd \) -execdir rm {} +
+find $BUILD_DIR/include \( -name .check -o -name ..check.cmd \) -execdir rm {} +
