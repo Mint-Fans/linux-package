@@ -1,1 +1,1 @@
-# 範例
+# Linux Kernel
