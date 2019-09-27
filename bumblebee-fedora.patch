@@ -1,0 +1,95 @@
+diff -uNr Bumblebee.orig/src/bbsecondary.h Bumblebee/src/bbsecondary.h
+--- Bumblebee.orig/src/bbsecondary.h	2019-09-27 08:26:40.000000000 +0800
++++ Bumblebee/src/bbsecondary.h	2019-09-27 08:47:42.369831404 +0800
+@@ -26,7 +26,7 @@
+  * Ubuntu: /usr/bin/X is a custom binary doing authorization and then executes
+  *         /etc/X11/X -> /usr/bin/Xorg
+  */
+-#define XORG_BINARY "Xorg"
++#define XORG_BINARY "/usr/libexec/Xorg.wrap"
+ 
+ /* PCI Bus ID of the discrete video card */
+ struct pci_bus_id *pci_bus_id_discrete;
+diff -uNr Bumblebee.orig/src/module.c Bumblebee/src/module.c
+--- Bumblebee.orig/src/module.c	2019-09-27 08:26:40.000000000 +0800
++++ Bumblebee/src/module.c	2019-09-27 08:47:57.221831933 +0800
+@@ -92,16 +92,18 @@
+  * @return 1 if the driver is succesfully unloaded, 0 otherwise
+  */
+ int module_unload(char *driver) {
+-  if (module_is_loaded(driver) == 1) {
++  if (module_is_loaded("nvidia_drm") == 1) {
+     int retries = 30;
+-    bb_log(LOG_INFO, "Unloading %s driver\n", driver);
++    bb_log(LOG_INFO, "Unloading nvidia_drm driver\n");
+     char *mod_argv[] = {
+-      "rmmod",
+-      driver,
++      "modprobe",
++      "-r",
++      "nvidia-drm",
++      "nvidia-modeset",
+       NULL
+     };
+     bb_run_fork_wait(mod_argv, 10);
+-    while (retries-- > 0 && module_is_loaded(driver) == 1) {
++    while (retries-- > 0 && module_is_loaded("nvidia_drm") == 1) {
+       usleep(100000);
+     }
+     if (module_is_loaded(driver) == 1) {
+@@ -109,6 +111,44 @@
+       return 0;
+     }
+   }
++
++  else if (module_is_loaded("nvidia_modeset") == 1) {
++    int retries = 30;
++    bb_log(LOG_INFO, "Unloading nvidia_modeset driver\n");
++    char *mod_argv[] = {
++      "modprobe",
++      "-r",
++      "nvidia-modeset",
++      NULL
++    };
++    bb_run_fork_wait(mod_argv, 10);
++    while (retries-- > 0 && module_is_loaded("nvidia_modeset") == 1) {
++      usleep(100000);
++    }
++    if (module_is_loaded(driver) == 1) {
++      bb_log(LOG_ERR, "Unloading %s driver timed out.\n", driver);
++      return 0;
++    }
++  }
++
++  else if (module_is_loaded(driver) == 1) {
++      int retries = 30;
++      bb_log(LOG_INFO, "Unloading %s driver\n", driver);
++      char *mod_argv[] = {
++        "modprobe",
++        "-r",
++        driver,
++        NULL
++      };
++      bb_run_fork_wait(mod_argv, 10);
++      while (retries-- > 0 && module_is_loaded(driver) == 1) {
++        usleep(100000);
++      }
++      if (module_is_loaded(driver) == 1) {
++        bb_log(LOG_ERR, "Unloading %s driver timed out.\n", driver);
++        return 0;
++      }
++  }
+   return 1;
+ }
+ 
+diff -uNr Bumblebee.orig/src/optirun.c Bumblebee/src/optirun.c
+--- Bumblebee.orig/src/optirun.c	2019-09-27 08:26:40.000000000 +0800
++++ Bumblebee/src/optirun.c	2019-09-27 08:47:37.233831221 +0800
+@@ -203,6 +203,7 @@
+ 
+   /* primus starts the X server when needed, fixes long-standing fork issue */
+   setenv("BUMBLEBEE_SOCKET", bb_config.socket_path, 1);
+++  setenv("__GLVND_DISALLOW_PATCHING", "1", 0);
+ 
+   /* set LD_LIBRARY_PATH to primus_ld_path plus ld_path plus current LD_LIBRARY_PATH */
+   setenv("PRIMUS_DISPLAY", bb_config.x_display, 0);
