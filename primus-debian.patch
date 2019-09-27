@@ -1,0 +1,33 @@
+diff -uNr primus.orig/Makefile primus/Makefile
+--- primus.orig/Makefile	2019-09-27 09:21:05.000000000 +0800
++++ primus/Makefile	2019-09-27 09:21:21.005903292 +0800
+@@ -30,4 +30,4 @@
+ 
+ $(LIBDIR)/libGL.so.1: libglfork.cpp
+ 	mkdir -p $(LIBDIR)
+-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fvisibility=hidden -fPIC -shared -Wl,-Bsymbolic -o $@ $< -lX11 -lpthread -lrt
++	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fvisibility=hidden -fPIC -shared -Wl,-Bsymbolic -o $@ $< $(LDFLAGS) -lX11 -lpthread -lrt
+diff -uNr primus.orig/primusrun primus/primusrun
+--- primus.orig/primusrun	2019-09-27 09:21:05.000000000 +0800
++++ primus/primusrun	2019-09-27 09:21:21.005903292 +0800
+@@ -26,7 +26,7 @@
+ # export PRIMUS_libGLd=${PRIMUS_libGLd:-'/usr/$LIB/libGL.so.1'}
+ 
+ # Directory containing primus libGL
+-PRIMUS_libGL=${PRIMUS_libGL:-$(dirname `readlink -ne $0`)/'$LIB'}
++PRIMUS_libGL=${PRIMUS_libGL:-'/usr/$LIB/primus'}
+ 
+ # On some distributions, e.g. on Ubuntu, libnvidia-tls.so is not available
+ # in default search paths.  Add its path manually after the primus library
+@@ -36,7 +36,10 @@
+ # export PRIMUS_LOAD_GLOBAL=${PRIMUS_LOAD_GLOBAL:-'libglapi.so.0'}
+ 
+ # Need functions from primus libGL to take precedence
+-export LD_LIBRARY_PATH=${PRIMUS_libGL}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+ 
+ # And go!
++bblibs=$(echo -ne 'Q LibraryPath\0' | \
++  socat - UNIX-CONNECT:/var/run/bumblebee.socket | sed 's/^Value: \(.*\)/\1/')
++PRIMUS_libGL=${PRIMUS_libGL}${bblibs:+:$bblibs}
++export LD_LIBRARY_PATH=${PRIMUS_libGL}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+ exec "$@"

@@ -1,0 +1,64 @@
+diff -uNr primus.orig/libglfork.cpp primus/libglfork.cpp
+--- primus.orig/libglfork.cpp	2019-09-27 09:21:05.000000000 +0800
++++ primus/libglfork.cpp	2019-09-27 09:21:54.461904484 +0800
+@@ -259,6 +259,22 @@
+   }
+ } primus;
+ 
++static void cleanup()
++{
++  primus.drawables.clear();
++}
++
++static void register_cleanup_1()
++{
++  atexit(cleanup);
++}
++
++static void register_cleanup()
++{
++  static pthread_once_t once = PTHREAD_ONCE_INIT;
++  pthread_once(&once, register_cleanup_1);
++}
++
+ // Thread-specific data
+ static __thread struct {
+   Display *dpy;
+@@ -622,11 +638,6 @@
+ void glXDestroyContext(Display *dpy, GLXContext ctx)
+ {
+   primus.contexts.erase(ctx);
+-  // kludge: reap background tasks when deleting the last context
+-  // otherwise something will deadlock during unloading the library
+-  if (primus.contexts.empty())
+-    for (DrawablesInfo::iterator i = primus.drawables.begin(); i != primus.drawables.end(); i++)
+-      i->second.reap_workers();
+   primus.afns.glXDestroyContext(primus.adpy, ctx);
+ }
+ 
+@@ -720,6 +731,7 @@
+     di.actx = ctx;
+     di.d.spawn_worker(drawable, display_work);
+     di.r.spawn_worker(drawable, readback_work);
++    register_cleanup();
+   }
+   // Readback thread needs a sync object to avoid reading an incomplete frame
+   di.sync = primus.afns.glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+diff -uNr primus.orig/primusrun primus/primusrun
+--- primus.orig/primusrun	2019-09-27 09:21:05.000000000 +0800
++++ primus/primusrun	2019-09-27 09:22:15.877905246 +0800
+@@ -26,7 +26,7 @@
+ # export PRIMUS_libGLd=${PRIMUS_libGLd:-'/usr/$LIB/libGL.so.1'}
+ 
+ # Directory containing primus libGL
+-PRIMUS_libGL=${PRIMUS_libGL:-$(dirname `readlink -ne $0`)/'$LIB'}
++PRIMUS_libGL=/usr/\$LIB/primus
+ 
+ # On some distributions, e.g. on Ubuntu, libnvidia-tls.so is not available
+ # in default search paths.  Add its path manually after the primus library
+@@ -39,4 +39,5 @@
+ export LD_LIBRARY_PATH=${PRIMUS_libGL}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+ 
+ # And go!
++export __GLVND_DISALLOW_PATCHING=1
+ exec "$@"
