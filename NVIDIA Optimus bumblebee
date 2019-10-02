@@ -1,0 +1,182 @@
+############################################################
+### NVIDIA Optimus bumblebee
+############################################################
+## bbswitch
+# Build Requires: gcc make linux-headers dkms
+# debian
+sudo apt-get install gcc make linux-headers-amd64 dkms
+# archlinux
+sudo pacman -S gcc make linux-headers dkms
+# fedora
+sudo dnf install gcc make kernel-devel dkms
+# openSUSE
+sudo zypper install gcc make kernel-default-devel dkms
+
+git clone https://github.com/Bumblebee-Project/bbswitch bbswitch-0.8
+sed -i 's/#MODULE_VERSION#/0.8/g' bbswitch-0.8/dkms/dkms.conf
+mv bbswitch-0.8/dkms/dkms.conf bbswitch-0.8/dkms.conf
+rm -r bbswitch-0.8/dkms
+sudo cp -r bbswitch-0.8 /usr/src/
+
+sudo /usr/sbin/dkms build -m bbswitch -v 0.8 -k $(uname -r)
+sudo /usr/sbin/dkms install -m bbswitch -v 0.8 -k $(uname -r)
+
+sudo sh -c 'echo "bbswitch" > /usr/lib/modules-load.d/bbswitch.conf'
+sudo sh -c 'echo "options bbswitch load_state=0 unload_state=1" >> /etc/modprobe.d/50-bbswitch.conf'
+
+sudo sh -c 'echo "blacklist nouveau" > /etc/modprobe.d/50-blacklist.conf'
+sudo sh -c 'echo "blacklist nvidia" >> /etc/modprobe.d/50-blacklist.conf'
+sudo sh -c 'echo "blacklist nvidia-drm" >> /etc/modprobe.d/50-blacklist.conf'
+sudo sh -c 'echo "blacklist nvidia-modeset" >> /etc/modprobe.d/50-blacklist.conf'
+sudo sh -c 'echo "blacklist nvidia-uvm" >> /etc/modprobe.d/50-blacklist.conf'
+
+sudo sed -i 's/Exec=.*/Exec=sudo optirun -b none nvidia-settings -c :8/g' /usr/share/applications/nvidia-settings.desktop
+sudo sed -i 's/Icon=.*/Icon=nvidia-settings/g'  /usr/share/applications/nvidia-settings.desktop
+
+# debian
+sudo update-initramfs -u
+# archlinux
+sudo mkinitcpio -p linux
+# fedora / openSUSE
+sudo dracut -f -v
+
+cd ..
+
+
+############################################################
+## primus
+############################################################
+Build Requires: gcc g++ mesa libx11
+
+# debian
+sudo apt-get install gcc-multilib g++-multilib mesa-common-dev libx11-dev libx11-dev:i386
+# fedora
+sudo dnf install mesa-libGL-devel gcc gcc-c++ glibc-devel libX11-devel libstdc++-devel
+sudo dnf install glibc-devel.i686 libX11-devel.i686 libstdc++-devel.i686
+# openSUSE
+sudo zypper install gcc gcc-c++ glibc-devel Mesa-libGL-devel libX11-devel libstdc++-devel
+sudo zypper install gcc-32bit gcc-c++-32bit glibc-devel-32bit libX11-devel-32bit libstdc++-devel-32bit
+# archlinux
+sudo pacman -S gcc-multilib lib32-gcc-libs glibc libx11 mesa lib32-mesa
+
+git clone https://github.com/amonakov/primus
+
+# Patch for Debian
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/NVIDIA/primus-debian.patch
+# Patch for openSUSE :
+https://raw.githubusercontent.com/Mint-Fans/linux-package/NVIDIA/primus-opensuse.patch
+# Patch for Fedora
+https://raw.githubusercontent.com/Mint-Fans/linux-package/NVIDIA/primus-fedora.patch
+# Patch for arch
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/NVIDIA/primus-arch.patch
+
+cd primus
+patch -Np1 -i ../primus-*.patch
+
+# Build 32-bit
+export CC="gcc -m32"
+export CXX="g++ -m32"
+LIBDIR=lib32 make
+
+# Build 64-bit
+export CC="gcc"
+export CXX="g++"
+LIBDIR=lib64 make
+
+
+# debian
+LIB64=lib/x86_64-linux-gnu
+LIB32=lib/i386-linux-gnu
+
+# fedora / openSUSE
+LIB64=lib64
+LIB32=lib
+
+# archlinux
+LIB64=lib
+LIB32=lib32
+
+sudo install -D -m755 "primusrun" "/usr/bin/primusrun"
+sudo install -D -m755 "lib64/libGL.so.1" "/usr/$LIB64/primus/libGL.so.1"
+sudo install -D -m755 "lib32/libGL.so.1" "/usr/$LIB32/primus/libGL.so.1"
+sudo /sbin/ldconfig
+cd ..
+
+
+############################################################
+## bumblebee
+############################################################
+# Build Requires: autoconf automake libbsd GLib2.0 libx11 help2man pkg-config kmod
+# debian
+sudo apt-get install autoconf automake libbsd-dev libglib2.0-dev libc6-dev libx11-dev help2man pkg-config libkmod-dev
+# fedora
+sudo dnf install autoconf automake libbsd-devel glib2-devel libX11-devel help2man
+# openSUSE
+sudo zypper install automake autoconf glib2-devel help2man pciutils pkg-config pwdutils xorg-x11-libX11-devel
+# archlinux
+sudo pacman -S automake autoconf libbsd glib2 glibc libx11 help2man pkg-config kmod
+
+git clone https://github.com/Bumblebee-Project/Bumblebee
+
+# Patch for Debian
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/NVIDIA/bumblebee-debian.patch
+# Patch for Fedora
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/NVIDIA/bumblebee-fedora.patch
+# Patch for arch
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/NVIDIA/bumblebee-arch.patch
+# Patch for openSUSE
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/NVIDIA/bumblebee-opensuse.patch
+sed -i '3i After=dkms.service systemd-modules-load.service' Bumblebee/scripts/systemd/bumblebeed.service.in
+
+cd Bumblebee
+patch -Np1 -i ../bumblebee-*.patch
+
+# debian
+LIB64=lib/x86_64-linux-gnu
+LIB32=lib/i386-linux-gnu
+LIBDIR=lib
+XMOD_PATH=/usr/lib/xorg/modules
+NV_XMOD_PATH=/usr/lib/nvidia
+XORG_BINARY=/usr/lib/xorg/Xorg
+
+# fedora / openSUSE
+LIB64=lib64
+LIB32=lib
+LIBDIR=usr/lib
+XMOD_PATH=/usr/lib64/xorg/modules
+NV_XMOD_PATH=/usr/lib64/nvidia
+
+# archlinux
+LIB64=lib
+LIB32=lib32
+LIBDIR=usr/lib
+XMOD_PATH=/usr/lib/xorg/modules
+NV_XMOD_PATH=/usr/lib/nvidia
+
+# Build
+autoreconf -fi
+./configure \
+  --prefix=/usr \
+  --sysconfdir=/etc \
+  --without-pidfile \
+  --with-udev-rules=/${LIBDIR}/udev/rules.d \
+  CONF_XORG_BINARY=$XORG_BINARY \
+  CONF_DRIVER_MODULE_NVIDIA=nvidia \
+  CONF_LDPATH_NVIDIA=/usr/${LIB64}/nvidia:/usr/${LIB32}/nvidia:/usr/${LIBDIR}/nvidia \
+  CONF_MODPATH_NVIDIA=${NV_XMOD_PATH},${XMOD_PATH} \
+  CONF_PRIMUS_LD_PATH=/usr/${LIB64}/primus:/usr/${LIB32}/primus
+
+make -j$(nproc)
+
+PKG_DIR=$HOME/Build/$(basename $(pwd))
+make install DESTDIR=$PKG_DIR
+install -D -m644 "scripts/systemd/bumblebeed.service" "$PKG_DIR/$LIBDIR/systemd/system/bumblebeed.service"
+
+sudo make install
+sudo install -D -m644 "scripts/systemd/bumblebeed.service" "/$LIBDIR/systemd/system/bumblebeed.service"
+
+sudo groupadd --system bumblebee
+sudo gpasswd -a $USER bumblebee
+
+sudo systemctl enable bumblebeed.service
+sudo systemctl start bumblebeed.service
