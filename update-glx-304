@@ -1,0 +1,75 @@
+#!/bin/bash
+
+###############################################
+### Update GLX 304 for Debian
+###############################################
+LIB64=/usr/lib/x86_64-linux-gnu
+LIB32=/usr/lib/i386-linux-gnu
+XMOD_PATH=/usr/lib/xorg/modules
+NV_XMOD_PATH=/usr/lib/nvidia
+
+DISPLAY_TYPE=$(lspci | grep 'VGA' | awk '{print $5}')
+NV_VER=$(modinfo nvidia | grep ^version | awk '{print $2}')
+
+###############################################
+install_nvglx_fun(){
+echo "Install NVIDIA X Library --->"
+# install nvidia x library
+mv $XMOD_PATH/extensions/libglx.so $XMOD_PATH/extensions/libglx_xorg.so
+ln -sf ../../../nvidia/libglx.so $XMOD_PATH/extensions/libglx.so
+
+# backup mesa glx
+LIB64_MESA_GL=$(ls -l $LIB64/ | grep libGL.so.1 | grep '>' | awk '{print $11}')
+LIB32_MESA_GL=$(ls -l $LIB32/ | grep libGL.so.1 | grep '>' | awk '{print $11}')
+
+mkdir -p $NV_XMOD_PATH/mesa
+
+echo $LIB64_MESA_GL > $NV_XMOD_PATH/mesa/LIB64_MESA_GL
+echo $LIB32_MESA_GL > $NV_XMOD_PATH/mesa/LIB32_MESA_GL
+
+# install glx
+echo "Install NVIDIA GLX/GL Library --->"
+rm -rf $LIB64/libGL.so.1
+rm -rf $LIB32/libGL.so.1
+cp $LIB64/nvidia/libGL.so.${NV_VER} $LIB64/libGL.so.1
+cp $LIB32/nvidia/libGL.so.${NV_VER} $LIB32/libGL.so.1
+}
+
+###############################################
+remove_nvglx_fun(){
+echo "Remove NVIDIA X Library --->"
+# remove nvidia x library
+rm -rf $XMOD_PATH/extensions/libglx.so
+mv $XMOD_PATH/extensions/libglx_xorg.so $XMOD_PATH/extensions/libglx.so
+
+# remove glx
+echo "Remove NVIDIA GLX/GL Library --->"
+rm -rf $LIB64/libGL.so.1
+rm -rf $LIB32/libGL.so.1
+
+# restore glx
+LIB64_MESA_GL=$(cat $NV_XMOD_PATH/mesa/LIB64_MESA_GL)
+LIB32_MESA_GL=$(cat $NV_XMOD_PATH/mesa/LIB32_MESA_GL)
+
+ln -sT $LIB64_MESA_GL $LIB64/libGL.so.1 > /dev/null 2>&1
+ln -sT $LIB32_MESA_GL $LIB32/libGL.so.1 > /dev/null 2>&1
+
+rm -rf $NV_XMOD_PATH/mesa
+}
+
+###############################################
+if [ "$DISPLAY_TYPE" == "NVIDIA" ]; then
+    if [ "$1" == "install" ]; then
+        install_nvglx_fun
+        echo "run nvidia-xconfig --->"
+        nvidia-xconfig > /dev/null 2>&1
+    fi
+    if [ "$1" == "remove" ]; then
+        remove_nvglx_fun
+        echo "remove nvidia xorg config --->"
+        rm -rf /etc/X11/xorg.conf
+        rm -rf /etc/X11/xorg.conf.nvidia-xconfig-original
+    fi
+else
+    echo 'NVIDIA Optimus --->'
+fi
