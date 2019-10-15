@@ -1,0 +1,96 @@
+#!/bin/bash
+
+###############################################
+### Update GLX for NVIDIA
+###############################################
+## Check Distrib
+if [ -d "/usr/lib/xorg/modules/drivers" ]; then
+    if [ -d "/usr/lib/x86_64-linux-gnu" ]; then
+        # debian
+        DISTRIB=debian
+    else
+        # archlinux
+        DISTRIB=archlinux
+    fi
+else
+    if [ -d "/usr/lib64/xorg/modules/drivers" ]; then
+        # fedora / openSuSE
+        DISTRIB=fedora
+    fi
+fi
+
+## Set PATHs
+if [ "$DISTRIB" == "debian" ]; then
+    LIB64=/usr/lib/x86_64-linux-gnu
+    LIB32=/usr/lib/i386-linux-gnu
+    XMOD_PATH=/usr/lib/xorg/modules
+    NV_XMOD_PATH=/usr/lib/nvidia/xorg
+elif [ "$DISTRIB" == "archlinux" ]; then
+    LIB64=/usr/lib
+    LIB32=/usr/lib32
+    XMOD_PATH=/usr/lib/xorg/modules
+    NV_XMOD_PATH=/usr/lib/nvidia/xorg
+elif [ "$DISTRIB" == "fedora" ]; then
+    LIB64=/usr/lib64
+    LIB32=/usr/lib
+    XMOD_PATH=/usr/lib64/xorg/modules
+    NV_XMOD_PATH=/usr/lib64/nvidia/xorg
+else
+    echo 'Unsupport Release'
+    exit 0
+fi
+
+DISPLAY_TYPE=$(lspci | grep 'VGA' | awk '{print $5}')
+NV_VER=$(modinfo nvidia | grep ^version | awk '{print $2}')
+
+###############################################
+set_xpath_fun(){
+sed -i '/Files/{n;d}' /etc/X11/xorg.conf
+sed -i '/Files/d' /etc/X11/xorg.conf
+
+cat >> /etc/X11/xorg.conf << EOF
+Section "Files"
+    ModulePath   "${NV_XMOD_PATH}"
+    ModulePath   "${XMOD_PATH}"
+EndSection
+EOF
+
+}
+
+###############################################
+install_nvglx_fun(){
+echo "Run nvidia-xconfig --->"
+rm -rf /etc/X11/xorg.conf
+rm -rf /etc/X11/xorg.conf.*
+nvidia-xconfig > /dev/null 2>&1
+
+set_xpath_fun
+
+echo "Install NVIDIA GLX/GL Library --->"
+echo "${LIB64}/nvidia" > /etc/ld.so.conf.d/nvidia-glx.conf
+echo "${LIB32}/nvidia" >> /etc/ld.so.conf.d/nvidia-glx.conf
+ldconfig
+}
+
+###############################################
+remove_nvglx_fun(){
+echo "Remove NVIDIA XORG Config --->"
+rm -rf /etc/X11/xorg.conf
+rm -rf /etc/X11/xorg.conf.*
+
+echo "Remove NVIDIA GLX/GL Library --->"
+rm -rf /etc/ld.so.conf.d/nvidia-glx.conf
+ldconfig
+}
+
+###############################################
+if [ "$DISPLAY_TYPE" == "NVIDIA" ]; then
+    if [ "$1" == "install" ]; then
+        install_nvglx_fun
+    fi
+    if [ "$1" == "remove" ]; then
+        remove_nvglx_fun
+    fi
+else
+    echo 'NVIDIA Optimus --->'
+fi
