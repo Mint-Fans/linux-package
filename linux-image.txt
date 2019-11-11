@@ -1,0 +1,58 @@
+### linux-image
+
+# Build Depends
+sudo apt-get install build-essential ncurses-dev cpio xz-utils bison flex
+
+ARCH=686
+ARCH=amd64
+
+KERNVER=$(cat .config | grep 'Linux/x86' | awk '{print $3}')
+BUILD_DIR=$HOME/Build/linux-image-${KERNVER}-${ARCH}
+
+# Kernel Configuration
+make clean
+make x86_64_defconfig
+make menuconfig
+
+# Patch for Distribution Name
+export DISTRIBUTION_OFFICIAL_BUILD=1
+export DISTRIBUTOR="Tinycore"
+export DISTRIBUTION_VERSION=$KERNVER
+export KBUILD_BUILD_VERSION_TIMESTAMP="${DISTRIBUTOR} ${KERNVER} ($(date +%Y-%m-%d))"
+sed -i 's/LINUX_COMPILE_BY=.*/LINUX_COMPILE_BY=tinycore/g' scripts/mkcompile_h
+sed -i 's/LINUX_COMPILE_HOST=.*/LINUX_COMPILE_HOST=devel.org/g' scripts/mkcompile_h
+sed -i '/UTS_RELEASE/s/KERNELRELEASE)/KERNELRELEASE)-'$ARCH'/g' Makefile
+# edit scripts/mkcompile_h
+# LINUX_COMPILER \"`$CC -v 2>&1 | grep ' version '`\"
+# to
+# LINUX_COMPILER \"`$CC -v 2>&1 | grep ' version ' | sed 's/ (.*//g'`\"
+
+
+# Build Kernel
+make -j$(nproc) bzImage
+
+# Install Kernel
+install -D -m644 arch/x86/boot/bzImage $BUILD_DIR/boot/vmlinuz-${KERNVER}-${ARCH}
+install -D -m644 .config $BUILD_DIR/boot/config-${KERNVER}-${ARCH}
+install -D -m644 System.map $BUILD_DIR/boot/System.map-${KERNVER}-${ARCH}
+
+# or
+mkdir -p $BUILD_DIR/boot
+export INSTALL_PATH=$BUILD_DIR/boot
+make -j$(nproc) install
+
+# Build Modules
+make -j$(nproc) modules
+
+# Install Modules
+export INSTALL_MOD_PATH=$BUILD_DIR
+make -j$(nproc) INSTALL_MOD_STRIP=1 modules_install
+
+mv $BUILD_DIR/lib/modules/${KERNVER} $BUILD_DIR/lib/modules/${KERNVER}-${ARCH}
+rm -rf $BUILD_DIR/lib/modules/${KERNVER}-${ARCH}/build
+rm -rf $BUILD_DIR/lib/modules/${KERNVER}-${ARCH}/source
+rm -rf $BUILD_DIR/lib/modules/${KERNVER}-${ARCH}/*.bin
+rm -rf $BUILD_DIR/lib/modules/${KERNVER}-${ARCH}/*.alias
+rm -rf $BUILD_DIR/lib/modules/${KERNVER}-${ARCH}/*dep
+rm -rf $BUILD_DIR/lib/modules/${KERNVER}-${ARCH}/*.devname
+rm -rf $BUILD_DIR/lib/modules/${KERNVER}-${ARCH}/*.symbols
