@@ -1,0 +1,534 @@
+diff -uNr linux-3.11.0.orig/fs/ext4/inode.c linux-3.11.0/fs/ext4/inode.c
+--- linux-3.11.0.orig/fs/ext4/inode.c	2013-09-03 04:46:10.000000000 +0800
++++ linux-3.11.0/fs/ext4/inode.c	2019-11-12 17:26:57.526763806 +0800
+@@ -2154,6 +2154,7 @@
+ 	struct ext4_map_blocks *map = &mpd->map;
+ 	int err;
+ 	loff_t disksize;
++	int progress = 0;
+ 
+ 	mpd->io_submit.io_end->offset =
+ 				((loff_t)map->m_lblk) << inode->i_blkbits;
+@@ -2170,8 +2171,11 @@
+ 			 * is non-zero, a commit should free up blocks.
+ 			 */
+ 			if ((err == -ENOMEM) ||
+-			    (err == -ENOSPC && ext4_count_free_clusters(sb)))
++			    (err == -ENOSPC && ext4_count_free_clusters(sb))) {
++				if (progress)
++					goto update_disksize;
+ 				return err;
++			}
+ 			ext4_msg(sb, KERN_CRIT,
+ 				 "Delayed block allocation failed for "
+ 				 "inode %lu at logical offset %llu with"
+@@ -2188,15 +2192,19 @@
+ 			*give_up_on_write = true;
+ 			return err;
+ 		}
++
++		progress = 1;
++
+ 		/*
+ 		 * Update buffer state, submit mapped pages, and get us new
+ 		 * extent to map
+ 		 */
+ 		err = mpage_map_and_submit_buffers(mpd);
+ 		if (err < 0)
+-			return err;
++			goto update_disksize;
+ 	} while (map->m_len);
+ 
++update_disksize:
+ 	/* Update on-disk size after IO is submitted */
+ 	disksize = ((loff_t)mpd->first_page) << PAGE_CACHE_SHIFT;
+ 	if (disksize > i_size_read(inode))
+diff -uNr linux-3.11.0.orig/fs/ext4/super.c linux-3.11.0/fs/ext4/super.c
+--- linux-3.11.0.orig/fs/ext4/super.c	2013-09-03 04:46:10.000000000 +0800
++++ linux-3.11.0/fs/ext4/super.c	2019-11-12 17:29:11.379161945 +0800
+@@ -3105,9 +3105,9 @@
+ 
+ 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+ 				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM)) {
+-		/* journal checksum v2 */
++		/* journal checksum v3 */
+ 		compat = 0;
+-		incompat = JBD2_FEATURE_INCOMPAT_CSUM_V2;
++		incompat = JBD2_FEATURE_INCOMPAT_CSUM_V3;
+ 	} else {
+ 		/* journal checksum v1 */
+ 		compat = JBD2_FEATURE_COMPAT_CHECKSUM;
+@@ -3129,6 +3129,7 @@
+ 		jbd2_journal_clear_features(sbi->s_journal,
+ 				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
+ 				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT |
++				JBD2_FEATURE_INCOMPAT_CSUM_V3 |
+ 				JBD2_FEATURE_INCOMPAT_CSUM_V2);
+ 	}
+ 
+diff -uNr linux-3.11.0.orig/fs/jbd2/commit.c linux-3.11.0/fs/jbd2/commit.c
+--- linux-3.11.0.orig/fs/jbd2/commit.c	2013-09-03 04:46:10.000000000 +0800
++++ linux-3.11.0/fs/jbd2/commit.c	2019-11-12 18:10:37.566557203 +0800
+@@ -97,7 +97,8 @@
+ 	struct commit_header *h;
+ 	__u32 csum;
+ 
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return;
+ 
+ 	h = (struct commit_header *)(bh->b_data);
+@@ -313,11 +314,12 @@
+ 	return checksum;
+ }
+ 
+-static void write_tag_block(int tag_bytes, journal_block_tag_t *tag,
++static void write_tag_block(journal_t *j, journal_block_tag_t *tag,
+ 				   unsigned long long block)
+ {
+ 	tag->t_blocknr = cpu_to_be32(block & (u32)~0);
+-	if (tag_bytes > JBD2_TAG_SIZE32)
++	//if (tag_bytes > JBD2_TAG_SIZE32)
++	if (JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_64BIT))
+ 		tag->t_blocknr_high = cpu_to_be32((block >> 31) >> 1);
+ }
+ 
+@@ -327,7 +329,8 @@
+ 	struct jbd2_journal_block_tail *tail;
+ 	__u32 csum;
+ 
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return;
+ 
+ 	tail = (struct jbd2_journal_block_tail *)(bh->b_data + j->j_blocksize -
+@@ -340,11 +343,13 @@
+ static void jbd2_block_tag_csum_set(journal_t *j, journal_block_tag_t *tag,
+ 				    struct buffer_head *bh, __u32 sequence)
+ {
++	journal_block_tag3_t *tag3 = (journal_block_tag3_t *)tag;
+ 	struct page *page = bh->b_page;
+ 	__u8 *addr;
+ 	__u32 csum32;
+ 
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return;
+ 
+ 	sequence = cpu_to_be32(sequence);
+@@ -356,7 +361,10 @@
+ 	kunmap_atomic(addr);
+ 
+ 	/* We only have space to store the lower 16 bits of the crc32c. */
+-	tag->t_checksum = cpu_to_be16(csum32);
++	if (JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V3))
++		tag3->t_checksum = cpu_to_be32(csum32);
++	else
++		tag->t_checksum = cpu_to_be16(csum32);
+ }
+ /*
+  * jbd2_journal_commit_transaction
+@@ -396,7 +404,8 @@
+ 	LIST_HEAD(io_bufs);
+ 	LIST_HEAD(log_bufs);
+ 
+-	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (jbd2_journal_has_csum_v2or3(journal))
+ 		csum_size = sizeof(struct jbd2_journal_block_tail);
+ 
+ 	/*
+@@ -692,7 +701,7 @@
+ 			tag_flag |= JBD2_FLAG_SAME_UUID;
+ 
+ 		tag = (journal_block_tag_t *) tagp;
+-		write_tag_block(tag_bytes, tag, jh2bh(jh)->b_blocknr);
++		write_tag_block(journal, tag, jh2bh(jh)->b_blocknr);
+ 		tag->t_flags = cpu_to_be16(tag_flag);
+ 		jbd2_block_tag_csum_set(journal, tag, wbuf[bufs],
+ 					commit_transaction->t_tid);
+diff -uNr linux-3.11.0.orig/fs/jbd2/journal.c linux-3.11.0/fs/jbd2/journal.c
+--- linux-3.11.0.orig/fs/jbd2/journal.c	2013-09-03 04:46:10.000000000 +0800
++++ linux-3.11.0/fs/jbd2/journal.c	2019-11-12 17:55:13.531808408 +0800
+@@ -124,7 +124,8 @@
+ /* Checksumming functions */
+ int jbd2_verify_csum_type(journal_t *j, journal_superblock_t *sb)
+ {
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return 1;
+ 
+ 	return sb->s_checksum_type == JBD2_CRC32C_CHKSUM;
+@@ -144,7 +145,8 @@
+ 
+ int jbd2_superblock_csum_verify(journal_t *j, journal_superblock_t *sb)
+ {
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return 1;
+ 
+ 	return sb->s_checksum == jbd2_superblock_csum(j, sb);
+@@ -152,7 +154,8 @@
+ 
+ void jbd2_superblock_csum_set(journal_t *j, journal_superblock_t *sb)
+ {
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return;
+ 
+ 	sb->s_checksum = jbd2_superblock_csum(j, sb);
+@@ -1523,21 +1526,32 @@
+ 		goto out;
+ 	}
+ 
+-	if (JBD2_HAS_COMPAT_FEATURE(journal, JBD2_FEATURE_COMPAT_CHECKSUM) &&
+-	    JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2)) {
++	//if (JBD2_HAS_COMPAT_FEATURE(journal, JBD2_FEATURE_COMPAT_CHECKSUM) &&
++	//    JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2)) {
++	if (jbd2_journal_has_csum_v2or3(journal) &&
++	    JBD2_HAS_COMPAT_FEATURE(journal, JBD2_FEATURE_COMPAT_CHECKSUM)) {
+ 		/* Can't have checksum v1 and v2 on at the same time! */
+ 		printk(KERN_ERR "JBD: Can't enable checksumming v1 and v2 "
+ 		       "at the same time!\n");
+ 		goto out;
+ 	}
+ 
++	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2) &&
++	    JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V3)) {
++		/* Can't have checksum v2 and v3 at the same time! */
++		printk(KERN_ERR "JBD2: Can't enable checksumming v2 and v3 "
++		       "at the same time!\n");
++		goto out;
++	}
++
+ 	if (!jbd2_verify_csum_type(journal, sb)) {
+ 		printk(KERN_ERR "JBD: Unknown checksum type\n");
+ 		goto out;
+ 	}
+ 
+ 	/* Load the checksum driver */
+-	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2)) {
++	//if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2)) {
++	if (jbd2_journal_has_csum_v2or3(journal)) {
+ 		journal->j_chksum_driver = crypto_alloc_shash("crc32c", 0, 0);
+ 		if (IS_ERR(journal->j_chksum_driver)) {
+ 			printk(KERN_ERR "JBD: Cannot load crc32c driver.\n");
+@@ -1554,7 +1568,8 @@
+ 	}
+ 
+ 	/* Precompute checksum seed for all metadata */
+-	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (jbd2_journal_has_csum_v2or3(journal))
+ 		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
+ 						   sizeof(sb->s_uuid));
+ 
+@@ -1815,7 +1830,12 @@
+ 		return 0;
+ 
+ 	/* Asking for checksumming v2 and v1?  Only give them v2. */
+-	if (incompat & JBD2_FEATURE_INCOMPAT_CSUM_V2 &&
++	if (incompat & JBD2_FEATURE_INCOMPAT_CSUM_V2) {
++		incompat &= ~JBD2_FEATURE_INCOMPAT_CSUM_V2;
++		incompat |= JBD2_FEATURE_INCOMPAT_CSUM_V3;
++	}
++
++	if (incompat & JBD2_FEATURE_INCOMPAT_CSUM_V3 &&
+ 	    compat & JBD2_FEATURE_COMPAT_CHECKSUM)
+ 		compat &= ~JBD2_FEATURE_COMPAT_CHECKSUM;
+ 
+@@ -1824,8 +1844,8 @@
+ 
+ 	sb = journal->j_superblock;
+ 
+-	/* If enabling v2 checksums, update superblock */
+-	if (INCOMPAT_FEATURE_ON(JBD2_FEATURE_INCOMPAT_CSUM_V2)) {
++	/* If enabling v3 checksums, update superblock */
++	if (INCOMPAT_FEATURE_ON(JBD2_FEATURE_INCOMPAT_CSUM_V3)) {
+ 		sb->s_checksum_type = JBD2_CRC32C_CHKSUM;
+ 		sb->s_feature_compat &=
+ 			~cpu_to_be32(JBD2_FEATURE_COMPAT_CHECKSUM);
+@@ -1843,8 +1863,9 @@
+ 		}
+ 
+ 		/* Precompute checksum seed for all metadata */
+-		if (JBD2_HAS_INCOMPAT_FEATURE(journal,
+-					      JBD2_FEATURE_INCOMPAT_CSUM_V2))
++		//if (JBD2_HAS_INCOMPAT_FEATURE(journal,
++		//			      JBD2_FEATURE_INCOMPAT_CSUM_V2))
++		if (jbd2_journal_has_csum_v2or3(journal))
+ 			journal->j_csum_seed = jbd2_chksum(journal, ~0,
+ 							   sb->s_uuid,
+ 							   sizeof(sb->s_uuid));
+@@ -1853,7 +1874,8 @@
+ 	/* If enabling v1 checksums, downgrade superblock */
+ 	if (COMPAT_FEATURE_ON(JBD2_FEATURE_COMPAT_CHECKSUM))
+ 		sb->s_feature_incompat &=
+-			~cpu_to_be32(JBD2_FEATURE_INCOMPAT_CSUM_V2);
++			~cpu_to_be32(JBD2_FEATURE_INCOMPAT_CSUM_V2 |
++				     JBD2_FEATURE_INCOMPAT_CSUM_V3);
+ 
+ 	sb->s_feature_compat    |= cpu_to_be32(compat);
+ 	sb->s_feature_ro_compat |= cpu_to_be32(ro);
+@@ -2166,16 +2188,23 @@
+  */
+ size_t journal_tag_bytes(journal_t *journal)
+ {
+-	journal_block_tag_t tag;
+-	size_t x = 0;
++	//journal_block_tag_t tag;
++	//size_t x = 0;
++	size_t sz;
++
++	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V3))
++		return sizeof(journal_block_tag3_t);
++
++	sz = sizeof(journal_block_tag_t);
++
+ 
+ 	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+-		x += sizeof(tag.t_checksum);
++		sz += sizeof(__u16);
+ 
+ 	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_64BIT))
+-		return x + JBD2_TAG_SIZE64;
++		return sz;
+ 	else
+-		return x + JBD2_TAG_SIZE32;
++		return sz - sizeof(__u32);
+ }
+ 
+ /*
+diff -uNr linux-3.11.0.orig/fs/jbd2/recovery.c linux-3.11.0/fs/jbd2/recovery.c
+--- linux-3.11.0.orig/fs/jbd2/recovery.c	2013-09-03 04:46:10.000000000 +0800
++++ linux-3.11.0/fs/jbd2/recovery.c	2019-11-12 18:05:02.549560375 +0800
+@@ -180,7 +180,8 @@
+ 	struct jbd2_journal_block_tail *tail;
+ 	__u32 provided, calculated;
+ 
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return 1;
+ 
+ 	tail = (struct jbd2_journal_block_tail *)(buf + j->j_blocksize -
+@@ -205,7 +206,8 @@
+ 	int			nr = 0, size = journal->j_blocksize;
+ 	int			tag_bytes = journal_tag_bytes(journal);
+ 
+-	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (jbd2_journal_has_csum_v2or3(journal))
+ 		size -= sizeof(struct jbd2_journal_block_tail);
+ 
+ 	tagp = &bh->b_data[sizeof(journal_header_t)];
+@@ -338,10 +340,11 @@
+ 	return err;
+ }
+ 
+-static inline unsigned long long read_tag_block(int tag_bytes, journal_block_tag_t *tag)
++static inline unsigned long long read_tag_block(journal_t *journal, journal_block_tag_t *tag)
+ {
+ 	unsigned long long block = be32_to_cpu(tag->t_blocknr);
+-	if (tag_bytes > JBD2_TAG_SIZE32)
++	//if (tag_bytes > JBD2_TAG_SIZE32)
++	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_64BIT))
+ 		block |= (u64)be32_to_cpu(tag->t_blocknr_high) << 32;
+ 	return block;
+ }
+@@ -383,7 +386,8 @@
+ 	struct commit_header *h;
+ 	__u32 provided, calculated;
+ 
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return 1;
+ 
+ 	h = buf;
+@@ -399,9 +403,11 @@
+ static int jbd2_block_tag_csum_verify(journal_t *j, journal_block_tag_t *tag,
+ 				      void *buf, __u32 sequence)
+ {
++	journal_block_tag3_t *tag3 = (journal_block_tag3_t *)tag;
+ 	__u32 csum32;
+ 
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return 1;
+ 
+ 	sequence = cpu_to_be32(sequence);
+@@ -409,7 +415,10 @@
+ 			     sizeof(sequence));
+ 	csum32 = jbd2_chksum(j, csum32, buf, j->j_blocksize);
+ 
+-	return tag->t_checksum == cpu_to_be16(csum32);
++	if (JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V3))
++		return tag3->t_checksum == cpu_to_be32(csum32);
++	else
++		return tag->t_checksum == cpu_to_be16(csum32);
+ }
+ 
+ static int do_one_pass(journal_t *journal,
+@@ -426,6 +435,7 @@
+ 	int			tag_bytes = journal_tag_bytes(journal);
+ 	__u32			crc32_sum = ~0; /* Transactional Checksums */
+ 	int			descr_csum_size = 0;
++	int			block_error = 0;
+ 
+ 	/*
+ 	 * First thing is to establish what we expect to find in the log
+@@ -512,8 +522,9 @@
+ 		switch(blocktype) {
+ 		case JBD2_DESCRIPTOR_BLOCK:
+ 			/* Verify checksum first */
+-			if (JBD2_HAS_INCOMPAT_FEATURE(journal,
+-					JBD2_FEATURE_INCOMPAT_CSUM_V2))
++			//if (JBD2_HAS_INCOMPAT_FEATURE(journal,
++			//		JBD2_FEATURE_INCOMPAT_CSUM_V2))
++			if (jbd2_journal_has_csum_v2or3(journal))
+ 				descr_csum_size =
+ 					sizeof(struct jbd2_journal_block_tail);
+ 			if (descr_csum_size > 0 &&
+@@ -574,7 +585,7 @@
+ 					unsigned long long blocknr;
+ 
+ 					J_ASSERT(obh != NULL);
+-					blocknr = read_tag_block(tag_bytes,
++					blocknr = read_tag_block(journal,
+ 								 tag);
+ 
+ 					/* If the block has been
+@@ -598,7 +609,9 @@
+ 						       "checksum recovering "
+ 						       "block %llu in log\n",
+ 						       blocknr);
+-						continue;
++						//continue;
++						block_error = 1;
++						goto skip_write;
+ 					}
+ 
+ 					/* Find a buffer for the new
+@@ -798,6 +811,9 @@
+ 		}
+ 	}
+ 
++	if (block_error && success == 0)
++		success = -EIO;
++
+ 	return success;
+ 
+  failed:
+@@ -810,7 +826,8 @@
+ 	struct jbd2_journal_revoke_tail *tail;
+ 	__u32 provided, calculated;
+ 
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return 1;
+ 
+ 	tail = (struct jbd2_journal_revoke_tail *)(buf + j->j_blocksize -
+diff -uNr linux-3.11.0.orig/fs/jbd2/revoke.c linux-3.11.0/fs/jbd2/revoke.c
+--- linux-3.11.0.orig/fs/jbd2/revoke.c	2013-09-03 04:46:10.000000000 +0800
++++ linux-3.11.0/fs/jbd2/revoke.c	2019-11-12 18:06:23.965802545 +0800
+@@ -91,8 +91,9 @@
+ #include <linux/list.h>
+ #include <linux/init.h>
+ #include <linux/bio.h>
+-#endif
++
+ #include <linux/log2.h>
++#endif
+ 
+ static struct kmem_cache *jbd2_revoke_record_cache;
+ static struct kmem_cache *jbd2_revoke_table_cache;
+@@ -597,7 +598,8 @@
+ 	offset = *offsetp;
+ 
+ 	/* Do we need to leave space at the end for a checksum? */
+-	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (jbd2_journal_has_csum_v2or3(journal))
+ 		csum_size = sizeof(struct jbd2_journal_revoke_tail);
+ 
+ 	/* Make sure we have a descriptor with space left for the record */
+@@ -644,7 +646,8 @@
+ 	struct jbd2_journal_revoke_tail *tail;
+ 	__u32 csum;
+ 
+-	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	//if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
++	if (!jbd2_journal_has_csum_v2or3(j))
+ 		return;
+ 
+ 	tail = (struct jbd2_journal_revoke_tail *)(bh->b_data + j->j_blocksize -
+diff -uNr linux-3.11.0.orig/include/linux/jbd2.h linux-3.11.0/include/linux/jbd2.h
+--- linux-3.11.0.orig/include/linux/jbd2.h	2013-09-03 04:46:10.000000000 +0800
++++ linux-3.11.0/include/linux/jbd2.h	2019-11-12 18:22:24.260718809 +0800
+@@ -179,6 +179,14 @@
+  * raw struct shouldn't be used for pointer math or sizeof() - use
+  * journal_tag_bytes(journal) instead to compute this.
+  */
++typedef struct journal_block_tag3_s
++{
++	__be32		t_blocknr;	/* The on-disk block number */
++	__be32		t_flags;	/* See below */
++	__be32		t_blocknr_high; /* most-significant high 32bits. */
++	__be32		t_checksum;	/* crc32c(uuid+seq+block) */
++} journal_block_tag3_t;
++
+ typedef struct journal_block_tag_s
+ {
+ 	__be32		t_blocknr;	/* The on-disk block number */
+@@ -187,8 +195,6 @@
+ 	__be32		t_blocknr_high; /* most-significant high 32bits. */
+ } journal_block_tag_t;
+ 
+-#define JBD2_TAG_SIZE32 (offsetof(journal_block_tag_t, t_blocknr_high))
+-#define JBD2_TAG_SIZE64 (sizeof(journal_block_tag_t))
+ 
+ /* Tail of descriptor block, for checksumming */
+ struct jbd2_journal_block_tail {
+@@ -284,6 +290,7 @@
+ #define JBD2_FEATURE_INCOMPAT_64BIT		0x00000002
+ #define JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT	0x00000004
+ #define JBD2_FEATURE_INCOMPAT_CSUM_V2		0x00000008
++#define JBD2_FEATURE_INCOMPAT_CSUM_V3		0x00000010
+ 
+ /* Features known to this kernel version: */
+ #define JBD2_KNOWN_COMPAT_FEATURES	JBD2_FEATURE_COMPAT_CHECKSUM
+@@ -291,7 +298,8 @@
+ #define JBD2_KNOWN_INCOMPAT_FEATURES	(JBD2_FEATURE_INCOMPAT_REVOKE | \
+ 					JBD2_FEATURE_INCOMPAT_64BIT | \
+ 					JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT | \
+-					JBD2_FEATURE_INCOMPAT_CSUM_V2)
++					JBD2_FEATURE_INCOMPAT_CSUM_V2 | \
++					JBD2_FEATURE_INCOMPAT_CSUM_V3)
+ 
+ #ifdef __KERNEL__
+ 
+@@ -1296,6 +1304,15 @@
+ extern int jbd2_journal_blocks_per_page(struct inode *inode);
+ extern size_t journal_tag_bytes(journal_t *journal);
+ 
++static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
++{
++	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2) ||
++	    JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V3))
++		return 1;
++
++	return 0;
++}
++
+ /*
+  * We reserve t_outstanding_credits >> JBD2_CONTROL_BLOCKS_SHIFT for
+  * transaction control blocks.
