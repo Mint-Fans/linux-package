@@ -91,7 +91,7 @@ DPKG_ARCH=$(cat $PKGDIR/DEBIAN/control | grep Architecture: | awk '{print $2}')
 
 cd $HOME/Backup
 sudo chown -R 0:0 $PKGDIR && dpkg -b package ${DPKG_NAME}_${DPKG_VER}_${DPKG_ARCH}.deb
-
+sudo rm -rf $PKGDIR
 }
 
 ##########################################
