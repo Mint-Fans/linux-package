@@ -1,0 +1,129 @@
+#!/bin/bash
+
+##########################################
+no_pkg_fun(){
+clear
+echo -e ""
+echo -e " 沒有找到套件 $PKG_STRING"
+echo -e ""
+read
+
+main_fun
+}
+
+##########################################
+choose_pkgname_fun(){
+clear
+echo -e ""
+echo -e " 選擇輸入正確的套件名稱:"
+echo -e ""
+dpkg -l | grep $PKG_STRING | awk '{print $2}'
+echo -e ""
+read PKG_STRING
+[[ "$PKG_STRING" ]]
+
+if [ $PKG_STRING == "" ]; then
+    main_fun
+fi
+
+PKGNAME=$(dpkg -l | grep $PKG_STRING | awk '{print $2}')
+
+if [ $PKGNAME == "" ]; then
+    main_fun
+fi
+
+}
+##########################################
+pkg_backup_fun(){
+PKGDIR=$HOME/Backup/package
+mkdir -p $PKGDIR/DEBIAN
+
+# copy files
+FILE_LIST=$(dpkg -L $PKGNAME | sed 1d)
+for i in $FILE_LIST; do
+    if [ -f "$i" ]; then
+        FILE_DIR=$(dirname $i)
+        mkdir -p $PKGDIR/$FILE_DIR
+        cp -a $i $PKGDIR/$FILE_DIR/
+    fi
+done
+
+# copy configure files
+CFG=postinst
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=preinst
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=prerm
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=postrm
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=shlibs
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=triggers
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=symbols
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=templates
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=config
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=conffiles
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+CFG=clilibs
+CFG_FILE=/var/lib/dpkg/info/${PKGNAME}.${CFG}
+[ -f "$CFG_FILE" ] && cp -a $CFG_FILE $PKGDIR/DEBIAN/$CFG
+
+dpkg -s $PKGNAME | sed '/^Status:/d' > $PKGDIR/DEBIAN/control
+
+DPKG_NAME=$(cat $PKGDIR/DEBIAN/control | grep Package: | awk '{print $2}')
+DPKG_VER=$(cat $PKGDIR/DEBIAN/control | grep Version: | awk '{print $2}')
+DPKG_ARCH=$(cat $PKGDIR/DEBIAN/control | grep Architecture: | awk '{print $2}')
+
+cd $HOME/Backup
+sudo chown -R 0:0 $PKGDIR && dpkg -b package ${DPKG_NAME}_${DPKG_VER}_${DPKG_ARCH}.deb
+
+}
+
+##########################################
+main_fun(){
+clear
+echo -e ""
+echo -e "***************************************************"
+echo -e "    Debian Package Backup"
+echo -e "***************************************************"
+echo -e ""
+echo -e " 輸入要備份的套件名稱"
+echo -e ""
+read PKG_STRING
+[[ "$PKG_STRING" ]]
+
+if [ $PKG_STRING == "" ]; then
+    main_fun
+fi
+
+# check
+NUM=$(dpkg -l | grep $PKG_STRING | awk '{print $2}' | wc -l)
+
+if [ $NUM -gt "1" ]; then
+    choose_pkgname_fun
+    pkg_backup_fun
+elif [ $NUM == "1" ]; then
+    PKGNAME=$(dpkg -l | grep $PKG_STRING | awk '{print $2}')
+    pkg_backup_fun
+else
+    no_pkg_fun
+fi
+
+}
+
+main_fun
