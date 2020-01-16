@@ -1,0 +1,12 @@
+Build openssl 1.0.2 for Linux
+wget --no-check-certificate https://www.openssl.org/source/openssl-1.0.2l.tar.gz
+
+tar zxvf openssl-1.0.2l.tar.gz
+cd openssl-1.0.2l
+./config --prefix=/opt/openssl/1.0.2 \
+--openssldir=/opt/openssl/1.0.2/etc/openssl \
+no-idea no-mdc2 no-rc5 no-zlib enable-tlsext no-ssl2 no-ssl3 enable-ec_nistp_64_gcc_128 shared enable-ms
+
+make depend
+make
+sudo make install_sw
