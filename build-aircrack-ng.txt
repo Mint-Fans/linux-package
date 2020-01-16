@@ -1,0 +1,63 @@
+##########################################
+### Build aircrack-ng
+##########################################
+## build depends:
+# debian
+sudo apt-get install libhwloc-dev libcmocka-dev libgcrypt-dev libnl-genl-3-dev libpcap0.8-dev libpcre3-dev libsqlite3-dev pkg-config python-all python-setuptools zlib1g-dev libssl-dev
+
+# archlinux
+sudo pacman -S openssl sqlite iw net-tools wireless_tools ethtool pcre libpcap python
+
+# download
+PKGVER=1.5.2
+wget https://download.aircrack-ng.org/aircrack-ng-${PKGVER}.tar.gz
+tar zxvf aircrack-ng-${PKGVER}.tar.gz
+
+# build
+cd aircrack-ng-${PKGVER}
+./autogen.sh
+./configure --prefix=/usr \
+--libexecdir=/usr/lib \
+--libdir=/usr/lib/x86_64-linux-gnu
+
+make -j$(nproc)
+
+PKGDIR=$HOME/Build/aircrack-ng
+make DESTDIR="$PKGDIR" pkglibexecdir=/usr/lib/aircrack-ng install
+
+ARCH=i386
+ARCH=amd64
+
+# create deb package
+mkdir -p $PKGDIR/DEBIAN
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: aircrack-ng
+Version: ${PKGVER}-1
+Architecture: $ARCH
+Maintainer: Carlos Alberto Lopez Perez <clopez@igalia.com>
+Installed-Size: $PKGSIZE
+Depends: iw, wireless-tools, libc6, libgcrypt20 | libgcrypt11, libnl-3-200, libnl-genl-3-200, libpcap0.8, libpcre3, libsqlite3-0, zlib1g, libhwloc5, libcmocka0
+Recommends: ieee-data
+Section: net
+Priority: optional
+Homepage: http://www.aircrack-ng.org/
+Description: wireless WEP/WPA cracking utilities
+ aircrack-ng is an 802.11a/b/g WEP/WPA cracking program that can recover a
+ 40-bit, 104-bit, 256-bit or 512-bit WEP key once enough encrypted packets
+ have been gathered. Also it can attack WPA1/2 networks with some advanced
+ methods or simply by brute force.
+ .
+ It implements the standard FMS attack along with some optimizations,
+ thus making the attack much faster compared to other WEP cracking tools.
+ It can also fully use a multiprocessor system to its full power in order
+ to speed up the cracking process.
+ .
+ aircrack-ng is a fork of aircrack, as that project has been stopped by
+ the upstream maintainer.
+EOF
+
+sudo chown -R 0:0 $PKGDIR
+cd $HOME/Build
+sudo dpkg -b aircrack-ng aircrack-ng_${PKGVER}-1_${ARCH}.deb

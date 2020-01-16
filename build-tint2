@@ -1,0 +1,61 @@
+sudo apt-get install cmake libcairo2-dev libglib2.0-dev libgtk2.0-dev libimlib2-dev libpango1.0-dev librsvg2-dev libstartup-notification0-dev libxcomposite-dev libxdamage-dev libxinerama-dev libxrandr-dev
+
+
+git clone https://gitlab.com/o9000/tint2.git
+cd tint2
+git checkout 16.7
+
+PKGVER=16.6.1
+wget http://archive.ubuntu.com/ubuntu/pool/universe/t/tint2/tint2_16.6.1.orig.tar.bz2
+tar jxvf tint2_16.6.1.orig.tar.bz2
+cd tint2-v16.6.1
+
+mkdir -p build
+cd build
+cmake .. \
+-DCMAKE_INSTALL_PREFIX=/usr \
+-DCMAKE_INSTALL_SYSCONFDIR=/etc \
+-DENABLE_TINT2CONF=1
+
+make -j$(nproc)
+
+PKGDIR=$HOME/Build/tint2
+make install DESTDIR=$PKGDIR
+
+
+
+mkdir -p $PKGDIR/DEBIAN
+
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+ARCH=amd64
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: tint2
+Version: ${PKGVER}-1
+Architecture: $ARCH
+Maintainer: Sebastian Reichel <sre@debian.org>
+Installed-Size: $PKGSIZE
+Depends: libc6, libcairo2, libgdk-pixbuf2.0-0, libglib2.0-0, libgtk2.0-0, libimlib2, libpango-1.0-0, libpangocairo-1.0-0, librsvg2-2, libstartup-notification0, libx11-6, libxcomposite1, libxdamage1, libxinerama1, libxrandr2, libxrender1
+Section: x11
+Priority: optional
+Homepage: https://gitlab.com/o9000/tint2/
+Description: lightweight taskbar
+ Tint is a simple panel/taskbar intentionally made for openbox3, but should
+ also work with other window managers. The taskbar includes transparency and
+ color settings for the font, icons, border, and background. It also supports
+ multihead setups, customized mouse actions, and a built-in clock. Tint was
+ originally based on ttm code. Since then, support has also been added
+ for a battery monitor and system tray.
+ .
+ The goal is to keep a clean and unintrusive look with lightweight code and
+ compliance with freedesktop specification.
+
+EOF
+
+cd $HOME/Build
+sudo chown -R 0:0 $PKGDIR
+sudo dpkg -b tint2 tint2_${PKGVER}-1_${ARCH}.deb
+
+update-icon-caches /usr/local/share/icons/hicolor
+update-mime-database /usr/local/share/mime

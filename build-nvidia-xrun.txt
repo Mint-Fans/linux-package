@@ -1,0 +1,53 @@
+## depends: xorg-server xorg-xinit xorg-xrandr nvidia mesa
+
+git clone https://github.com/Witko/nvidia-xrun
+cd nvidia-xrun
+
+PKGDIR=$HOME/Build/nvidia-xrun
+
+## Patch
+# Debian
+LIB64=lib/x86_64-linux-gnu
+LIB32=lib/i386-linux-gnu
+LIB=lib
+
+# Fedora / openSuSE
+LIB64=lib64
+LIB32=lib
+LIB=usr/lib
+
+# Archlinux
+LIB64=lib
+LIB32=lib32
+LIB=usr/lib
+
+## Patch
+sed -i 's/lib64/${LIB64}/g' nvidia-xinitrc
+sed -i 's/lib32/${LIB32}/g' nvidia-xinitrc
+sed -i '/CONFIG_DIR=/i LIB32='$LIB32'' nvidia-xinitrc
+sed -i '/CONFIG_DIR=/i LIB64='$LIB64'' nvidia-xinitrc
+
+sed -i '/lib\/nvidia"/d' nvidia-xorg.conf
+sed -i '/lib32\/nvidia"/d' nvidia-xorg.conf
+sed -i '/lib64\/nvidia\/xorg"/d' nvidia-xorg.conf
+sed -i 's/nvidia\/xorg\/modules/nvidia\/xorg/g' nvidia-xorg.conf
+sed -i 's/lib32/lib/g' nvidia-xorg.conf
+
+BUSID_NUM=$(lspci | grep -i 3d | awk '{print $1}' | sed -r 's/0*([0-9])/\1/' | awk -F: '{print $1}')
+sed -i 's/BusID .*/BusID "PCI:'${BUSID_NUM}':0:0"/g' nvidia-xorg.conf
+
+GET_BUSID=$(lspci | grep -i 3d | awk '{print $1}')
+GET_PCI_LINK=$(ls -l /sys/bus/pci/devices/ | grep $GET_BUSID | sed 's/.*>//g')
+CONTRO_BUSID=$(echo $GET_PCI_LINK | awk -F/ '{print $6}')
+DEVICE_BUSID=$(echo $GET_PCI_LINK | awk -F/ '{print $7}')
+sed -i 's/CONTROLLER_BUS_ID=.*/CONTROLLER_BUS_ID='${CONTRO_BUSID}'/g' config/nvidia-xrun
+sed -i 's/DEVICE_BUS_ID=.*/DEVICE_BUS_ID='${DEVICE_BUSID}'/g' config/nvidia-xrun
+
+## Create Package
+install -D -m644 nvidia-xrun-pm.service "$PKGDIR/$LIB/systemd/system/nvidia-xrun-pm.service"
+install -D -m644 config/nvidia-xrun "$PKGDIR/etc/default/nvidia-xrun"
+install -D -m644 nvidia-xorg.conf "$PKGDIR/etc/X11/nvidia-xorg.conf"
+install -D -m644 nvidia-xinitrc "$PKGDIR/etc/X11/xinit/nvidia-xinitrc"
+install -D -m755 nvidia-xrun "$PKGDIR/usr/bin/nvidia-xrun"
+install -d -m555 "$PKGDIR/etc/X11/xinit/nvidia-xinitrc.d"
+install -d -m555 "$PKGDIR/etc/X11/nvidia-xorg.conf.d"

@@ -1,0 +1,42 @@
+sudo apt-get install debhelper gcc-7 g++-7 cpp-7 quilt pkg-config libdrm-dev libx11-dev libxxf86vm-dev libexpat1-dev libsensors4-dev  libxfixes-dev libxdamage-dev libxext-dev libva-dev libvdpau-dev libvulkan-dev  autoconf automake libtool linux-libc-dev libx11-xcb-dev libxcb-dri2-0-dev libxcb-glx0-dev libxcb-xfixes0-dev libxcb-dri3-dev libxcb-present-dev libxcb-randr0-dev libxcb-sync-dev libxrandr-dev libxshmfence-dev python python-mako flex bison llvm-dev libelf-dev  libwayland-dev libclang-dev libclc-dev wayland-protocols zlib1g-dev libglvnd-core-dev
+
+sudo apt-get install libwayland-egl-backend-dev x11proto-dev
+
+wget https://mesa.freedesktop.org/archive/mesa-18.3.2.tar.gz
+tar zxvf mesa-18.3.2.tar.gz
+cd mesa-18.3.2
+
+./autogen.sh --build=x86_64-linux-gnu \
+--prefix=/usr \
+--includedir=\${prefix}/include \
+--mandir=\${prefix}/share/man \
+--infodir=\${prefix}/share/info \
+--sysconfdir=/etc --localstatedir=/var \
+--libdir=\${prefix}/lib/x86_64-linux-gnu \
+--libexecdir=\${prefix}/lib/x86_64-linux-gnu \
+--runstatedir=/run \
+--disable-maintainer-mode \
+--disable-dependency-tracking \
+--with-dri-drivers="i915, i965, nouveau, r200" \
+--with-dri-driverdir=/usr/lib/x86_64-linux-gnu/dri \
+--with-dri-searchpath=/usr/lib/x86_64-linux-gnu/dri:/usr/lib/dri \
+--with-vulkan-drivers="intel, radeon" \
+--enable-libglvnd \
+--enable-shared-glapi \
+--enable-gbm \
+--enable-dri3 \
+--with-platforms="x11,surfaceless, wayland, drm" \
+--enable-xa \
+--enable-llvm \
+--enable-opencl --enable-opencl-icd \
+--enable-nine \
+--enable-gallium-extra-hud \
+--enable-va \
+--enable-vdpau \
+--enable-lmsensors \
+--with-gallium-drivers="i915, virgl, svga, swrast, nouveau, r600, r300, radeonsi" \
+--enable-gallium-osmesa \
+--disable-gles1
+
+make
+make install DESTDIR=$HOME/Build/$(basename $(pwd))

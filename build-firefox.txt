@@ -1,0 +1,156 @@
+#############################################################
+### 製作 firefox 萬年版套件
+#############################################################
+在舊版的 OS 上已經無法編譯新版的 firefox, 如果硬要編。建置的依賴需要下載新版自己編譯，這樣很麻煩，所以舊版的 Linux 上，直接打包官方的萬年版是最方便的選擇。  
+
+## 下載 firefox 官方萬年版
+FFVER=$(curl https://www.mozilla.org/en-US/firefox/new/ | tr " " "\n" | grep data-latest-firefox | awk -F'"' '{print $2}')
+LANG=$(locale -a | grep utf8 2>&1 | sed -e 's/.utf8//g' | sed -e 's/_/-/g' | tail -n 1 )
+
+if [ "$(uname -m)" == "x86_64" ]; then
+ARCH=x86_64
+else
+ARCH=i686
+fi
+
+
+# FFVER=70.0
+# ARCH=x86_64
+# LANG=zh-TW
+
+wget https://download-installer.cdn.mozilla.net/pub/firefox/releases/$FFVER/linux-${ARCH}/$LANG/firefox-${FFVER}.tar.bz2
+tar jxvf firefox-${FFVER}.tar.bz2
+
+rm -rf firefox/*.sig
+rm -rf firefox/*.chk
+rm -rf firefox/precomplete \
+firefox/icons \
+firefox/crashreporter \
+firefox/crashreporter.ini \
+firefox/active-update.xml \
+firefox/removed-files \
+firefox/update-settings.ini \
+firefox/updater \
+firefox/updater.ini \
+firefox/updates.xml \
+firefox/updates
+
+sed -i '/Enabled/d' firefox/application.ini
+sed -i '/ServerURL/d' firefox/application.ini
+sed -i '/Reporter/d' firefox/application.ini
+sed -i '/SourceRepository/d' firefox/application.ini
+sed -i '/SourceStamp/d' firefox/application.ini
+sed -i '/ServerURL/d' firefox/application.ini
+
+sed -i '/SourceRepository/d' firefox/platform.ini
+sed -i '/SourceStamp/d' firefox/platform.ini
+
+mkdir -p firefox/browser/defaults/preferences
+
+cat > firefox/browser/defaults/preferences/vendor.js << EOF
+// Disable application updates
+pref("app.update.auto", false);
+pref("app.update.enabled", false);
+
+// Disable default browser checking.
+pref("browser.shell.checkDefaultBrowser", false);
+
+// Disable OpenH264 Decoder
+pref("media.gmp-gmpopenh264.enabled", false);
+EOF
+
+cat > firefox/browser/defaults/preferences/firefox.js << EOF
+//pref("browser.startup.homepage", "data:text/plain,browser.startup.homepage=file:///usr/share/kali-defaults/web/homepage.html");
+pref("network.cookie.prefsMigrated", true);
+pref("network.predictor.cleaned-up", true);
+pref("network.proxy.socks", "127.0.0.1");
+pref("network.proxy.socks_port", 9050);
+pref("network.proxy.type", 0);
+EOF
+
+
+#############################################################
+### 製作套件
+#############################################################
+PKGDIR=$HOME/Build/firefox-${FFVER}
+
+mkdir -p $PKGDIR/usr/share/applications
+mkdir -p $PKGDIR/usr/lib
+mkdir -p $PKGDIR/usr/bin
+mkdir -p $PKGDIR/DEBIAN
+
+mv firefox $PKGDIR/usr/lib/
+
+cat > $PKGDIR/usr/share/applications/firefox.desktop << EOF
+[Desktop Entry]
+Name=Firefox
+Comment=Browse the World Wide Web
+GenericName=Web Browser
+X-GNOME-FullName=Firefox Web Browser
+Exec=/usr/bin/firefox %u
+Terminal=false
+X-MultipleArgs=false
+Type=Application
+Icon=firefox
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/vnd.mozilla.xul+xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png;x-scheme-handler/http;x-scheme-handler/https;
+StartupWMClass=Firefox
+StartupNotify=true
+EOF
+
+cat > $PKGDIR/usr/bin/firefox << EOF
+#!/bin/bash
+
+/usr/lib/firefox/firefox "\$@"
+
+EOF
+
+chmod 755 $PKGDIR/usr/bin/firefox
+
+
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: firefox
+Version: ${FFVER}-1
+Architecture: amd64
+Maintainer: Maintainers of Mozilla-related packages
+Installed-Size: $PKGSIZE
+Depends: libasound2, libatk1.0-0, libc6, libcairo-gobject2, libcairo2, libdbus-1-3, libdbus-glib-1-2, libevent-2.1-6, libffi6, libfontconfig1, libfreetype6, libgcc1, libgdk-pixbuf2.0-0, libglib2.0-0, libgtk-3-0, libpango-1.0-0, libstartup-notification0, libstdc++6, libx11-6, libx11-xcb1, libxcb-shm0, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxrender1, libxt6, zlib1g, fontconfig, procps, debianutils
+Provides: gnome-www-browser, www-browser
+Section: web
+Priority: optional
+Description: Mozilla Firefox web browser
+ Firefox is a powerful, extensible web browser with support for modern
+ web application technologies.
+EOF
+
+cat > $PKGDIR/DEBIAN/postinst << EOF
+#!/bin/sh
+
+set -e
+
+MOZ_APP_NAME=firefox
+if [ "\$1" = "configure" ] ; then
+    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/\$MOZ_APP_NAME 40
+fi
+
+EOF
+
+cat > $PKGDIR/DEBIAN/prerm << EOF
+#!/bin/sh
+
+set -e
+
+MOZ_APP_NAME=firefox
+if [ "\$1" = "remove" ] ; then
+    update-alternatives --remove x-www-browser /usr/bin/\$MOZ_APP_NAME
+fi
+
+EOF
+
+chmod 755 $PKGDIR/DEBIAN/postinst $PKGDIR/DEBIAN/prerm
+
+cd $HOME/Build
+sudo chown -R 0:0 $PKGDIR
+sudo dpkg -b firefox-${FFVER} firefox_${FFVER}-1_amd64.deb

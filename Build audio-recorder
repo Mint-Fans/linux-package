@@ -1,0 +1,9 @@
+Build audio-recorder
+
+sduo apt-get install fakeroot debhelper autotools-dev gettext intltool pkg-config libgtk-3-dev libglib2.0-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgnome-media-profiles-dev libpulse-dev libdbus-1-dev libdbus-glib-1-dev libappindicator3-dev libgconf2-dev
+
+wget https://launchpad.net/~audio-recorder/+archive/ubuntu/ppa/+files/audio-recorder_2.0.2~artful.tar.gz
+tar zxvf audio-recorder_2.0.2~artful.tar.gz
+mv trunk audio-recorder_2.0.2
+cd audio-recorder_2.0.2
+fakeroot make -j2 -f debian/rules binary-arch

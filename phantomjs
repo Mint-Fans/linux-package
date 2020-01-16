@@ -1,0 +1,14 @@
+sudo apt-get install debhelper g++ libjs-coffeescript libfreetype6-dev libjpeg-dev libpng-dev libsqlite3-dev libssl-dev libz-dev libfontconfig1-dev libx11-dev libxext-dev libqt5webkit5-dev python qt5-qmake qtchooser
+
+git clone https://github.com/ariya/phantomjs.git
+
+wget https://github.com/Mint-Fans/linux-package/raw/debian/phantomjs-2.5-patch.diff
+patch -p0 -i phantomjs-2.5-patch.diff
+
+export QT_SELECT=qt5
+
+python build.py --skip-git --skip-qtbase --skip-qtwebkit --confirm --release
+
+make install DESTDIR=
+
+PKG Dep: libc6b libgcc1 libgl1 libqt5core5a libqt5gui5 libqt5network5 libqt5printsupport5 libqt5webkit5 libqt5widgets5 libstdc++6

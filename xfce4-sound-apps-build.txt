@@ -1,0 +1,113 @@
+#!/bin/bash
+
+##########################################
+CARCH=$(uname -m)
+if [ "$CARCH" == "x86_64" ]; then
+    ARCH='amd64'
+else
+    ARCH='i386'
+fi
+
+sudo apt-get install autoconf automake autogen gcc make -y
+sudo zypper install autoconf automake autogen gcc make
+sudo pacman -S autoconf automake autogen gcc make
+sudo dnf install autoconf automake autogen gcc make
+
+##########################################
+### pa-applet
+##########################################
+sudo apt-get install libpulse-dev libnotify-dev libgtk-3-dev -y
+sudo zypper install libpulse-devel libnotify-devel gtk3-devel
+sudo pacman -S gtk3 libnotify libpulse
+sudo dnf install pulseaudio-libs-devel gtk3-devel libnotify-devel
+
+git clone https://github.com/fernandotcl/pa-applet.git
+cd pa-applet
+./autogen.sh
+./configure --prefix=/usr
+# sed -i 's/gdk_display_get_screen/gdk_display_get_default_screen/g' src/key_grabber.c
+sed -i s'/ -Wall -Werror //'g src/Makefile
+make -j$(nproc)
+
+PKGDIR=$HOME/Build/pa-applet
+make install DESTDIR=$PKGDIR
+
+mkdir -p $PKGDIR/DEBIAN
+
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: pa-applet
+Version: 17.33-1
+Architecture: $ARCH
+Maintainer: https://github.com/fernandotcl/pa-applet
+Installed-Size: $PKGSIZE
+Depends: libpulse-mainloop-glib0, libpulse0, libnotify4
+Priority: optional
+Homepage: https://github.com/fernandotcl/pa-applet
+Description: Pulse Audio Applet
+EOF
+
+mkdir -p $PKGDIR/etc/xdg/autostart
+
+cat > $PKGDIR/etc/xdg/autostart/pa-applet.desktop << EOF
+[Desktop Entry]
+Name=Pulse Audio Applet
+Icon=audio-volume-high
+Exec=pa-applet
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;System;
+StartupNotify=true
+EOF
+
+sudo chown -R 0:0 $PKGDIR
+
+cd $HOME/Build
+sudo dpkg -b pa-applet pa-applet_17.33-1_"$ARCH".deb
+cd ..
+sudo rm -rf pa-applet
+
+##########################################
+### xfce4-volumed-pulse
+##########################################
+sudo apt-get install libxfconf-0-dev libpulse-dev libnotify-dev libkeybinder-3.0-dev -y
+sudo zypper install libxfconf-devel libpulse-devel libnotify-devel keybinder-devel
+sudo pacman -S libnotify pulseaudio libkeybinder3 xfconf
+sudo dnf install pulseaudio-libs-devel libnotify-devel keybinder3-devel xfconf-devel
+
+wget http://archive.xfce.org/src/apps/xfce4-volumed-pulse/0.2/xfce4-volumed-pulse-0.2.3.tar.bz2
+tar jxvf xfce4-volumed-pulse-0.2.3.tar.bz2
+cd xfce4-volumed-pulse-0.2.3
+./configure --prefix=/usr --sysconfdir=/etc --libexecdir=/usr/lib --localstatedir=/var
+make -j$(nproc)
+
+PKGDIR=$HOME/Build/xfce4-volumed-pulse
+make install DESTDIR=$PKGDIR
+cd $HOME/Build
+mkdir -p $PKGDIR/DEBIAN
+
+
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: xfce4-volumed-pulse
+Version: 0.2.3-1
+Architecture: amd64
+Maintainer: Mint-Fans
+Installed-Size: $PKGSIZE
+Depends: libc6, libglib2.0-0, libgtk2.0-0, libkeybinder0 | libkeybinder-3.0-0, libnotify4, libpulse-mainloop-glib0, libpulse0, libxfconf-0-3
+Recommends: pulseaudio
+Section: xfce
+Priority: optional
+Homepage: http://goodies.xfce.org/projects/applications/xfce4-volumed
+Description: volume keys daemon
+EOF
+
+cat > $PKGDIR/DEBIAN/conffiles << EOF
+/etc/xdg/autostart/xfce4-volumed-pulse.desktop
+EOF
+
+sudo chown -R 0:0 xfce4-volumed-pulse
+
+sudo dpkg -b xfce4-volumed-pulse xfce4-volumed-pulse_0.2.3-1_amd64.deb

@@ -1,0 +1,70 @@
+# GTK 3.10
+ENGRAMPA_VER=1.7.0
+URLRES=1.7
+
+# GTK 3.12
+ENGRAMPA_VER=1.8.0
+URLRES=1.8
+
+# GTK 3.18
+ENGRAMPA_VER=1.12.0
+URLRES=1.12
+
+# GTK 3.22
+ENGRAMPA_VER=1.23.1
+URLRES=1.23
+
+sudo apt-get install intltool gettext libglib2.0-dev libgtk2.0-dev libgtk-3-dev libjson-glib-dev libmagic-dev yelp-tools
+
+fedora
+sudo dnf install glib2-devel gtk3-devel intltool file-devel libSM-devel itstool
+
+arch
+sudo pacman -S intltool file itstool
+
+
+LIBEXEC_DIR=lib
+LIBEXEC_DIR=libexec
+
+ARCH=i386
+ARCH=amd64
+PKGDIR=$HOME/Build/engrampa
+
+wget https://pub.mate-desktop.org/releases/$URLRES/engrampa-${ENGRAMPA_VER}.tar.xz
+tar Jxvf engrampa-*.tar.xz
+cd engrampa-"$ENGRAMPA_VER"
+./configure \
+--prefix=/usr \
+--disable-silent-rules \
+--disable-packagekit \
+--disable-caja-actions \
+--enable-magic \
+--libexecdir=/usr/$LIBEXEC_DIR/engrampa
+
+make -j$(nproc)
+
+make install DESTDIR=$PKGDIR
+mkdir -p $PKGDIR/DEBIAN
+
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: engrampa
+Version: ${ENGRAMPA_VER}-1
+Architecture: $ARCH
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Original-Maintainer: MATE Packaging Team <pkg-mate-team@lists.alioth.debian.org>
+Installed-Size: $PKGSIZE
+Depends: bzip2, gzip, p7zip-full, tar, libc6, libgdk-pixbuf2.0-0, libglib2.0-0, libgtk2.0-0, libjson-glib-1.0-0, libmagic1, libpango-1.0-0
+Recommends: gvfs, mate-icon-theme, unzip, xz-utils, zip
+Suggests: arj, binutils, cpio, lha, lzip, lzma, lzop, ncompress, rar, rpm2cpio, rzip, sharutils, unace, unalz, unrar-free | unar | unrar | p7zip-rar, zoo
+Section: x11
+Priority: optional
+Homepage: http://www.mate-desktop.org/
+Description: archive manager for MATE
+EOF
+
+sudo chown -R 0:0 $PKGDIR
+cd $HOME/Build
+sudo dpkg -b engrampa engrampa_${ENGRAMPA_VER}-1_${ARCH}.deb
+
