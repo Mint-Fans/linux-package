@@ -1,0 +1,351 @@
+#!/bin/bash
+
+#####################################
+### Build X-APP for Debian/ Kali
+#####################################
+sudo sh -c "echo 'deb http://ftp.us.debian.org/debian testing main contrib non-free' > /etc/apt/sources.list.d/debian-package-repositories.list"
+# sudo sh -c "echo 'deb http://ftp.us.debian.org/debian jessie main contrib non-free' > /etc/apt/sources.list.d/debian-package-repositories.list"
+
+sudo apt-get update
+sudo apt-get install fakeroot build-essential quilt -y
+
+#####################################
+CODENAME='tessa'
+XAPP_VER='1.4.5'
+PIX_VER='1.6.2'
+XPL_VER='1.0.2'
+XPLAYER_VER='2.0.2'
+XVIEWER_VER='2.0.2'
+XVPL_VER='1.2.0'
+XREADER_VER='2.0.2'
+XED_VER='2.0.2'
+
+ARCH=$(uname -m)
+if [ "$ARCH" == "x86_64" ]; then
+    DARCH='amd64'
+else
+    DARCH='i386'
+fi
+
+#####################################
+mkdir -p xapp-build
+mkdir -p pkgs/"$DARCH"
+cd xapp-build
+
+#####################################
+### xapp
+#####################################
+wget http://packages.linuxmint.com/pool/backport/x/xapp/xapp_"$XAPP_VER"%2b"$CODENAME".dsc
+DSC=xapp_"$XAPP_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xapp/xapp_"$XAPP_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xapp_"$XAPP_VER"+"$CODENAME".tar.xz
+cd xapp-"$XAPP_VER"+"$CODENAME"
+./autogen.sh --prefix=/usr --enable-gtk-doc --enable-silent-rules --libdir=$(pkg-config gobject-introspection-1.0 --variable libdir)
+make
+make install DESTDIR=~/xapp-build/xapp
+cd ..
+rm xapp/usr/lib/python2.7/dist-packages/gi/overrides/*.pyc
+rm xapp/usr/lib/python2.7/dist-packages/gi/overrides/*.pyo
+cp -r xapp/usr/lib/python2.7 xapp/usr/lib/python3
+
+mkdir -p xapp/DEBIAN
+
+cat > xapp/DEBIAN/control << EOF
+Package: xapp
+Source: xapp
+Version: $XAPP_VER
+Architecture: $DARCH
+Maintainer: Clement Lefebvre <root@linuxmint.com>
+Installed-Size: 396
+Depends: dconf-gsettings-backend | gsettings-backend, python3:any, python, python-gi, inxi, xdg-utils, gist, libgnomekbd8 (>= 3.6.0), libatk1.0-0 (>= 1.12.4), libc6 (>= 2.4), libcairo-gobject2 (>= 1.10.0), libcairo2 (>= 1.2.4), libgdk-pixbuf2.0-0 (>= 2.22.0), libglib2.0-0 (>= 2.37.3), libgtk-3-0 (>= 3.3.16), libpango-1.0-0 (>= 1.14.0), libpangocairo-1.0-0 (>= 1.14.0), libx11-6, gir1.2-glib-2.0, gir1.2-gtk-3.0, libgirepository-1.0-1 (>= 1.41.4-1)
+Replaces: xapps-common, libxapp1, libxapp-dev, gir1.2-xapp-1.0, xapps-doc
+Section: introspection
+Priority: optional
+Description: Introspection data for xapp
+ This package contains the introspection data for xapp.
+EOF
+
+sudo chown -R 0:0 xapp
+
+sudo dpkg -b xapp xapp_"$XAPP_VER"_"$DARCH".deb
+
+sudo dpkg -i xapp_"$XAPP_VER"_"$DARCH".deb
+sudo apt-get install -f
+
+rm *-dbgsym_*.deb
+mv *_"$DARCH".deb ../pkgs/"$DARCH"/
+mv *_all.deb ../pkgs/
+sudo rm -rf *
+
+#####################################
+### pix
+#####################################
+sudo apt-get install debhelper dh-autoreconf intltool libexiv2-dev flex bison libtiff-dev libpng-dev libjpeg-dev libsm-dev libice-dev scrollkeeper automake autoconf libtool gnome-doc-utils gnome-common gsettings-desktop-schemas-dev libgtk-3-dev libxml2-dev libglib2.0-dev libcairo2-dev libltdl3-dev libglade2-dev libsoup-gnome2.4-dev libchamplain-gtk-0.12-dev librsvg2-dev zlib1g-dev yelp-tools libgstreamer1.0-dev libsecret-1-dev libgstreamer-plugins-base1.0-dev libwebp-dev -y
+sudo apt-get install libwebkitgtk-1.0-0 libwebkitgtk-3.0-0 libwebkitgtk-3.0-dev libwebkitgtk-dev gir1.2-webkit-3.0 -y
+
+wget http://packages.linuxmint.com/pool/backport/p/pix/pix_"$PIX_VER"%2b"$CODENAME".tar.xz
+tar Jxvf pix_"$PIX_VER"+"$CODENAME".tar.xz
+cd pix-"$PIX_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+sed -i 's/xapps-common/xapp/g' debian/control
+sed -i 's/, pix-data.*/, scrollkeeper/g' debian/control
+fakeroot make -f debian/rules binary
+cd ..
+
+dpkg -X pix_"$PIX_VER"_"$DARCH".deb deb
+dpkg -X pix-data_"$PIX_VER"_all.deb deb
+cd deb
+dpkg -e ../pix_"$PIX_VER"_"$DARCH".deb
+cd ..
+rm pix*.deb
+sudo chown -R 0:0 deb
+sudo dpkg -b deb pix_"$PIX_VER"_"$DARCH".deb
+
+rm *-dbgsym_*.deb
+rm *-dbg_*.deb
+mv *_"$DARCH".deb ../pkgs/"$DARCH"/
+mv *_all.deb ../pkgs/
+sudo rm -rf *
+
+#####################################
+### xplayer
+#####################################
+# wget http://packages.linuxmint.com/pool/backport/x/xplayer-pl-parser/xplayer-pl-parser_"$XPL_VER"%2b"$CODENAME".dsc
+# DSC=xplayer-pl-parser_"$XPL_VER"+"$CODENAME".dsc
+# DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+# sudo apt-get install $DEPENDS -y
+sudo apt-get install debhelper autotools-dev cdbs gnome-pkg-tools intltool libxml-parser-perl libglib2.0-dev libxml2-dev libgmime-3.0-dev libsoup-gnome2.4-dev libarchive-dev gtk-doc-tools libglib2.0-doc libgirepository1.0-dev gobject-introspection libgcrypt20-dev gnome-common -y
+
+# wget http://packages.linuxmint.com/pool/backport/x/xplayer-pl-parser/xplayer-pl-parser_"$XPL_VER"%2b"$CODENAME".tar.xz
+wget http://packages.linuxmint.com/pool/backport/x/xplayer-pl-parser/xplayer-pl-parser_1.0.2%2bserena.tar.xz
+
+# tar Jxvf xplayer-pl-parser_"$XPL_VER"+"$CODENAME".tar.xz
+tar Jxvf xplayer-pl-parser_*.tar.xz
+
+# cd xplayer-pl-parser-"$XPL_VER"+"$CODENAME"
+cd xplayer-pl-parser-1.0.2+serena
+sed -i 's/gmime-2.6/gmime-3.0/g' configure
+sed -i 's/gmime-2.6/gmime-3.0/g' configure.ac
+sed -i s/'date_str, NULL'/date_str/g plparse/xplayer-pl-parser.c
+./autogen.sh
+./configure --prefix=/usr
+make
+make install DESTDIR=~/xapp-build/xplayer-pl-parser
+cd ..
+
+mkdir -p xplayer-pl-parser/DEBIAN
+
+cat > xplayer-pl-parser/DEBIAN/control << EOF
+Package: xplayer-pl-parser
+Source: xplayer-pl-parser
+Version: $XPL_VER
+Architecture: $DARCH
+Maintainer: Linux Mint <root@linuxmint.com>
+Installed-Size: 27
+Depends: libarchive13 (>= 3.0.4), libc6 (>= 2.8), gir1.2-glib-2.0, libglib2.0-0 (>= 2.37.3), libgmime-3.0-0, libsoup2.4-1 (>= 2.30.0), libxml2 (>= 2.7.4)
+Section: introspection
+Priority: optional
+Description: GObject introspection data for the Xplayer Playlist Parser library
+ This package contains introspection data for the Xplayer Playlist Parser
+ library.
+ .
+ xplayer-pl-parser is a simple GObject-based library to parse a host of
+ playlist formats, as well as save those.
+ .
+ It can be used by packages using the GIRepository format to generate
+ dynamic bindings.
+EOF
+
+sudo chown -R 0:0 xplayer-pl-parser
+dpkg -b xplayer-pl-parser xplayer-pl-parser_"$XPL_VER"_"$DARCH".deb
+sudo dpkg -i xplayer-pl-parser_"$XPL_VER"_"$DARCH".deb
+sudo apt-get install -f -y
+
+rm *-dbgsym_*.deb
+rm *-dbg_*.deb
+mv *_"$DARCH".deb ../pkgs/"$DARCH"/
+mv *_all.deb ../pkgs/
+sudo rm -rf *
+
+sudo apt-get install debhelper cdbs dpkg-dev autotools-dev dh-autoreconf gnome-icon-theme gnome-pkg-tools gobject-introspection gsettings-desktop-schemas-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-good gstreamer1.0-tools gtk-doc-tools intltool libatk1.0-dev libbluetooth-dev libclutter-gst-3.0-dev libclutter-gtk-1.0-dev libdbus-glib-1-dev libgdata-dev libgdk-pixbuf2.0-dev libgirepository1.0-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev libgtk-3-dev liblircclient-dev libpeas-dev librsvg2-dev libsoup2.4-dev libxkbfile-dev libx11-dev libxml2-dev libxrandr-dev libxxf86vm-dev libzeitgeist-2.0-dev python python-gi-dev shared-mime-info valac x11proto-core-dev yelp-tools -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xplayer/xplayer_"$XPLAYER_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xplayer_"$XPLAYER_VER"+"$CODENAME".tar.xz
+cd xplayer-"$XPLAYER_VER"+"$CODENAME"
+export QUILT_PATCHES=debian/patches
+quilt push -a
+./autogen.sh
+./configure --prefix=/usr --enable-vala=yes --disable-run-in-source-tree --disable-vegas-plugin
+make
+make install DESTDIR=~/xapp-build/xplayer
+cd ..
+mkdir -p xplayer/DEBIAN
+
+cat > xplayer/DEBIAN/control << EOF
+Package: xplayer
+Version: $XPLAYER_VER
+Architecture: $DARCH
+Maintainer: Linux Mint <root@linuxmint.com>
+Installed-Size: 436
+Depends: dconf-gsettings-backend, libcairo-gobject2, libcairo2, libclutter-1.0-0, libice6, libsm6, xapp, xplayer-pl-parser, libxrandr2, gir1.2-glib-2.0, gir1.2-gtk-3.0, libgcc1, libstdc++6, dbus-x11, liblirc-client0, libxml2, libzeitgeist-2.0-0, python2.7, gir1.2-gdkpixbuf-2.0, gir1.2-pango-1.0, gir1.2-peas-1.0, python-gi, python-xdg, libpeas-1.0-0-python2loader, python:any, libatk1.0-0, libc6, libclutter-gst-3.0-0, libclutter-gtk-1.0-0, libcogl-pango20, libcogl-path20, libcogl20, libdbus-1-3, libdbus-glib-1-2, libdrm2, libegl1-mesa, libgbm1, libgdk-pixbuf2.0-0, libgirepository-1.0-1, libglib2.0-0, libgstreamer-plugins-base1.0-0, libgstreamer1.0-0, libgtk-3-0, libjson-glib-1.0-0, libpango-1.0-0, libpangocairo-1.0-0, libpeas-1.0-0, libwayland-client0, libwayland-cursor0, libwayland-egl1-mesa, libwayland-server0, libx11-6, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxi6, libxkbcommon0, libxrandr2, gstreamer1.0-clutter-3.0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-x, gnome-icon-theme, gnome-icon-theme-symbolic, gsettings-desktop-schemas
+Section: video
+Priority: optional
+Description: Simple media player based on GStreamer
+ Xplayer is a simple yet featureful media player which can read
+ a large number of file formats. It features :
+ .
+    * Shoutcast, m3u, asx, SMIL and ra playlists support
+    * DVD (with menus), VCD and Digital CD (with CDDB) playback
+    * TV-Out configuration with optional resolution switching
+    * 4.0, 5.0, 5.1 and stereo audio output
+    * Full-screen mode (move your mouse and you get nice controls) with
+      Xinerama, dual-head and RandR support
+    * Aspect ratio toggling, scaling based on the video's original size
+    * Full keyboard control
+    * Simple playlist with repeat mode and saving feature
+    * GIO integration
+    * Screenshot of the current movie
+    * Brightness and Contrast control
+    * Visualisation plugin when playing audio-only files
+    * Video thumbnailer
+    * Works on remote displays
+    * DVD, VCD and OGG/OGM subtitles with automatic language selection
+    * Extensible with plugins
+EOF
+
+sudo chown -R 0:0 xplayer
+sudo dpkg -b xplayer xplayer_"$XPLAYER_VER"_"$DARCH".deb
+
+rm *-dbgsym_*.deb
+rm *-dbg_*.deb
+mv *_"$DARCH".deb ../pkgs/"$DARCH"/
+mv *_all.deb ../pkgs/
+sudo rm -rf *
+
+#####################################
+### xviewer
+#####################################
+wget http://packages.linuxmint.com/pool/backport/x/xviewer/xviewer_"$XVIEWER_VER"%2b"$CODENAME".dsc
+DSC=xviewer_"$XVIEWER_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xviewer/xviewer_"$XVIEWER_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xviewer_"$XVIEWER_VER"+"$CODENAME".tar.xz
+cd xviewer-"$XVIEWER_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+sed -i 's/xapps-common/xapp/g' debian/control
+fakeroot make -f debian/rules binary
+cd ..
+
+sudo dpkg -i xviewer-dev_"$XVIEWER_VER"_all.deb xviewer_"$XVIEWER_VER"_"$DARCH".deb
+sudo apt-get install -f -y
+
+rm *-dbgsym_*.deb
+rm *-dbg_*.deb
+mv *_"$DARCH".deb ../pkgs/"$DARCH"/
+mv *_all.deb ../pkgs/
+sudo rm -rf *
+
+wget http://packages.linuxmint.com/pool/backport/x/xviewer-plugins/xviewer-plugins_1.2.0%2bserena.dsc
+DSC=xviewer-plugins_1.2.0+serena.dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+# sudo apt-get -t sid install postr
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xviewer-plugins/xviewer-plugins_1.2.0%2bserena.tar.xz
+tar Jxvf xviewer-plugins_1.2.0+serena.tar.xz
+cd xviewer-plugins-1.2.0+serena
+sed -i s/+serena//g debian/changelog
+fakeroot make -f debian/rules binary
+cd ..
+
+rm *-dbgsym_*.deb
+rm *-dbg_*.deb
+mv *_"$DARCH".deb ../pkgs/"$DARCH"/
+mv *_all.deb ../pkgs/
+sudo rm -rf *
+
+#####################################
+### xreader
+#####################################
+sudo apt-get install debhelper gobject-introspection intltool libcaja-extension-dev libnemo-extension-dev libdjvulibre-dev libgail-3-dev libgirepository1.0-dev libglib2.0-dev libgtk-3-dev libgtk2.0-dev libgxps-dev libkpathsea-dev libpoppler-glib-dev libsecret-1-dev libsm-dev libspectre-dev libtiff-dev libx11-dev libxml2-dev lsb-release mate-common xsltproc yelp-tools zlib1g-dev -y
+sudo apt-get install libwebkitgtk-1.0-0 libwebkitgtk-3.0-0 libwebkitgtk-3.0-dev libwebkitgtk-dev gir1.2-webkit-3.0 -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xreader/xreader_"$XREADER_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xreader_"$XREADER_VER"+"$CODENAME".tar.xz
+cd xreader-"$XREADER_VER"+"$CODENAME"
+
+./autogen.sh --prefix=/usr --enable-gtk-doc --enable-djvu --enable-dvi --enable-t1lib --enable-pixbuf --enable-comics --enable-caja --enable-nemo --enable-introspection --disable-static
+make
+make install DESTDIR=~/xapp-build/xreader
+cd ..
+
+mkdir -p xreader/DEBIAN
+
+cat > xreader/DEBIAN/control << EOF
+Package: xreader
+Version: $XREADER_VER
+Architecture: $DARCH
+Maintainer: Linux Mint <root@linuxmint.com>
+Installed-Size: 561
+Depends: dconf-gsettings-backend, libarchive13, libatk1.0-0, libc6, libcairo2, libcairo-gobject2, libdjvulibre21, libgail-3-0, libgcc1, libgdk-pixbuf2.0-0, libglib2.0-0, libgtk-3-0, libgxps2, libice6, libjs-mathjax, libkpathsea6, libnemo-extension1, libpango-1.0-0, libpangocairo-1.0-0, libpoppler-glib8, libsecret-1-0, libsm6, libspectre1, libstdc++6, libtiff5, libx11-6, libxml2, shared-mime-info, zlib1g, xapp
+Recommends: dbus-x11, gvfs
+Suggests: poppler-data, unrar
+Provides: djvu-viewer, pdf-viewer, postscript-viewer
+Section: x11
+Priority: optional
+Homepage: http://github.com/linuxmint/xreader/
+Description: Document viewer
+ Xreader is a simple multi-page document viewer.  It can display
+ and print PostScript (PS), Encapsulated PostScript (EPS), DJVU, DVI and
+ Portable Document Format (PDF) files.
+ .
+ When supported by the document, it also allows searching for text,
+ copying text to the clipboard, hypertext navigation, and
+ table-of-contents bookmarks.
+EOF
+
+sudo chown -R 0:0 xreader
+sudo dpkg -b xreader xreader_"$XREADER_VER"_"$DARCH".deb
+
+rm *-dbgsym_*.deb
+rm *-dbg_*.deb
+mv *_"$DARCH".deb ../pkgs/"$DARCH"/
+mv *_all.deb ../pkgs/
+sudo rm -rf *
+
+#####################################
+### xed
+#####################################
+wget http://packages.linuxmint.com/pool/backport/x/xed/xed_"$XED_VER"%2b"$CODENAME".dsc
+DSC=xed_"$XED_VER"+"$CODENAME".dsc
+DEPENDS=$(cat $DSC | grep "Build-Depends:" | sed 's/Build-Depends: //g' | sed 's/, /\n/g' | sed 's/ (.*//g' | sed 's/\[.*\]//g' | tr "\n" " ")
+sudo apt-get install $DEPENDS -y
+
+wget http://packages.linuxmint.com/pool/backport/x/xed/xed_"$XED_VER"%2b"$CODENAME".tar.xz
+tar Jxvf xed_"$XED_VER"+"$CODENAME".tar.xz
+cd xed-"$XED_VER"+"$CODENAME"
+sed -i s/+"$CODENAME"//g debian/changelog
+sed -i 's/xapps-common/xapp/g' debian/control
+sed -i '/xed-common (/d' debian/control
+fakeroot make -f debian/rules binary
+cd ..
+
+dpkg -X xed_"$XED_VER"_"$DARCH".deb deb
+dpkg -X xed-common_"$XED_VER"_all.deb deb
+cd deb
+dpkg -e ../xed_"$XED_VER"_"$DARCH".deb
+cd ..
+rm xed*.deb
+sudo chown -R 0:0 deb
+sudo dpkg -b deb xed_"$XED_VER"_"$DARCH".deb
+
+rm *-dbgsym_*.deb
+rm *-dbg_*.deb
+mv *_"$DARCH".deb ../pkgs/"$DARCH"/
+mv *_all.deb ../pkgs/
+sudo rm -rf *
