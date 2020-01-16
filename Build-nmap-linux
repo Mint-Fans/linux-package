@@ -1,0 +1,89 @@
+Build-Depends:
+sudo apt-get install debhelper dh-python 
+sudo apt-get install g++ bison flex libgtk2.0-dev liblinear-dev liblua5.3-dev libpcap-dev libpcre3-dev libssh2-1-dev libssl-dev lua-lpeg-dev python
+sudo apt-get install default-jdk gcc-mingw-w64-i686
+
+VERSION=7.80
+wget https://nmap.org/dist/nmap-"$VERSION".tar.bz2
+tar jxvf nmap-*.tar.bz2
+
+cd nmap-"$VERSION"
+
+# Linux Patch
+sed -i 's/Exec=.*/Exec=pkexec \/usr\/bin\/zenmap %F/g' zenmap/install_scripts/unix/zenmap-root.desktop
+sed -i 's/TryExec=.*/TryExec=pkexec/g' zenmap/install_scripts/unix/zenmap-root.desktop
+sed -i 's/define NCAT_CA_CERTS_PATH .*/define NCAT_CA_CERTS_PATH "\/etc\/ssl\/certs\/ca-certificates.crt"/g' ncat/ncat_posix.c
+sed -i 's/LIBLUA_LIBS="-llua5.3/LIBLUA_LIBS="-llua5.3 -llua5.3-lpeg/g' configure.ac
+# Linux NoNeed Patch
+sed -i '/<libssh2.h>/a #endif' nmap.cc
+sed -i '/<libssh2.h>/a #include "libssh2.h"' nmap.cc
+sed -i '/<libssh2.h>/a #else' nmap.cc
+sed -i '/<libssh2.h>/a #include "libssh2/libssh2v.h"' nmap.cc
+sed -i '/<libssh2.h>/a #ifdef LIBSSH2_INCLUDED' nmap.cc
+sed -i '/<libssh2.h>/d' nmap.cc
+sed -i '/<zlib.h>/a #endif' nmap.cc
+sed -i '/<zlib.h>/a #include "zlib.h"' nmap.cc
+sed -i '/<zlib.h>/a #else' nmap.cc
+sed -i '/<zlib.h>/a #include "libz/libzv.h"' nmap.cc
+sed -i '/<zlib.h>/a #ifdef ZLIB_INCLUDED' nmap.cc
+sed -i '/<zlib.h>/d' nmap.cc
+sed -i '/See the ncat/d' ncat/docs/ncat.1
+
+## Debian Build
+./configure --build=x86_64-linux-gnu \
+--prefix=/usr \
+--sysconfdir=/etc \
+--localstatedir=/var \
+--libdir=${prefix}/lib/x86_64-linux-gnu --libexecdir=${prefix}/lib/x86_64-linux-gnu \
+--disable-silent-rules --disable-maintainer-mode --disable-dependency-tracking \
+--with-liblua --with-liblinear --enable-ipv6 STRIP=/bin/true --with-libpcap=included
+
+# Arch Build
+export PYTHON=python2
+./configure \
+--prefix=/usr \
+--libexecdir=/usr/lib \
+--mandir=/usr/share/man \
+--with-libpcap=included
+
+make -j$(nproc)
+
+cd nselib/data/jdwp-class && javac *.java
+cd ../psexec && i686-w64-mingw32-gcc -o nmap_service.exe nmap_service.c
+cd ../../..
+
+PKGDIR=$HOME/Build/nmap
+
+make install DESTDIR=$PKGDIR
+
+mkdir -p $PKGDIR/DEBIAN
+
+ARCH=amd64
+ARCH=i386
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: nmap
+Version: ${VERSION}-1
+Architecture: $ARCH
+Maintainer: Debian Security Tools <team+pkg-security@tracker.debian.org>
+Installed-Size: $PKGSIZE
+Depends: libc6, libgcc1, liblinear3, liblua5.3-0, libpcre3, libssh2-1, libssl1.1 | libssl1.0.0, libstdc++6, zlib1g, python-lxml, python-gtk2, python-gobject-2 | python-gobject
+Section: net
+Priority: optional
+Homepage: https://nmap.org/
+Description: The Network Mapper
+ Nmap is a utility for network exploration or security auditing. It
+ supports ping scanning (determine which hosts are up), many port
+ scanning techniques, version detection (determine service protocols
+ and application versions listening behind ports), and TCP/IP
+ fingerprinting (remote host OS or device identification). Nmap also
+ offers flexible target and port specification, decoy/stealth scanning,
+ sunRPC scanning, and more. Most Unix and Windows platforms are
+ supported in both GUI and commandline modes. Several popular handheld
+ devices are also supported, including the Sharp Zaurus and the iPAQ.
+EOF
+
+cd $HOME/Build
+sudo chown -R 0:0 $PKGDIR
+sudo dpkg -b nmap nmap_${VERSION}-1_${ARCH}.deb
