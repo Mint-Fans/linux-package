@@ -1,0 +1,30 @@
+diff -uNr a/kernel/nv-procfs.c b/kernel/nv-procfs.c
+--- a/kernel/nv-procfs.c	2015-08-15 07:54:51.000000000 +0800
++++ b/kernel/nv-procfs.c	2020-01-17 06:56:25.102984000 +0800
+@@ -357,8 +357,12 @@
+         nvl = NV_GET_NVL_FROM_NV_STATE(nv);
+     registry_keys = ((nvl != NULL) ?
+             nvl->registry_keys : nv_registry_keys);
+-
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
++    seq_printf(s, "Binary: \"%s\"\n", registry_keys);
++    return 0;
++#else
+     return seq_printf(s, "Binary: \"%s\"\n", registry_keys);
++#endif
+ }
+ 
+ static ssize_t
+@@ -558,7 +562,12 @@
+     void *v
+ )
+ {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
++    seq_puts(s, s->private);
++    return 0;
++#else
+     return seq_puts(s, s->private);
++#endif
+ }
+ 
+ NV_DEFINE_PROCFS_SINGLE_FILE(text_file);
