@@ -1,0 +1,134 @@
+###########################################################
+### WINEHQ 3.0 Build for Debian
+###########################################################
+## 編譯 wine 所需依賴
+sudo apt-get install gcc-multilib linux-headers-amd64 | linux-headers-686 | linux-headers-generic
+sudo apt-get install libxml-simple-perl lzma flex bison quilt gettext sharutils pkg-config dctrl-tools khronos-api unicode-data freebsd-glue icoutils librsvg2-bin imagemagick fontforge-nox
+
+## 下載3.x原始碼
+PKGVER=3.0
+PKGNAME=wine-${PKGVER}
+wget https://dl.winehq.org/wine/source/3.0/${PKGNAME}.tar.xz
+tar Jxvf ${PKGNAME}.tar.xz
+
+BUILD_DIR=$(pwd)/Build
+SRCDIR=$(pwd)/${PKGNAME}
+BUILD_WINE64=$(pwd)/build-wine64
+BUILD_WINE32=$(pwd)/build-wine32
+mkdir -p $BUILD_WINE64
+mkdir -p $BUILD_WINE32
+
+cd $SRCDIR
+
+sed 's|OpenCL/opencl.h|CL/opencl.h|g' -i configure*
+
+export CFLAGS="${CFLAGS/-fno-plt/}"
+export LDFLAGS="${LDFLAGS/,-z,now/}"
+
+###########################################################
+### Build amd64
+###########################################################
+sudo apt-get install libgtk-3-dev libxi-dev libxt-dev libxmu-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxrender-dev libxkbfile-dev libxxf86vm-dev libxxf86dga-dev libxinerama-dev libgl1-mesa-dev libglu1-mesa-dev libxcomposite-dev libpng-dev libssl-dev libxml2-dev libgsm1-dev libjpeg-dev libtiff-dev libpcap-dev libpulse-dev liblcms2-dev libldap2-dev libxslt1-dev unixodbc-dev libcups2-dev libopenal-dev libdbus-1-dev freeglut3-dev libmpg123-dev libasound2-dev libosmesa6-dev libgnutls28-dev libncurses5-dev libgettextpo-dev libfreetype6-dev libfontconfig1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev ocl-icd-opencl-dev
+
+cd $BUILD_WINE64
+$SRCDIR/configure \
+--prefix=/usr \
+--libdir=/usr/lib/x86_64-linux-gnu \
+--with-x \
+--with-gstreamer \
+--enable-win64
+
+make -j$(nproc)
+
+make install DESTDIR=$BUILD_DIR/${PKGNAME}
+
+###########################################################
+### Build i386
+###########################################################
+# lib32 build depends
+sudo apt-get -f install libatspi2.0-dev:i386
+sudo apt-get install gir1.2-gstreamer-1.0:i386 libicu-dev:i386
+sudo apt-get install libgtk-3-dev:i386 libxi-dev:i386 libxt-dev:i386 libxmu-dev:i386 libx11-dev:i386 libxext-dev:i386 libxrandr-dev:i386 libxcursor-dev:i386 libxrender-dev:i386 libxkbfile-dev:i386 libxxf86vm-dev:i386 libxxf86dga-dev:i386 libxinerama-dev:i386 libgl1-mesa-dev:i386 libglu1-mesa-dev:i386 libxcomposite-dev:i386 libpng-dev:i386 libssl-dev:i386 libxml2-dev:i386 libgsm1-dev:i386 libjpeg-dev:i386 libtiff-dev:i386 libpcap-dev:i386 libpulse-dev:i386 liblcms2-dev:i386 libldap2-dev:i386 libxslt1-dev:i386 unixodbc-dev:i386 libcups2-dev:i386 libopenal-dev:i386 libdbus-1-dev:i386 freeglut3-dev:i386 libmpg123-dev:i386 libasound2-dev:i386 libosmesa6-dev:i386 libgnutls28-dev:i386 libncurses5-dev:i386 libgettextpo-dev:i386 libfreetype6-dev:i386 libfontconfig1-dev:i386 libgstreamer1.0-dev:i386 libgstreamer-plugins-base1.0-dev:i386 ocl-icd-opencl-dev:i386
+
+LIB32=lib/i386-linux-gnu
+export CC="gcc -m32"
+export CXX="g++ -m32"
+export PKG_CONFIG_PATH="/usr/$LIB32/pkgconfig"
+
+cd $BUILD_WINE32
+$SRCDIR/configure \
+--prefix=/usr \
+--libdir=/usr/lib/i386-linux-gnu \
+--with-x \
+--with-gstreamer \
+--with-wine64=$BUILD_WINE64
+
+make -j$(nproc)
+
+# Install Lib32
+make install DESTDIR=$BUILD_DIR/${PKGNAME}-lib32
+
+rm -r $BUILD_DIR/${PKGNAME}-lib32/usr/share
+rm -r $BUILD_DIR/${PKGNAME}-lib32/usr/include
+
+cd $BUILD_DIR
+rm -rf $BUILD_WINE64 $BUILD_WINE32 $SRCDIR
+
+###########################################################
+### Create Debian Packages
+###########################################################
+cd $BUILD_DIR
+mkdir -p $BUILD_DIR/${PKGNAME}/DEBIAN
+mkdir -p $BUILD_DIR/${PKGNAME}-lib32/DEBIAN
+
+PKGDIR=$BUILD_DIR/${PKGNAME}
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: winehq
+Source: wine
+Version: ${PKGVER}-1
+Architecture: amd64
+Maintainer: WineHQ Builds <webmaster@fds-team.de>
+Installed-Size: $PKGSIZE
+Depends: libasound2, libc6, libgcc1, libglib2.0-0, libgphoto2-6, libgphoto2-port12, libgstreamer-plugins-base1.0-0, libgstreamer1.0-0, liblcms2-2, libldap-2.4-2, libmpg123-0, libopenal1, libpcap0.8, libpulse0, libudev1, libx11-6, libxext6, libxml2, zlib1g, libasound2-plugins, libncurses5, libgl1
+Recommends: libcapi20-3, libcups2, libdbus-1-3, libfontconfig1, libfreetype6, libglu1-mesa | libglu1, libgnutls30, libgsm1, libjpeg62-turbo, libncurses5, libodbc1, libosmesa6, libpng16-16, libsane, libtiff5, libv4l-0, libxcomposite1, libxcursor1, libxfixes3, libxi6, libxinerama1, libxrandr2, libxrender1, libxslt1.1, libxxf86vm1
+Section: otherosfs
+Priority: optional
+Description: WINE Is Not An Emulator - runs MS Windows programs
+ Wine is a program which allows running Microsoft Windows programs
+ (including DOS, Windows 4.x and Win32 executables) on Unix.
+ .
+ This compatibility package allows to use wine-staging system-wide as
+ the default Wine version.
+Original-Maintainer: Scott Ritchie <scottritchie@ubuntu.com>
+EOF
+
+PKGDIR=$BUILD_DIR/${PKGNAME}-lib32
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: winehq-lib32
+Source: wine
+Version: ${PKGVER}-1
+Architecture: i386
+Maintainer: WineHQ Builds <webmaster@fds-team.de>
+Installed-Size: $PKGSIZE
+Depends: libasound2, libc6, libgcc1, libglib2.0-0, libgphoto2-6, libgphoto2-port12, libgstreamer-plugins-base1.0-0, libgstreamer1.0-0, liblcms2-2, libldap-2.4-2, libmpg123-0, libopenal1, libpcap0.8, libpulse0, libudev1, libx11-6, libxext6, libxml2, zlib1g, libasound2-plugins, libncurses5, libgl1
+Recommends: libcapi20-3, libcups2, libdbus-1-3, libfontconfig1, libfreetype6, libglu1-mesa | libglu1, libgnutls30, libgsm1, libjpeg62-turbo, libncurses5, libodbc1, libosmesa6, libpng16-16, libsane, libtiff5, libv4l-0, libxcomposite1, libxcursor1, libxfixes3, libxi6, libxinerama1, libxrandr2, libxrender1, libxslt1.1, libxxf86vm1
+Section: otherosfs
+Priority: optional
+Description: WINE Is Not An Emulator - runs MS Windows programs
+ Wine is a program which allows running Microsoft Windows programs
+ (including DOS, Windows 4.x and Win32 executables) on Unix.
+ .
+ This compatibility package allows to use wine-staging system-wide as
+ the default Wine version.
+Original-Maintainer: Scott Ritchie <scottritchie@ubuntu.com>
+EOF
+
+sudo chown -R 0:0 $BUILD_DIR/${PKGNAME}
+sudo chown -R 0:0 $BUILD_DIR/${PKGNAME}-lib32
+
+sudo dpkg -b ${PKGNAME} winehq_${PKGVER}-1_amd64.deb
+sudo dpkg -b ${PKGNAME}-lib32 winehq-lib32_${PKGVER}-1_i386.deb
