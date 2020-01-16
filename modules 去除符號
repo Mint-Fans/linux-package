@@ -1,0 +1,8 @@
+去除符號
+make INSTALL_MOD_STRIP=1 modules
+
+去除符號
+strip test.ko
+
+查看符號
+nm test.ko
