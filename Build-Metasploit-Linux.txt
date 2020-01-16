@@ -1,0 +1,122 @@
+### Build Metasploit v5.0.0 on Linux (debian/kali)
+
+#########################################
+### Build
+#########################################
+sudo apt-get install g++ ruby-dev bundler ca-certificates git libgmp-dev libpcap-dev libpq-dev libsqlite3-dev libxml2-dev libxslt-dev libffi-dev ruby-json zlib1g-dev
+
+mkdir -p pkg/opt
+mkdir -p pkg/usr/local/bin
+cd pkg/opt
+git clone https://github.com/rapid7/metasploit-framework/
+mv metasploit-framework metasploit
+cd metasploit
+sudo gem install bundler
+
+rm .*
+rm -rf .git
+rm -r .github
+
+sudo ln -s /usr/include/libxml2/libxml /usr/include/libxml
+
+bundle config build.nokogiri --use-system-libraries
+bundle install --path vendor
+cd ../..
+ln -s /opt/metasploit/msfd usr/local/bin/msfd
+ln -s /opt/metasploit/msfrpc usr/local/bin/msfrpc
+ln -s /opt/metasploit/msfrpcd usr/local/bin/msfrpcd
+ln -s /opt/metasploit/msfupdate usr/local/bin/msfupdate
+ln -s /opt/metasploit/msfvenom usr/local/bin/msfvenom
+ln -s /opt/metasploit/Rakefile usr/local/bin/Rakefile
+ln -s msf usr/local/bin/msfconsole
+
+cat > usr/local/bin/msf << EOF
+#!/bin/bash
+
+### Startup PostgreSQL Database
+PG_STATUS=\$(/etc/init.d/postgresql status | grep Active | awk '{print \$3}')
+if [ "\$PG_STATUS" == "(dead)" ]; then
+    sudo /etc/init.d/postgresql start
+fi
+
+### Initialization Database
+if [ ! -f "/opt/metasploit/config/database.yml" ]; then
+    sudo /usr/local/bin/msfdb init
+fi
+
+/opt/metasploit/msfconsole
+EOF
+
+chmod 755 usr/local/bin/msf
+
+### Configuration VNCViewer
+echo '#!/usr/bin/env bash' > usr/local/bin/vncviewer
+echo open vnc://\$1 >> usr/local/bin/vncviewer
+chmod 755 usr/local/bin/vncviewer
+
+### PostgreSQL Create Database & Username
+wget https://raw.githubusercontent.com/Mint-Fans/linux-package/kali/msfdb
+sudo chmod 755 msfdb
+sudo chown 0:0 msfdb
+sudo mv msfdb usr/local/bin/
+
+#########################################
+### Install Script
+#########################################
+### postinst
+mkdir -p DEBIAN
+
+cat > DEBIAN/postinst << EOF
+#!/bin/bash
+
+set -e
+
+sed -i '/metasploit/d' /etc/profile
+
+# Configuration
+MSFROOT=/opt/metasploit
+GEMFILE=\$MSFROOT/Gemfile
+RUBY_VER=\$(ls /usr/lib/ruby | grep [0-9])
+echo "export BUNDLE_GEMFILE=\$GEMFILE" >> /etc/profile
+echo "export MSF_DATABASE_CONFIG=\$MSFROOT/config/database.yml" >> /etc/profile
+echo "export GEM_PATH=\$MSFROOT/vendor/ruby/\$RUBY_VER" >> /etc/profile
+
+exit 0
+
+EOF
+
+chmod 755 DEBIAN/postinst
+
+### postrm
+cat > DEBIAN/postrm << EOF
+#!/bin/bash
+set -e
+sed -i '/metasploit/d' /etc/profile 
+exit 0
+EOF
+
+chmod 755 DEBIAN/postrm
+
+### control
+cat > DEBIAN/control << EOF
+Package: metasploit
+Version: 5.0.0-1
+Architecture: amd64
+Maintainer: Kali Developers <devel@kali.org>
+Installed-Size: 254304
+Depends: ruby, postgresql, bundler, john, nasm, curl, git, wget, openssl, libc6, libgmp10, libpcap0.8, libpq5, libruby2.5, libsqlite3-0, zlib1g, ruby-json
+Section: net
+Priority: optional
+Homepage: https://www.metasploit.com/
+Description: Framework for exploit development and vulnerability research
+ The Metasploit Framework is an open source platform that supports
+ vulnerability research, exploit development, and the creation of custom
+ security tools.
+EOF
+
+#########################################
+### Create debian packages
+#########################################
+cd ..
+sudo chown -R 0:0 pkg
+sudo dpkg -b pkg metasploit_5.0.0-1_amd64.deb
