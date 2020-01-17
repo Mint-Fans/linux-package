@@ -1,0 +1,52 @@
+##########################################
+### Build mdk3
+##########################################
+
+PKGNAME=mdk3
+PKGVER=v6
+PKGDIR=$HOME/Build/$PKGNAME
+
+wget -O ${PKGNAME}-${PKGVER}.tar.bz2 https://aspj.aircrack-ng.org/${PKGNAME}-${PKGVER}.tar.bz2
+tar jxvf ${PKGNAME}-${PKGVER}.tar.bz2
+cd ${PKGNAME}-${PKGVER}
+
+sed "s|-g -O3|${CFLAGS}|g" -i Makefile
+
+make -C osdep
+make
+make DESTDIR=${PKGDIR} PREFIX=/usr install
+install -Dm 644 docs/* -t "${PKGDIR}/usr/share/doc/${PKGNAME}"
+
+# Create DEB Package
+mkdir -p $PKGDIR/DEBIAN
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: mdk3
+Version: 6.0-6
+Architecture: amd64
+Maintainer: Debian Security Tools <team+pkg-security@tracker.debian.org>
+Installed-Size: $PKGSIZE
+Depends: libc6
+Section: net
+Priority: optional
+Homepage: http://aspj.aircrack-ng.org/index.html#mdk3
+Description: Wireless attack tool for IEEE 802.11 networks
+ MDK is a proof-of-concept tool to exploit common
+ IEEE 802.11 (wifi) protocol weaknesses.
+ Features:
+   * Bruteforce MAC Filters.
+   * Bruteforce hidden SSIDs (some small SSID wordlists included).
+   * Probe networks to check if they can hear you.
+   * Intelligent Authentication-DoS to freeze APs (with success checks).
+   * FakeAP - Beacon Flooding with channel hopping (can crash NetStumbler and
+     some buggy drivers)
+   * Disconnect everything (aka AMOK-MODE) with Deauthentication and
+     Disassociation packets.
+   * WPA TKIP Denial-of-Service.
+   * WDS Confusion - Shuts down large scale multi-AP installations.
+EOF
+
+sudo chown -R 0:0 $PKGDIR
+cd $HOME/Build
+sudo dpkg -b $PKGNAME ${PKGNAME}_6.0-6_amd64.deb

@@ -1,0 +1,51 @@
+##########################################
+### Build reaver
+##########################################
+sudo apt-get install libpcap-dev
+
+PKGNAME=reaver
+PKGVER=1.6.5
+PKGDIR=$HOME/Build/$PKGNAME
+
+wget -O ${PKGNAME}-${PKGVER}.tar.gz https://github.com/t6x/reaver-wps-fork-t6x/archive/v${PKGVER}.tar.gz
+tar zxvf ${PKGNAME}-${PKGVER}.tar.gz
+cd reaver-wps-fork-t6x-${PKGVER}/src
+
+sed 's|CFLAGS=|CFLAGS+=|' -i Makefile
+
+./configure --prefix=/usr --sysconfdir=/etc
+make CONFDIR=/etc/reaver
+
+install -Dm 755 {reaver,wash} -t $PKGDIR/usr/bin
+install -dm 755 $PKGDIR/etc/reaver
+install -Dm 644 ../docs/README -t $PKGDIR/usr/share/doc/reaver
+install -Dm 644 ../docs/reaver.1 -t $PKGDIR/usr/share/man/man1
+gzip $PKGDIR/usr/share/man/man1/reaver.1
+
+# Create DEB Package
+mkdir -p $PKGDIR/DEBIAN
+PKGSIZE=$(du -s $PKGDIR | awk '{print $1}')
+
+cat > $PKGDIR/DEBIAN/control << EOF
+Package: $PKGNAME
+Source: reaver
+Version: ${PKGVER}-1
+Architecture: amd64
+Maintainer: Bartosz Fenski <fenio@debian.org>
+Installed-Size: $PKGSIZE
+Depends: libc6, libpcap0.8
+Recommends: pixiewps
+Suggests: aircrack-ng
+Section: net
+Priority: optional
+Homepage: https://github.com/t6x/reaver-wps-fork-t6x
+Description: brute force attack tool against Wifi Protected Setup PIN number
+ Reaver performs a brute force attack against an access point's WiFi
+ Protected Setup pin number.
+ Once the WPS pin is found, the WPA PSK can be recovered and alternately
+ the AP's wireless settings can be reconfigured.
+EOF
+
+sudo chown -R 0:0 $PKGDIR
+cd $HOME/Build
+sudo dpkg -b $PKGNAME ${PKGNAME}_${PKGVER}-1_amd64.deb
