@@ -1,5 +1,5 @@
 #############################################
-### Build NVIDIA CUDA 8.0
+### Build NVIDIA CUDA 8.0 GA1
 #############################################
 # Download
 # https://developer.nvidia.com/cuda-toolkit-archive
@@ -88,7 +88,7 @@ sudo /sbin/ldconfig
 ### 打包 CUDA
 #############################################
 cd $PKGDIR/opt
-tar Jcvf $HOME/Build/cuda-"$CUDA_SOVERSION".tar.xz cuda
+tar Jcvf $HOME/Build/cuda-"$CUDA_SOVERSION"-ga1.tar.xz cuda
 
 #############################################
 ### 安裝必要依賴
