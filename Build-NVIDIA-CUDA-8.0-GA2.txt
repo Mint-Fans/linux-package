@@ -1,0 +1,122 @@
+#############################################
+### Build NVIDIA CUDA 8.0 GA2
+#############################################
+# Download
+# https://developer.nvidia.com/cuda-toolkit-archive
+wget https://developer.nvidia.com/compute/cuda/8.0/Prod2/local_installers/cuda_8.0.61_375.26_linux-run
+wget https://developer.nvidia.com/compute/cuda/8.0/Prod2/patches/2/cuda_8.0.61.2_linux-run
+
+PKGDIR=$HOME/Build/cuda
+CUDA_SOVERSION='8.0.61'
+CUDA_BUILD='21551265'
+
+sh cuda_"$CUDA_SOVERSION"_linux.run --noexec --keep --target cuda
+sh cuda/run_files/cuda-linux64-rel-$CUDA_SOVERSION-$CUDA_BUILD.run --noexec --keep --target cuda-linux64
+
+# Patch
+sh cuda_${CUDA_SOVERSION}.2_linux.run --noexec --keep --target cuda-linux64
+mv cuda-linux64/payload/cuda-linux64-mixed-rel-nightly/lib64/* cuda-linux64/lib64/
+
+cd cuda-linux64
+sed -i '/^-vm$/d; /^..\/jre\/bin\/java$/d' libnvvp/nvvp.ini libnsight/nsight.ini
+
+chmod -x libnvvp/*.xpm
+chmod -x libnsight/*.xpm
+chmod -x bin/crt/link.stub
+chmod -x bin/crt/prelink.stub
+chmod -x nvvm/include/*.h
+
+find libnsight libnvvp -name 'license.html' -exec sed -r -i \
+    -e 's,(<script type="text/javascript" )src(="http://w.sharethis.com/button/buttons.js"[^>]*></script>),<!-- \1DISABLED\2 -->,' \
+    {} +
+
+mkdir -p $PKGDIR/opt/cuda/"$CUDA_SOVERSION"
+mkdir -p $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/share
+
+mv bin $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/
+mv lib64 $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/lib
+mv include $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/
+mv extras/Debugger/include $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/include/cuda-gdb
+mv extras/CUPTI/include/* $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/include/
+mv extras/CUPTI/lib64/* $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/lib/
+
+mv nvvm/bin/* $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/
+mv nvvm/include/* $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/include/
+mv nvvm/lib64/* $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/lib/
+mv nvvm/libdevice $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/
+mv doc/man $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/share/
+mv libnsight $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/
+mv libnvvp $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/
+
+#############################################
+### Patch
+#############################################
+### nsight:
+echo '#!/bin/sh' > $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+echo '' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+echo "CUDA_SOVERSION=$CUDA_SOVERSION" >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+echo 'CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+echo 'CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+echo '' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+echo 'PATH=$PATH:$CUDA_BIN' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+echo 'LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_LIB' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+echo 'UBUNTU_MENUPROXY=0 LIBOVERLAY_SCROLLBAR=0 /opt/cuda/$CUDA_SOVERSION/libnsight/nsight $@' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+### nvvp:
+echo '#!/bin/sh' > $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+echo '' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+echo "CUDA_SOVERSION=$CUDA_SOVERSION" >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+echo 'CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+echo 'CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+echo '' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+echo 'PATH=$PATH:$CUDA_BIN' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+echo 'LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_LIB' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+echo 'UBUNTU_MENUPROXY=0 LIBOVERLAY_SCROLLBAR=0 /opt/cuda/$CUDA_SOVERSION/libnvvp/nvvp $@' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+### nvcc.profile:
+echo 'NVVMIR_LIBRARY_DIR = /opt/cuda/CUDA_SOVERSION/libdevice' > $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
+echo 'LD_LIBRARY_PATH   += /opt/cuda/CUDA_SOVERSION/:' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
+echo 'PATH              += /opt/cuda/CUDA_SOVERSION/bin:' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
+echo 'INCLUDES          += "-I/opt/cuda/CUDA_SOVERSION/include" $(_SPACE_)' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
+echo 'LIBRARIES         =+ $(_SPACE_) "-L/opt/cuda/CUDA_SOVERSION/lib/stubs" "-L/opt/cuda/CUDA_SOVERSION/lib"' >> $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
+sed -i s/CUDA_SOVERSION/$CUDA_SOVERSION/g $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
+
+chmod 755 $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nsight
+chmod 755 $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvvp
+chmod 755 $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/bin/nvcc.profile
+
+sed -i '/unsupported GNU version/d' $PKGDIR/opt/cuda/"$CUDA_SOVERSION"/include/host_config.h
+
+# Install Configure
+sudo sh -c "echo '/opt/cuda/$CUDA_SOVERSION/lib' > /etc/ld.so.conf.d/cuda.conf"
+sudo /sbin/ldconfig
+
+#############################################
+### 打包 CUDA
+#############################################
+cd $PKGDIR/opt
+tar Jcvf $HOME/Build/cuda-${CUDA_SOVERSION}-ga2.tar.xz cuda
+
+#############################################
+### 安裝必要依賴
+#############################################
+# CUDA:
+sudo apt-get install libthrust-dev gcc g++ clang libthrust-dev libstdc++6
+
+# cuda-gdb:
+sudo apt-get install libexpat1 libncurses5
+
+# nvvp、nsight:
+sudo apt-get install default-jre libgtk2.0-0 perl
+
+#############################################
+### 安裝 CUDA
+#############################################
+sduo tar Jxvf cuda-"$CUDA_SOVERSION"-ga2.tar.xz -C /opt
+
+#############################################
+### 編譯使用環境變數
+#############################################
+CUDA_SOVERSION='8.0.61'
+CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
+CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib
+export PATH=$PATH:$CUDA_BIN
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_LIB
