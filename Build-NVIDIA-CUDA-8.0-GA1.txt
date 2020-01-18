@@ -105,7 +105,7 @@ sudo apt-get install default-jre libgtk2.0-0 perl
 #############################################
 ### 安裝 CUDA
 #############################################
-sduo tar Jxvf cuda-"$CUDA_SOVERSION".tar.xz -C /opt
+sduo tar Jxvf cuda-"$CUDA_SOVERSION"-ga1.tar.xz -C /opt
 
 #############################################
 ### 編譯使用環境變數
