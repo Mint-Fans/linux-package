@@ -1,17 +1,17 @@
 #############################################
-### Build NVIDIA CUDA 6.5
+### Build NVIDIA CUDA 9.1
 #############################################
 https://developer.nvidia.com/cuda-toolkit-archive
 
 # Download
-wget http://developer.download.nvidia.com/compute/cuda/6_5/rel/installers/cuda_6.5.14_linux_64.run
+wget -O cuda_9.1.85_387.26_linux.run https://developer.download.nvidia.com/compute/cuda/9.1/secure/Prod/local_installers/cuda_9.1.85_387.26_linux.run?0jFtRs7_3eCpOP_--iZ8QletRv141m2n1x5f8dnS6lgCawQ2yvfZoZ8GfSKG6regy7QG1RARKEo0yhTV_Tby45lb4MfuK2wiEiG816RVN5Qn6KQGA9v5mrGmmrG1hJcGMDpcGtRuH-PvxR5zVgH7nwtseArymDsOa_IBoz2wLdFrSfJa4qtGfko
 
 PKGDIR=$HOME/Build/cuda
-CUDA_SOVERSION='6.5.14'
-CUDA_BUILD='18749181'
+CUDA_SOVERSION='9.1.85'
+CUDA_BUILD='23083092'
 
 sh cuda_${CUDA_SOVERSION}_linux_64.run --noexec --keep --target cuda
-sh cuda/run_files/cuda-linux64-rel-$CUDA_SOVERSION-$CUDA_BUILD.run --noexec --keep --target cuda-linux64
+sh cuda/run_files/cuda-linux.${CUDA_SOVERSION}-${CUDA_BUILD}.run --noexec --keep --target cuda-linux64
 
 cd cuda-linux64
 sed -i '/^-vm$/d; /^..\/jre\/bin\/java$/d' libnvvp/nvvp.ini libnsight/nsight.ini
@@ -119,7 +119,7 @@ sudo apt-get install default-jre libgtk2.0-0 perl
 sudo tar Jxvf cuda-"$CUDA_SOVERSION".tar.xz -C /opt
 
 # Install Configure
-CUDA_SOVERSION='6.5.14'
+CUDA_SOVERSION='9.1.85'
 sudo sh -c "echo '/opt/cuda/'$CUDA_SOVERSION'/lib' > /etc/ld.so.conf.d/cuda.conf"
 sudo sh -c "echo '/opt/cuda/'$CUDA_SOVERSION'/lib32' >> /etc/ld.so.conf.d/cuda.conf"
 sudo /sbin/ldconfig
@@ -129,7 +129,7 @@ echo 'PATH=$PATH:/opt/cuda/'$CUDA_SOVERSION'/bin' > $HOME/.bashrc
 #############################################
 ### 編譯使用環境變數
 #############################################
-CUDA_SOVERSION='6.5.14'
+CUDA_SOVERSION='9.1.85'
 CUDA_BIN=/opt/cuda/$CUDA_SOVERSION/bin
 CUDA_LIB=/opt/cuda/$CUDA_SOVERSION/lib
 CUDA_LIB32=/opt/cuda/$CUDA_SOVERSION/lib32
