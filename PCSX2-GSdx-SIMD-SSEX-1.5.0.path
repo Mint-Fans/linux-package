@@ -1,0 +1,49 @@
+diff -uNr a/plugins/GSdx/CMakeLists.txt b/plugins/GSdx/CMakeLists.txt
+--- a/plugins/GSdx/CMakeLists.txt	2020-02-11 13:02:22.000000000 +0800
++++ b/plugins/GSdx/CMakeLists.txt	2020-02-11 17:36:47.871846000 +0800
+@@ -7,7 +7,7 @@
+ 
+ 
+ # plugin name (no version number to ease future version bump and bisect)
+-set(Output GSdx)
++set(Output GSdx-1.1.0)
+ 
+ set(CommonFlags
+     -fno-operator-names # because Xbyak uses and()/xor()/or()/not() function
+@@ -300,9 +300,10 @@
+ else()
+     if (DISABLE_ADVANCE_SIMD)
+         # Don't append -SSE2 on the first build to keep same name as SIMD build
+-        add_pcsx2_plugin("${Output}" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags}")
+-        add_pcsx2_plugin("${Output}-SSE4" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -mssse3 -msse4 -msse4.1")
+-        add_pcsx2_plugin("${Output}-AVX2" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -mavx -mavx2 -mbmi -mbmi2")
++        add_pcsx2_plugin("${Output}-SSE2" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags}")
++        add_pcsx2_plugin("${Output}-SSSE3" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -msse3 -mssse3")
++        add_pcsx2_plugin("${Output}-SSE4" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -msse3 -mssse3 -msse4 -msse4.1 -msse4.2")
++        # add_pcsx2_plugin("${Output}-AVX2" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -mavx -mavx2 -mbmi -mbmi2")
+     else()
+         add_pcsx2_plugin(${Output} "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags}")
+     endif()
+diff -uNr a/plugins/GSdx_legacy/CMakeLists.txt b/plugins/GSdx_legacy/CMakeLists.txt
+--- a/plugins/GSdx_legacy/CMakeLists.txt	2020-02-11 13:02:22.000000000 +0800
++++ b/plugins/GSdx_legacy/CMakeLists.txt	2020-02-11 17:17:57.400950000 +0800
+@@ -7,7 +7,7 @@
+ 
+ 
+ # plugin name
+-set(Output GSdx-legacy-1.0.0)
++set(Output GSdx-1.0.0)
+ 
+ set(CommonFlags
+     -fno-operator-names # because Xbyak uses and()/xor()/or()/not() function
+@@ -223,7 +223,9 @@
+ if(BUILTIN_GS)
+     add_pcsx2_lib(${Output} "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags}")
+ else()
+-    add_pcsx2_plugin(${Output} "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags}")
++    add_pcsx2_plugin("${Output}-SSE2" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags}")
++    add_pcsx2_plugin("${Output}-SSSE3" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -msse3 -mssse3")
++    add_pcsx2_plugin("${Output}-SSE4" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -msse3 -mssse3 -msse4 -msse4.1 -msse4.2")
+ endif()
+ 
+ ################################### Replay Loader

@@ -1,0 +1,15 @@
+diff -uNr a/plugins/GSdx/CMakeLists.txt b/plugins/GSdx/CMakeLists.txt
+--- a/plugins/GSdx/CMakeLists.txt	2016-01-05 19:20:32.000000000 +0800
++++ b/plugins/GSdx/CMakeLists.txt	2020-02-11 17:29:50.988996000 +0800
+@@ -225,7 +225,10 @@
+     add_custom_command(OUTPUT res/glsl_source.h COMMAND perl ${CMAKE_SOURCE_DIR}/linux_various/glsl2h.pl)
+ endif()
+ 
+-add_pcsx2_plugin(${Output} "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags}")
++add_pcsx2_plugin(${Output}-SSE2 "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags}")
++add_pcsx2_plugin("${Output}-SSSE3" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -msse3 -mssse3")
++add_pcsx2_plugin("${Output}-SSE4" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -msse3 -mssse3 -msse4 -msse4.1 -msse4.2")
++# add_pcsx2_plugin("${Output}-AVX2" "${GSdxFinalSources}" "${GSdxFinalLibs}" "${GSdxFinalFlags} -mavx -mavx2 -mbmi -mbmi2")
+ 
+ ################################### Replay Loader
+ if(BUILD_REPLAY_LOADERS)
