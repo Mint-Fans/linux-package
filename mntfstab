@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Disk mnt list
+# blkid -o list | grep /mnt | awk '{print $1" "$4}' > /tmp/mnt-list
+mount | grep /mnt | awk '{print $1" "$3}' > /tmp/mnt-list
+
+ROOTFS_DEV=$(cat /tmp/mnt-list | grep -w /mnt$ | awk '{print $1}')
+MOUNTS_DEV=$(cat /tmp/mnt-list | grep -v /mnt$ | awk '{print $1}')
+
+
+header_fun(){
+echo -e "# /etc/fstab: static file system information."
+echo -e "# <file system>\t<mount point>\t<type>\t<options>\t<dump>\t<pass>"
+}
+
+rootfs_fun(){
+TARGET_UUID=$(blkid -s UUID $ROOTFS_DEV | awk -F[\"] '{print $2}')
+MOUNT_POINT=/
+FSTYPE=$(blkid -s TYPE $ROOTFS_DEV | awk -F[\"] '{print $2}')
+OPTIONS=errors=remount-ro
+DUMP=0
+PASS=1
+echo -e "# ${MOUNT_POINT} was on $ROOTFS_DEV during installation"
+echo -e "UUID=${TARGET_UUID}\t${MOUNT_POINT}\t${FSTYPE}\t${OPTIONS}\t${DUMP}\t${PASS}"
+}
+
+mounts_fun(){
+for TARGET in $MOUNTS_DEV; do
+    TARGET_UUID=$(blkid -s UUID $TARGET | awk -F[\"] '{print $2}')
+    MOUNT_POINT=$(cat /tmp/mnt-list | grep -w $TARGET | awk '{print $2}'| sed 's/\/mnt//g')
+    FSTYPE=$(blkid -s TYPE $TARGET | awk -F[\"] '{print $2}')
+    OPTIONS=defaults
+    DUMP=0
+    PASS=2
+    echo -e "# ${MOUNT_POINT} was on $TARGET during installation"
+    echo -e "UUID=${TARGET_UUID}\t${MOUNT_POINT}\t${FSTYPE}\t${OPTIONS}\t${DUMP}\t${PASS}"
+done
+}
+
+if [ "$ROOTFS_DEV" == "" ]; then
+    echo "not find /mnt rootfs devive." > /dev/null 2>&1
+    exit 0
+else
+    header_fun
+    rootfs_fun
+    if [ "$MOUNTS_DEV" == "" ]; then
+        echo "not find /mnt other devive." > /dev/null 2>&1
+    else
+        mounts_fun
+    fi
+fi
