@@ -1,0 +1,73 @@
+#!/bin/bash
+
+####################################################
+tor_restart_fun(){
+sudo killall tor
+sleep 1
+/usr/bin/tor -f /etc/tor/torrc --RunAsDaemon 1
+sleep 1
+menu_fun
+}
+
+####################################################
+tor_stop_fun(){
+sudo killall tor
+sleep 1
+menu_fun
+}
+
+####################################################
+tor_start_fun(){
+/usr/bin/tor -f /etc/tor/torrc --RunAsDaemon 1
+sleep 1
+menu_fun
+}
+
+####################################################
+tor_status_fun(){
+STATUS=$(ps aux | grep tor | grep -w RunAsDaemon)
+if [ "$STATUS" == "" ]; then
+    TOR_STATUS=OFF
+else
+    TOR_STATUS=ON
+fi
+sleep 1
+}
+
+####################################################
+menu_fun(){
+tor_status_fun
+clear
+echo -e ""
+echo -e "    ***********************"
+echo -e "    Tor Service Control"
+echo -e "    ***********************"
+echo -e ""
+echo -e "    Tor Service Status: $TOR_STATUS"
+echo -e ""
+echo -e "    1) Start Tor Service"
+echo -e ""
+if [ "$TOR_STATUS" == "ON" ]; then
+    echo -e "    2) Restart Tor Service"
+    echo -e ""
+fi
+echo -e "    x) Stop Tor Service"
+echo -e ""
+echo -e "    0) Exit"
+echo -e ""
+read MAIN
+[[ "$MAIN" ]]
+
+if [ "$MAIN" == "1" ]; then
+    tor_start_fun
+elif [ "$MAIN" == "2" ]; then
+    tor_restart_fun
+elif [ "$MAIN" == "x" ]; then
+    tor_stop_fun
+else
+    exit
+fi
+}
+
+menu_fun
+
