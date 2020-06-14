@@ -129,12 +129,10 @@ Aircrack-ng (Optional)
 # pacman -S aircrack-ng
 # pacman -S reaver
 
-Themes & Icons
+Icons
 # cd /tmp
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/mint-x-theme-1.4.6-2-any.pkg.tar.xz
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/mint-x-icons-1.3.3-1-any.pkg.tar.xz
-# pacman -U mint-x-theme-1.4.6-2-any.pkg.tar.xz
-# pacman -U mint-x-icons-1.3.3-1-any.pkg.tar.xz
+# wget https://github.com/Mint-Fans/linux-package/raw/arch/mint-x-icons-1.3.7-1-any.pkg.tar.xz
+# pacman -U mint-x-icons-1.3.7-1-any.pkg.tar.xz
 
 ------ Font installation
 base font
@@ -192,8 +190,8 @@ DVD Utility
 
 Arch Linux Update Manager (Optional)
 # cd /tmp
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/pamac-aur-3.0.1-1-any.pkg.tar.xz
-# pacman -U pamac-aur-3.0.1-1-any.pkg.tar.xz
+# wget https://github.com/Mint-Fans/linux-package/raw/arch/pamac-aur-4.1.0-2-any.pkg.tar.xz
+# pacman -U pamac-aur-4.1.0-2-any.pkg.tar.xz
 
 ------ Input Method (Optional)
 for example: fcitx
@@ -209,26 +207,22 @@ Mint Applications for Arch Linux
 Mint XFCE System Adjustments
 
 # cd /tmp
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/arch-system-adjustments-1.0-0-any.pkg.tar.xz
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/mint-artwork-xfce-1.0-0-any.pkg.tar.xz
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/mint-firefox-adjustments-1.0-0-any.pkg.tar.xz
-# pacman -U arch-system-adjustments-1.0-0-any.pkg.tar.xz
-# pacman -U mint-artwork-xfce-1.0-0-any.pkg.tar.xz
 # pacman -U mint-firefox-adjustments-1.0-0-any.pkg.tar.xz
 
 mintstick (Optional)
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/python2-pyparted-3.10.7-1-x86_64.pkg.tar.xz
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/mintstick-1.2.7-1-any.pkg.tar.xz
+# wget https://github.com/Mint-Fans/linux-package/raw/arch/mintstick-1.2.8-1-any.pkg.tar.xz
 # pacman -U python2-pyparted-3.10.7-1-x86_64.pkg.tar.xz
-# pacman -U mintstick-1.2.7-1-any.pkg.tar.xz
+# pacman -U mintstick-1.2.8-1-any.pkg.tar.xz
 
 mintnanny (Optional)
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/mintnanny-1.5.1-0-any.pkg.tar.xz
-# pacman -U mintnanny-1.5.1-0-any.pkg.tar.xz
+# wget https://github.com/Mint-Fans/linux-package/raw/arch/mintnanny-1.5.2-1-any.pkg.tar.xz
+# pacman -U mintnanny-1.5.2-1-any.pkg.tar.xz
 
 Plymouth Themes
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/plymouth-0.9.2-8-x86_64.pkg.tar.xz
-# pacman -U plymouth-0.9.2-8-x86_64.pkg.tar.xz
+# wget https://github.com/Mint-Fans/linux-package/raw/arch/plymouth-0.9.2-9-x86_64.pkg.tar.xz
+# pacman -U plymouth-0.9.2-9-x86_64.pkg.tar.xz
 
 mint-logo-aqua
 # wget https://github.com/Mint-Fans/linux-package/raw/arch/mint-logo-aqua-1.0-0-any.pkg.tar.xz
@@ -239,20 +233,8 @@ mint-logo-maya (Optional)
 # pacman -U mint-logo-maya-1.0-0-any.pkg.tar.xz
 
 xplayer (Optional)
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/xplayer-1.0.2-0-x86_64.pkg.tar.xz
-# pacman -U xplayer-1.0.2-0-x86_64.pkg.tar.xz
-
-xplayer-plugins (Optional)
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/xplayer-plugins-1.0.2-0-x86_64.pkg.tar.xz
-# pacman -U xplayer-plugins-1.0.2-0-x86_64.pkg.tar.xz
-
-xplayer-plugins-extra (Optional)
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/xplayer-plugins-extra-1.0.2-0-x86_64.pkg.tar.xz
-# pacman -U xplayer-plugins-extra-1.0.2-0-x86_64.pkg.tar.xz
-
-xplayer-mozilla (Optional)
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/xplayer-mozilla-1.0.2-0-x86_64.pkg.tar.xz
-# pacman -U xplayer-mozilla-1.0.2-0-x86_64.pkg.tar.xz
+# wget https://github.com/Mint-Fans/linux-package/raw/arch/xplayer-1.0.7-1-x86_64.pkg.tar.xz
+# pacman -U xplayer-1.0.7-1-x86_64.pkg.tar.xz
 
 ##########################################
 Display Manager (Optional)
@@ -260,8 +242,8 @@ Display Manager (Optional)
 MDM Display Manager
 ##########################################
 
-# wget https://github.com/Mint-Fans/linux-package/raw/arch/mdm-2.0.7-1-x86_64.pkg.tar.xz
-# pacman -U mdm-2.0.7-1-x86_64.pkg.tar.xz
+# wget https://github.com/Mint-Fans/linux-package/raw/arch/mdm-2.0.10-1-x86_64.pkg.tar.xz
+# pacman -U mdm-2.0.10-1-x86_64.pkg.tar.xz
 
 Automatic startup
 # systemctl enable mdm.service
